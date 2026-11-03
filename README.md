@@ -14,6 +14,8 @@ powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 
 ## 18 инструментов
 
+Короткая инструкция для первого запуска: [docs/quick-start.md](docs/quick-start.md).
+
 | Группа | Инструменты |
 | --- | --- |
 | CorelDRAW | `corel_status`, `corel_inspect_document`, `corel_create_document`, `corel_open_document`, `corel_save_document`, `corel_close_document` |
