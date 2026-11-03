@@ -1,29 +1,38 @@
-# CorelDRAW SDK v27
+# CorelDRAW SDK API 27
 
-Primary documentation: https://community.coreldraw.com/sdk/api/draw/27/
+Основной источник сигнатур: [CorelDRAW SDK 27](https://community.coreldraw.com/sdk/api/draw/27/). Проверяйте запросом Context7 для `/websites/community_coreldraw_sdk_api_draw` и явно указывайте API 27.
 
-Query Context7 with library `/websites/community_coreldraw_sdk_api_draw` and explicitly request version 27. The following signatures were checked during development; verify further methods before using them.
-
-| API | Signature / purpose |
+| API | Назначение |
 | --- | --- |
-| Application.CreateDocument | `Function CreateDocument() As Document` |
-| Application.OpenDocument | `Function OpenDocument(FileName As String, Optional CodePage As Integer = 0) As Document` |
-| GMSProjects.Create | `Function Create(Name As String, Optional ForAllUsers As Boolean = False, Optional FileName As String) As GMSProject` |
-| GMSManager.RunMacro | `Function RunMacro(ModuleName As String, MacroName As String, ByRef ParamArray Parameters() As Variant) As Variant` |
-| GMSProject.Unload | `Sub Unload()` |
-| Document.SaveAs | `Sub SaveAs(FileName As String, Optional Options As StructSaveAsOptions = Nothing)` |
-| Document.Close | Prompts on dirty documents; set Dirty=False only when discarding is intended |
-| Document.ExportEx | Returns an ExportFilter; configure it and call Finish |
-| Document.ExportBitmap | Typed VBA convenience call for bitmap export; returns an ExportFilter |
-| Page.BoundingBox | Returns a Rect for the whole page; pass as ExportBitmap's ExportArea to preserve page margins |
-| Document.PublishToPDF | Uses Document.PDFSettings; restore changed settings afterward |
-| Shape.StaticID | Shape identity stable during that shape's lifetime |
-| Document.FullFileName | File path where the document is saved; may be empty for new drawings |
-| Document.AddPages | `Function AddPages(NumberOfPages As Long) As Page` returns the first added page |
-| Page.CreateLayer | `Function CreateLayer(LayerName As String) As Layer` |
-| Shape.AddToSelection | `Sub AddToSelection()` |
-| ShapeRange.Move | `Sub Move(DeltaX As Double, DeltaY As Double)` in the document unit |
+| `Application.CreateDocument()` | Новый документ. |
+| `Application.OpenDocument(FileName, Optional CodePage)` | Открытие CDR. |
+| `Document.SaveAs(FileName, Optional StructSaveAsOptions)` / `Document.Close()` | Сохранение и закрытие документа. |
+| `Document.ExportEx` / `Document.ExportBitmap` | Фильтры экспорта; optional-параметры late-bound PowerShell ненадёжны, поэтому сервер использует типизированный VBA bridge. |
+| `Page.BoundingBox` | Границы страницы для экспорта с полями. |
+| `Page.CreateLayer(LayerName)` | Собственный слой рецепта. |
+| `Layer.CreateRectangle2(x,y,width,height)` / `CreateEllipse2` / `CreateArtisticText` | Создание объектов. |
+| `Shape.Duplicate(OffsetX,OffsetY)` | Дублирование со смещением. |
+| `Shape.Intersect(TargetShape, LeaveSource, LeaveTarget)` | Пересечение двух объектов. |
+| `Shape.Weld(TargetShape, LeaveSource, LeaveTarget)` | Объединение двух объектов; рецепты передают `True, True`, чтобы сохранить источники. |
+| `Shape.Trim(TargetShape, LeaveSource, LeaveTarget)` | Вычитание/обрезка источника резаком; рецепт возвращает IDs и размеры результата. |
+| `Shape.Move(dx,dy)`, `Rotate(angle)`, `SetSize(width,height)` | Преобразования. |
+| `Shape.ConvertToCurves`, `Shape.Curve`, `Curve.SubPaths`, `SubPath.Nodes` | Перевод в кривые и чтение узлов. |
+| `Shape.StaticID` | Стабильный ID shape в течение его жизни. Не глобальный ID документа. |
+| `ShapeRange.Move(dx,dy)`, `ShapeRange.Group()` | Работа с проверенным выделением и группировка собственного диапазона. |
+| `Application.CreateShapeRange()`, `ShapeRange.Add(shape)` | Диапазон без изменения пользовательского выделения. |
+| `Application.CreateRGBColor(r,g,b)` / `Shape.Fill.ApplyUniformFill` | RGB-оформление. |
+| `Text.Story` | Текст всех фреймов; после получения читайте `Text`. |
+| `Document.PublishToPDF` и `PDFSettings` | PDF с восстановлением изменённых настроек. |
+| `GMSProjects.Create`, `GMSProject.Unload`, `GMSManager.RunMacro` | Изолированный временный GMS worker-а. |
 
-CorelDRAW has no standalone compiler for its document/geometry types. The installed VBA editor and COM application are required. Compilation uses VBE Compile Project command ID 578, then verifies that it is disabled. A compiler dialog can block the desktop application on some installations.
+`corel_describe_api` читает typelib через `IDispatch.GetTypeInfo` и `ITypeInfo.GetContainingTypeLib`; вызовы методов, произвольные getters, expression chains и пути запрещены. Результат содержит GUID/major/minor/LCID библиотеки, типы, интерфейсы, методы, параметры, optional/default, flags, readonly и enum constants. Кеш ограничен жизнью worker-модуля.
 
-ExportBitmap and ExportEx optional parameters proved unreliable through Windows PowerShell 5.1's late-bound COM adapter on v27.2. PNG/SVG tools therefore compile a small native VBA bridge. They remain normal typed MCP tools to the caller.
+## Ограничения измерений
+
+`corel_measure_shapes` строит собственную копию, проверяет инвариант геометрии и измеряет плоские векторные объекты. Для кривых используется адаптивная аппроксимация с заданным `tolerance_mm`; граничная ошибка ≤ tolerance, ошибка размера ≤ 2×tolerance. Затем вычисляются convex hull и minimum-area rectangle (rotating calipers). Лимит — 200000 точек на весь запрос, tolerance не ухудшается молча. При невозможности копирования или неподдерживаемом эффекте возвращается явная ошибка.
+
+Не поддерживаются и явно отклоняются PowerClip, bitmap, lens, transparency, live effects и другие объекты без подтверждённого геометрического инварианта. Группа измеряется как один объект; occlusion другими объектами не учитывается. Исходный документ, Dirty/selection/history и установленные GMS должны остаться без изменений.
+
+## Экспорт
+
+`corel_export` принимает `png`, `svg`, `pdf`, `jpg`, `tiff`, `ai`, `eps`, `dxf`, `plt`. Диапазон `document` доступен только PDF; PDF не экспортирует selection. JPG/TIFF используют DPI 1–1200, цвет RGB/CMYK и документный профиль; JPG сжатие 0–100, TIFF `lzw|none`, `transparent=false` по умолчанию. AI/EPS сохраняют текст по умолчанию или переводят его в кривые; DXF/PLT используют кривые текста и сохраняют масштаб/координаты. PNG ограничен 40 МП. Экспорт создаёт staging-файл, затем атомарно публикует его; существующий файл требует `overwrite=true`.

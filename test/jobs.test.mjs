@@ -14,7 +14,7 @@ test('transport close lets an in-flight mutation finish and writes its report', 
   await Promise.resolve();
   jobs.close();
   assert.equal(closed, false);
-  assert.throws(() => jobs.submit('synthetic', {}), /shutting down/);
+  assert.throws(() => jobs.submit('synthetic', {}), /завершает работу/);
   finish({ ok: true, result: { changed: true } });
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(closed, true);
@@ -47,12 +47,12 @@ test('report and log failures keep the in-memory outcome and release the busy sl
   for (const path of [job.log_path, job.report_path]) { rmSync(path); mkdirSync(path); }
   progress('executing');
   assert.equal(jobs.get(job.job_id).stage, 'executing');
-  assert.throws(() => jobs.submit('synthetic', {}), /occupied/);
+  assert.throws(() => jobs.submit('synthetic', {}), /занят заданием/);
   finish({ ok: true, result: { changed: true } });
   await new Promise(resolve => setTimeout(resolve, 20));
   const completed = jobs.get(job.job_id);
   assert.equal(completed.status, 'succeeded');
-  assert(completed.warnings.some(warning => warning.includes('persist report')));
+  assert(completed.warnings.some(warning => warning.includes('сохранить отчёт')));
   assert.equal(jobs.submit('synthetic', { request_id: 'io-once' }).job_id, job.job_id);
   const next = jobs.submit('synthetic', {});
   await Promise.resolve(); finish({ ok: true });

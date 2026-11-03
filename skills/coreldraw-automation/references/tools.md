@@ -1,32 +1,48 @@
-# MCP tools and job results
+# Инструменты MCP и отчёты заданий
 
-All application tools return a job immediately. Read the report with `corel_get_job(job_id, wait_seconds=20)`; `include_preview=true` attaches a finished PNG preview. Reports are persisted even when the client disconnects while a COM call is running.
+Сервер возвращает `job_id` сразу после принятия вызова. Для результата вызывайте `corel_get_job(job_id, wait_seconds=20)`. Опрос читает сохранённый отчёт и не обращается к CorelDRAW. `include_preview=true` прикрепляет готовый PNG только для задания `corel_preview`.
 
-`corel_get_job` includes the last 50 log lines by default; use `log_lines=0` to omit them or up to 200 (bounded to 64 KiB). `log_path` identifies the complete local log. Status reports include executor process/STA details and the current optimization/events flags.
+## Инструменты
 
-| Tool | Required inputs | Optional inputs / defaults |
-| --- | --- | --- |
-| corel_status | none | deadline_seconds=600 |
-| corel_inspect_document | document_id | page_index=current, offset=0, limit=100 (max 500) |
-| corel_create_document | request_id | width_mm=210, height_mm=297 |
-| corel_open_document | request_id, path | existing .cdr, returns same ID if already open |
-| corel_save_document | request_id, document_id | path=current, overwrite=false |
-| corel_close_document | request_id, document_id | discard_changes=false |
-| corel_export | request_id, document_id, path, format | range=page, page_index=current, overwrite=false, dpi=150 |
-| corel_preview | document_id | page_index=current, max_size=1200 (64..2400) |
-| corel_build_vba | request_id, source_root | module_paths=all root .bas |
-| corel_execute_vba | request_id, document_id, code | Main() As String returns JSON |
+| Инструмент | Основные параметры и результат |
+| --- | --- |
+| `corel_status` | Состояние CorelDRAW 27, VBA, executor и точные `document_id`; `deadline_seconds` по умолчанию 600. |
+| `corel_inspect_document` | `document_id`; страница, `offset`/`limit` до 500, `recursive`, `max_depth` 1–32, `max_visited`, фильтры имени/типа/`static_ids`, `include_text`, `text_limit`. Возвращает DFS-объекты с `parent_static_id`, bounds в мм, rotation, appearance, reference point, выделение и причины усечения. |
+| `corel_create_document` | `request_id`, размеры `width_mm`/`height_mm` (по умолчанию 210×297), новый `document_id`. |
+| `corel_open_document` | `request_id`, абсолютный путь к `.cdr`; уже открытый файл возвращает его текущий ID. |
+| `corel_save_document` | `request_id`, `document_id`, необязательный `path`, `overwrite=false`; сохраняет только по явной команде. |
+| `corel_close_document` | `request_id`, `document_id`, `discard_changes=false`; закрывает документ, приложение не закрывает. |
+| `corel_export` | `request_id`, `document_id`, путь, `format`: `png`, `pdf`, `svg`, `jpg`, `tiff`, `ai`, `eps`, `dxf`, `plt`; `range=page|selection|document`. Документ целиком доступен только для PDF, выделение — кроме PDF. JPG допускает RGB/CMYK и сжатие 0–100; TIFF — RGB/CMYK, `lzw|none`, `transparent` и профиль документа; AI/EPS — `text_mode=preserve|curves`. PNG ограничен 40 МП. |
+| `corel_preview` | `document_id`, `range=page|selection`, `max_size` 64–2400 (по умолчанию 1200); PNG сохраняется в каталоге задания. |
+| `corel_build_vba` | `request_id`, `source_root`, необязательные относительные `module_paths`; компилирует стандартные UTF-8 `.bas` в отдельный GMS и не выполняет код. |
+| `corel_execute_vba` | `request_id`, `document_id`, полный модуль с `Public Function Main() As String`; компилирует, выполняет и проверяет, что результат — JSON. VBA имеет полный доступ к CorelDRAW и ОС. |
+| `corel_describe_api` | `kind=types|members|enum`, для `members`/`enum` — имя, `filter`, `offset`, `limit` до 200; отражение IDispatch/ITypeInfo API 27 без выражений, вызовов и getter-цепочек. |
+| `corel_measure_shapes` | `document_id`, текущая или заданная страница, `static_ids` либо проверенное выделение, `tolerance_mm` 0.001–1 (по умолчанию 0.01). Возвращает размеры объектов, aggregate minimum-area rectangle и `dimension_error_mm ≤ 2*tolerance_mm`. |
+| `corel_add_note` | Локальная запись `lesson|limitation|idea`, `text` до 4000 символов, необязательно `job_id`. Запись помечена `verified=false`, не исполняется и не изменяет скилл. |
+| `corel_export_diagnostics` | `request_id`, `job_id`, внешний абсолютный путь, `overwrite=false`; атомарный отчёт с разрешённым списком версий, времён, статусов, кодов cleanup и `diagnostic_id`. Пользовательские пути, код, текст, request ID, raw errors, result и имена исключены. |
+| `corel_list_artifacts` | Локальный список заданий: `bytes`, возраст, `protected`, причины защиты, `prune_token`, `details_pruned`. COM не вызывается. |
+| `corel_prune_artifacts` | `request_id`, массив `{job_id, prune_token}` до 100 элементов. Удаляет только подтверждённые внутренние артефакты; результат каждого кандидата отдельный. |
+| `corel_get_job` | `job_id`, `wait_seconds` до 20, `log_lines` 0–200, `include_preview`; читает отчёт без COM. |
+| `corel_guide` | Локальная справка `skill|tools|vba|api|recipes|pitfalls|install`, `offset`/`limit`; COM не вызывается. Те же тексты доступны как `coreldraw://guide/<topic>`. |
 
-All application operations accept `deadline_seconds` (1..3600). The deadline is observational, not cancellation. Polling a timed_out job returns immediately; space further checks reasonably while the user resolves the application state.
+## Состояния и повтор
 
-Inspection limits each array (shapes, pages, layers, selection_ids) to `limit` entries. Shape pagination uses offset/next_offset; metadata includes total counts and truncation flags. Use a higher limit or targeted VBA to inspect further metadata.
+Изменяющим вызовам нужен уникальный `request_id`. Повтор с теми же аргументами возвращает прежнее задание; изменение аргументов отклоняется. `running` означает, что вызов ещё выполняется. `timed_out` означает, что дедлайн наблюдения истёк, но COM продолжает работу. `unknown` означает потерю владельца или результата. Для `timed_out` и `unknown` повтор мутации запрещён: сначала проверьте CorelDRAW, документ и артефакты.
 
-Paths must be absolute Windows paths. File parents must already exist. Save/export extensions must match CDR or the selected format. Saving back to a document's own path is allowed; replacing another file requires overwrite=true. A path open in another document cannot be overwritten as CDR. An unsaved document needs a save path. Dirty documents cannot close without save or explicit discard.
+Значение `succeeded` с `cleanup.completed=false` означает, что действие выполнено, но восстановление состояния завершилось ошибкой. MCP помечает такой ответ ошибочным для внимания; повторять мутацию нельзя, пока результат не проверен. В `cleanup.errors` каждая ошибка содержит шаг, код и сообщение. Основная ошибка операции сохраняется отдельно от ошибок cleanup.
 
-PNG/SVG support page or selection; PDF supports page or document. Selection export requires selected objects on the current page. PNG export is limited to 40 megapixels. Preview renders a full page and writes inside the job directory. PDF/SVG use application filter defaults; detailed prepress settings can be set through task-specific VBA.
+Каждый отчёт содержит `run_directory`, `report_path`, `log_path`, `artifacts`, `warnings`, `stage`, `error`, `cleanup` и версии. `compiler_location` появляется только при фактически выбранном диапазоне компилятора. После очистки `details_pruned=true`, журнал и подробности недоступны.
 
-Build accepts 1..100 standard .bas modules, up to 2 MiB in total. `module_paths` are relative to source_root and cannot traverse junctions below that root. Module names must be unique ASCII VBA names of at most 31 characters. Files are UTF-8; Attribute VB_* lines are removed only in the loaded snapshot. Forms/classes are not supported. Execute accepts up to 256 KiB of source; the returned JSON is limited to 1 MiB.
+## Артефакты и диагностика
 
-Every report includes run_directory, report_path, log_path and artifacts. Errors include code, stage, number and source where available; compiler_location is populated only for an actual selected compiler error span. A normal editor caret is not a diagnostic. cleanup.completed=false requires attention even if the requested action succeeded.
+Внутренние задания находятся в `%LOCALAPPDATA%\CorelDrawMcp\runs` либо в каталоге `CORELDRAW_MCP_RUNS`. Внешние CDR, экспорты и путь диагностики не удаляются очисткой. `corel_list_artifacts` вычисляет SHA-256 fingerprint каталога и выдаёт `prune_token`; перед удалением токен проверяется повторно. Изменившийся файл даёт `ARTIFACTS_CHANGED`.
 
-The default artifact directory is `%LOCALAPPDATA%\CorelDrawMcp\runs`. For unknown outcomes inspect request.json, run.log, report.json and the retained project. Restarting the executor invalidates document IDs and does not undo geometry or file changes. The server never automatically repeats timed-out or orphaned requests.
+Нельзя очищать `running`, `timed_out`, `unknown`, задания с неполным cleanup или сохранённым GMS (`PROJECT_RETAINED`). Для каждой очистки сначала атомарно записывается компактный `report.json` с identity, fingerprint, статусом, кодами ошибки и `details_pruned=true`, затем удаляются исходные внутренние файлы. Резервация задания сохраняется, поэтому request ID не запускается заново. Ссылки, junction и reparse-точки запрещены; параллельная очистка получает `PRUNE_BUSY`.
+
+Путь диагностики должен находиться вне каталога служебных заданий. Отчёт не содержит исходный `request_id`, исходный код, пользовательские пути/имена, `result` или сырые тексты исключений. У старых отчётов без версии выводится `нет данных`.
+
+## Пути и VBA
+
+Все пути абсолютные Windows. Родительские каталоги должны существовать. Сохранение поверх другого файла и экспорт требуют `overwrite=true`; закрытие грязного документа требует сохранения либо `discard_changes=true`. Экспорт сначала создаёт промежуточный файл и публикует его после успешного фильтра.
+
+Сборка принимает 1–100 стандартных `.bas`, суммарно до 2 МиБ; пути модулей относительны `source_root`, имена ASCII и уникальны. Выполнение принимает до 256 КиБ исходника, JSON результата — до 1 МиБ. `.cls` и `.frm` не поддерживаются. UTF-8 snapshot сохраняется для диагностики; установленные GMS-проекты не изменяются.
