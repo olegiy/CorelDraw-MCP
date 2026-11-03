@@ -1,0 +1,6 @@
+interface:
+  display_name: "CorelDRAW Automation"
+  short_description: "CorelDRAW 27: drawings, exports and VBA automation"
+  default_prompt: "Use $coreldraw-automation to inspect my CorelDRAW drawing and complete the requested changes."
+policy:
+  allow_implicit_invocation: true
