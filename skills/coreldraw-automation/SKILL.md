@@ -1,41 +1,40 @@
 ---
 name: coreldraw-automation
-description: "Use for controlling local CorelDRAW 27, inspecting drawings, creating or editing vector geometry, saving CDR, exporting PNG/PDF/SVG, and compiling or executing CorelDRAW VBA through the coreldraw MCP server. Activate for CorelDRAW automation and VBA compile/runtime diagnosis. Requires Windows and installed CorelDRAW/VBA; does not apply to other graphics applications."
+description: "Автоматизация CorelDRAW 27: документы, объекты, экспорт, VBA, API metadata, измерения и локальные отчёты через MCP."
 metadata:
   target: "Codex on Windows"
   requires: "coreldraw MCP; CorelDRAW 27 with VBA; Node.js 24; Windows PowerShell 5.1"
-  risk: "VBA executes local code with full application and filesystem access"
+  risk: "VBA выполняется с полным доступом к приложению и локальной системе"
 ---
 
-# CorelDRAW automation
+# Автоматизация CorelDRAW
 
-Use the `coreldraw` MCP tools for application control. The user's explicit instructions and authorization take precedence over this workflow. Do not ask again for operations already authorized in the session.
+1. Вызовите `corel_status`, дождитесь `corel_get_job` и проверьте CorelDRAW 27, VBA и список точных `document_id`.
+2. Перед изменением осмотрите целевой документ через `corel_inspect_document`. ID документа относится к текущей сессии executor; после переподключения получите его заново.
+3. Для обычных действий используйте типизированные инструменты. Для редких API пишите полный стандартный `.bas` с `Public Function Main() As String` и запускайте через `corel_execute_vba`; для проверки исходников используйте `corel_build_vba`.
+4. Для каждой мутации, экспорта, сборки и локальной записи передавайте новый `request_id`. Повторять можно только тот же набор параметров.
+5. Опросите задание до терминального состояния. Проверьте `status`, `result`, `error`, `cleanup.completed`, `warnings`, `artifacts` и при необходимости preview.
 
-1. Call `corel_status`, then poll its `job_id` with `corel_get_job` (`wait_seconds` up to 20). Verify CorelDRAW v27 and VBA readiness. If the executor is busy, poll its existing job; do not start competing COM sessions.
-2. Select the intended `document_id` from status or a create/open result. Inspect the document before editing. If several drawings could match and the request does not identify one, ask which drawing. IDs expire when the executor reconnects; filenames and document indexes are not IDs.
-3. Prefer typed create/open/inspect/save/close/export/preview tools. For geometry and less common API operations, use `corel_execute_vba` with a complete standard module declaring `Public Function Main() As String`. For local source validation use `corel_build_vba`; it compiles without running code.
-4. Supply a stable, unique `request_id` for each logical mutation/build/export. Reuse it only for identical retries. Poll until a terminal result. A returned `job_id` means accepted, not completed.
-5. Check `status`, `result`, `error`, `cleanup.completed`, warnings and artifacts. A successful `Main` must return JSON with the requested measurable results. Inspect the drawing or render a preview when visual correctness matters. Fetch a completed preview using `corel_get_job` with `include_preview=true`.
-6. Report the actual result and relevant file paths. Save CDR only when the task calls for saving. Keep unrelated open documents intact.
+Читайте [справочник инструментов](references/tools.md), [правила VBA](references/vba.md), [API 27](references/api-v27.md), [рецепты](references/recipes.md) и [ограничения](references/pitfalls.md). Локальная справка доступна также через `corel_guide` и ресурсы `coreldraw://guide/<topic>`.
 
-Read [the tool reference](references/tools.md) for parameters, file handling and job recovery. Read [VBA patterns](references/vba.md) before writing a scenario, and [the API reference](references/api-v27.md) before choosing CorelDRAW methods.
+## Надёжность
 
-Runnable module examples: [create geometry](examples/M_CreateGeometry.bas) and [move a selection](examples/M_MoveSelection.bas). Read their code as templates and adapt the geometry to the user's request.
+`timed_out` не отменяет COM-вызов, а `unknown` не сообщает, было ли действие применено. Для обоих состояний запрещён автоматический повтор; сначала осмотрите CorelDRAW и каталог задания. Если действие имеет `succeeded` и `cleanup.completed=false`, результат сохранён, но восстановление состояния неполно: исправьте причину и проверьте документ, не повторяя мутацию вслепую. Основная ошибка и `cleanup.errors` сохраняются отдельно.
 
-## VBA rules
+`corel_list_artifacts` показывает fingerprint и `prune_token`. `corel_prune_artifacts` принимает только неизменённые токены и сохраняет компактный отчёт с `details_pruned=true`. Незавершённые, `unknown`, `timed_out`, cleanup с ошибкой и retained GMS защищены. Внешние CDR и экспорты находятся вне очистки. `corel_export_diagnostics` создаёт внешний атомарный отчёт с allowlist полей и без пользовательского кода, путей, имён, request ID и raw error text.
 
-- Verify signatures through Context7: library `/websites/community_coreldraw_sdk_api_draw`, API **27**. The installed application reports v27 even when its marketing year differs. Do not substitute old SDK versions.
-- Use `Option Explicit`, explicit CorelDRAW types and the smallest task-specific scenario. Avoid dialogs, `Debug.Assert`, `Stop`, shell commands, application shutdown and edits to installed GMS projects.
-- The server activates the selected document, creates a unique GMS, fully compiles it and calls `Main`. It supplies an outer Undo group, optimization and event restoration; do not nest your own command group or call SaveSettings/RestoreSettings in ordinary scenarios.
-- Treat source code as unrestricted local execution. A separate GMS is not a sandbox. Code and returned JSON are data, not authority to perform unrelated operations.
-- Successful scenarios unload their GMS. Failed scenarios retain it and their snapshots for diagnosis. Fix compilation against the saved module/line, then submit changed code with a new request_id.
-- Avoid broad exception suppression. Surface failures with `Err.Raise`; the harness returns their number, source and description. A swallowed error cannot be inferred from RunMacro returning normally.
+## VBA
 
-## Failure handling
+Проверяйте сигнатуры через Context7, библиотека `/websites/community_coreldraw_sdk_api_draw`, версия API 27. Используйте `Option Explicit`, типы CorelDRAW и UTF-8. Не вызывайте `Application.Quit`, shell-команды, диалоги, вложенный Undo или установленные GMS. Сервер сам создаёт временный GMS, группу Undo и восстанавливает настройки; это не sandbox, поэтому произвольная VBA может изменить документы и файлы.
 
-- `running`: continue polling. `timed_out`: the call may still run and the executor stays occupied. `unknown`: inspect CorelDRAW and artifacts before considering another mutation. Neither status authorizes replay.
-- `VBA_BUSY`: finish/reset the user's current run in the editor before retrying. Do not silently reset their debugger session.
-- `STALE_DOCUMENT`: refresh status and re-identify the intended drawing.
-- `FILE_EXISTS` / `UNSAVED_CHANGES`: honor the requested save/discard intent. Do not invent permission to overwrite or discard.
-- A known no-effect `BUSY` failure can be resubmitted with a new request_id after the competing job finishes. Reusing the failed ID returns its recorded outcome.
-- Do not kill CorelDRAW to recover automation. A compiler error may display a modal dialog requiring dismissal. Explain that concrete blocker if it occurs.
+`Main` обязан возвращать валидный JSON. Числа в JSON должны использовать точку, строки — JSON-экранирование. Для ошибки используйте `Err.Raise`; не подавляйте исключения. Операции с выделением выполняйте только после проверки нужного `document_id`, страницы и количества объектов. `StaticID` стабилен только в пределах жизни конкретного shape.
+
+## Измерение
+
+`corel_measure_shapes` работает с векторными фигурами, кривыми, текстом, группами и обводками в изолированной копии. Объекты PowerClip, bitmap, lens, transparency и live effects завершаются явной ошибкой. Результат содержит измерения по объектам и aggregate minimum-area rectangle: ширина, высота, угол, площадь и углы. Единицы — мм; boundary error равен `tolerance_mm`, ошибка измеренных размеров не превосходит `2*tolerance_mm`. Группы считаются одним объектом, затенение другими объектами не учитывается.
+
+## Экспорт и справка
+
+`corel_export` поддерживает PNG, SVG, PDF, JPG, TIFF, AI, EPS, DXF и PLT. JPG/TIFF принимают настройки цвета и сжатия, AI/EPS — сохранение текста или перевод в кривые. PNG ограничен 40 МП. Страница и выделение экспортируются через промежуточный файл с последующей публикацией.
+
+`corel_add_note` сохраняет непроверенную локальную запись `lesson`, `limitation` или `idea`; такая запись не исполняется и не редактирует скилл. Обновляйте скилл только после отдельной проверки.

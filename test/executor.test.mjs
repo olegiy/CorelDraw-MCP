@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { PowerShellExecutor } from '../dist/executor.js';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 function fixture() {
   const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), pid: 1 });
@@ -17,11 +20,11 @@ test('malformed worker output does not release an in-flight operation', { skip: 
   const { child, executor, emit, run } = fixture();
   const pending = run('first');
   child.stdout.write('not a protocol message\n');
-  await assert.rejects(run('second'), /already busy/);
+  await assert.rejects(run('second'), /уже занят/);
   emit({ type: 'result', job_id: 'first', data: { ok: true, result: { done: true } } });
   const result = await pending;
   assert.equal(result.ok, true);
-  assert(result.warnings.some(value => value.includes('malformed')));
+  assert(result.warnings.some(value => value.includes('Некорректный JSON')));
   const next = run('second');
   emit({ type: 'result', job_id: 'second', data: { ok: true } });
   await next;
@@ -41,5 +44,19 @@ test('VBA JSON is validated before cleanup and preserves arrays and null', { ski
     if (valid) assert.deepEqual(result.result.value, JSON.parse(json));
     else assert.equal(result.cleanup.project_retained, true);
   }
+  executor.close(); child.emit('exit', 0);
+});
+test('measurement postprocessing checks artifact path and parses bounded vector snapshot', { skip: process.platform !== 'win32' }, async () => {
+  const { child, executor, emit } = fixture();
+  const directory = mkdtempSync(join(tmpdir(), 'corelmcp-measure-'));
+  const path = join(directory, 'geometry.json');
+  writeFileSync(path, JSON.stringify({ objects: [{ static_id: 7, segments: [{ kind: 'line', p0: { x: 0, y: 0 }, p1: { x: 20, y: 0 } }, { kind: 'line', p0: { x: 20, y: 0 }, p1: { x: 20, y: 10 } }, { kind: 'line', p0: { x: 20, y: 10 }, p1: { x: 0, y: 10 } }] }] }));
+  const pending = executor.run({ job_id: 'measure', tool: 'corel_measure_shapes', run_directory: directory }, { tolerance_mm: .01 }, () => {});
+  emit({ type: 'result', job_id: 'measure', data: { ok: true, result: { snapshot_path: path }, artifacts: [path], cleanup: { completed: true } } });
+  const result = await pending;
+  assert.equal(result.ok, true); assert.equal(result.result.objects[0].rectangle.width_mm, 20); assert.equal(result.result.aggregate.min_width_mm, 10);
+  const invalid = executor.run({ job_id: 'outside', tool: 'corel_measure_shapes', run_directory: join(directory, 'nested') }, {}, () => {});
+  emit({ type: 'result', job_id: 'outside', data: { ok: true, result: { snapshot_path: path }, artifacts: [path] } });
+  assert.equal((await invalid).error.code, 'GEOMETRY_INVALID_PATH');
   executor.close(); child.emit('exit', 0);
 });

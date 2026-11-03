@@ -15,6 +15,7 @@ export interface WorkerResult {
   compiler_location?: Record<string, unknown> | null;
   artifacts?: string[];
   warnings?: string[];
+  versions?: Record<string, string>;
 }
 export interface Job {
   job_id: string;
@@ -38,11 +39,19 @@ export interface Job {
   compiler_location?: Record<string, unknown> | null;
   artifacts: string[];
   warnings: string[];
+  versions?: Record<string, string>;
+  details_pruned?: boolean;
+  pruned_inventory?: { token: string; bytes: number };
 }
 export interface Executor {
   run(job: Job, args: Arguments, progress: (stage: string) => void): Promise<WorkerResult>;
   close(): void;
 }
 export class AutomationFailure extends Error {
-  constructor(public code: string, message: string) { super(message); }
+  constructor(
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }

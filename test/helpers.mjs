@@ -16,7 +16,9 @@ export async function connect({ runs, fixture = false } = {}) {
   return { client, transport, stderr: () => stderr, close: () => client.close() };
 }
 export function data(result) {
-  return result.structuredContent ?? JSON.parse(result.content.find(block => block.type === 'text').text);
+  if (result.structuredContent) return result.structuredContent;
+  const text = result.content.find(block => block.type === 'text')?.text ?? '';
+  try { return JSON.parse(text); } catch { return { error: { code: 'MCP_INPUT_ERROR', message: text } }; }
 }
 export async function call(session, name, args = {}) {
   return data(await session.client.callTool({ name, arguments: args }));

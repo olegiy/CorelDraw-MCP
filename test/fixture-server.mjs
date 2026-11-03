@@ -11,6 +11,7 @@ const fixture = {
     if (args.code === 'lose executor') throw new Error('Synthetic executor loss');
     if (args.code === 'delay') await delay(1400);
     if (args.code === 'fail') return { ok: false, error: { code: 'VBA_RUNTIME_ERROR', stage: 'executing_vba', message: 'Synthetic failure', number: 123 } };
+    if (args.code === 'cleanup fail') return { ok: true, result: { applied: true }, cleanup: { completed: false, errors: [{ step: 'fixture', code: 'CLEANUP_FAILED', message: 'Не удалось восстановить настройку' }] } };
     if (job.tool === 'corel_preview') {
       const path = join(job.run_directory, 'preview.png');
       writeFileSync(path, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/vYEAAAAASUVORK5CYII=', 'base64'));

@@ -1,17 +1,35 @@
-# Architecture
+# Архитектура
 
-`src/server.ts` registers the 11 MCP tools with Zod input validation using SDK v2. `serveStdio` negotiates the protocol with both current and legacy clients. No HTTP service, listener or credentials are needed. All stdout bytes belong to MCP.
+Codex общается по stdio с TypeScript MCP-сервером. `src/tools.ts` задаёт строгие схемы Zod, `src/server.ts` регистрирует 18 инструментов и семь локальных ресурсов справки. В stdout разрешён только MCP; служебные сообщения уходят в stderr.
 
-`JobManager` persists each request and outcome atomically via temporary report + rename. Mutation IDs are SHA-256 of request_id; a separate canonical argument fingerprint detects conflicting reuse. Directory creation reserves an ID across server processes sharing the run root. A lost owner is reported unknown and its request is never replayed. Concurrent readers poll disk without touching COM. Each server has one active slot; a timed-out operation retains that slot until the executor responds.
+`JobManager` атомарно сохраняет запросы и outcomes. Mutation ID строится из SHA-256 `request_id`; отдельный canonical fingerprint различает конфликт аргументов. Каталог задания — durable reservation. Потерянный владелец даёт `unknown`, автоматического replay нет. Polling читает диск и не вызывает COM. Дедлайн наблюдения не отменяет работающий COM-вызов.
 
-`PowerShellExecutor` lazily starts one hidden `powershell.exe -NoProfile -NonInteractive -STA` process. Arguments are arrays, no shell evaluation. UTF-8 JSON lines carry commands/progress/results. The executor has a bounded input schema and application-level 1 MiB VBA result limit. The worker imports a standalone module and handles commands on its one STA thread. A `Local\CorelDrawMcp_v27` mutex spans every application operation, including compilation and cleanup. Normal pipe EOF lets an in-flight command finish; CorelDRAW is never quit.
+`PowerShellExecutor` запускает один скрытый Windows PowerShell 5.1 `-STA`. Параметры передаются массивом аргументов и UTF-8 JSON-lines, без shell evaluation. Один именованный mutex `Local\CorelDrawMcp_v27` охватывает подключение, операции и cleanup. Закрытие транспорта позволяет текущему вызову завершиться; `Application.Quit` не вызывается.
 
-Document IDs combine a worker session UUID and a document UUID. The worker compares COM IUnknown identities against the currently open Documents collection, keeping IDs stable across active-document switches and saves. Closed documents disappear; reconnecting clears the registry. File paths and page indexes are never used as document identities.
+`document_id` включает UUID сессии worker и UUID документа. Worker сопоставляет IUnknown identity с открытыми документами; закрытые документы удаляются из registry, reconnect меняет сессию. Для объектов используется `Shape.StaticID`, а не порядковый индекс.
 
-VBA build snapshots UTF-8 standard modules, removes exported Attribute VB_* lines in the snapshot, creates a unique GMS and locates its VBProject by generated name. CodeModule.AddFromString avoids ANSI import corruption. Compile command 578 runs against that exact active project. Its new panes start with empty selections; only a subsequent nonempty span in those panes becomes compiler_location. The engine reads the target project's panes directly because Corel's VBE ActiveCodePane can remain pointed at an earlier failed GMS.
+## VBA и экспорт
 
-Execution adds a typed VBA harness. It calls Main and returns either an OK marker plus JSON or an ERROR marker plus Err.Number, Source and Description. Before unloading the GMS, the worker asks the Node host to validate the raw string with JSON.parse and waits for acknowledgement. The raw string crosses IPC intact so PowerShell 5.1 cannot unwrap singleton/empty arrays or lose null values. Invalid JSON retains its diagnostic GMS. PowerShell independently restores the document settings, PreserveSelection, Optimization and EventsEnabled, and closes the outer Undo group. Arbitrary VBA can still invalidate a document, start nested groups, suppress its own errors or modify external files; cleanup is best effort and explicitly reported.
+Snapshot `.bas` читается как UTF-8, `Attribute VB_*` удаляется только в snapshot, код загружается через `CodeModule.AddFromString`. Worker создаёт уникальный временный GMS и выбирает его VBProject. Compile command 578 применяется к нему; `compiler_location` берётся из реально выделенного error span. `Main` возвращает JSON через typed harness; Node проверяет JSON до выгрузки GMS. Массивы и null передаются как raw JSON без PowerShell-unwrapping.
 
-On v27.2, Windows PowerShell's late-bound adapter fails marshalling ExportBitmap/ExportEx optional interface and Boolean parameters. PNG/SVG therefore use generated typed VBA through the same isolated engine. Page PNG/preview passes Page.BoundingBox as ExportArea, since cdrCurrentPage alone crops bitmap output to the content. PDF uses PublishToPDF and restores PublishRange/PageRange. Files are staged beside the destination and committed with Move or Replace only after the export succeeds. This prevents replacing an existing export with an incomplete filter result; CDR SaveAs is a native application save operation rather than a transaction.
+Cleanup независимо восстанавливает настройки документа, выделение, Undo, оптимизацию, события, страницу и активный документ. Primary error сохраняется отдельно от `cleanup.errors`. `succeeded` плюс `cleanup.completed=false` даёт MCP `isError=true`, сохраняя outcome; это не повод повторять мутацию.
 
-The skill is versioned inside this project and discovered globally through a Windows junction. The installer delegates config parsing/writing to `codex mcp`, backs up the user TOML file, and refuses an unrelated existing name or skill path. Its local stdio dependency is registered by the installer rather than auto-installed from portable skill metadata, since its command needs the absolute project path. Moving the project requires removing its old registration/junction before reinstallation at the new location.
+Экспорт использует staging-файл рядом с назначением; публикация происходит после успешного Finish. PDF использует PublishToPDF с восстановлением PublishRange/PageRange. Прочие форматы используют типизированный VBA bridge из-за late-bound COM optional parameters. Для AI/EPS text curves и DXF/PLT создаётся собственный временный документ, копии проверяются на geometry invariant. Внешние CDR/экспорты не являются служебными артефактами для prune.
+
+## Чтение API и измерение
+
+`ApiMetadata.cs` получает `ITypeInfo` только через `IDispatch.GetTypeInfo`, затем содержащую typelib. Он читает типы, descriptors, default incoming interface coclass, aliases, inherited interfaces, enum constants и параметры функций; `Invoke` и произвольных getters в этом пути нет. Кеш индексируется GUID/major/minor/LCID и живёт в worker-модуле. Дескрипторы освобождаются в finally; Application не освобождается модулем.
+
+Измерение создаёт изолированную копию в собственном временном документе, проверяет геометрию и получает line/cubic segments. TypeScript выполняет de Casteljau flattening, convex hull и rotating calipers. Лимит 200000 точек; `boundary_error_mm=tolerance_mm`, `dimension_error_mm≤2*tolerance_mm`. Неподдерживаемые эффекты завершаются явной ошибкой, частичного успеха нет. Исходный документ не должен менять Dirty, selection и history.
+
+## Локальные операции
+
+Guide и ресурсы читают одни Markdown-файлы без COM, в том числе пока worker занят. Notes атомарно сохраняются в `root/notes` как непроверенные данные; они не исполняются и не изменяют скилл.
+
+Diagnostics строится по allowlist: версии/время/статус/коды/cleanup и хешированный diagnostic ID. Исходный request ID, пользовательские paths/names/code/text/result и raw errors исключаются. Публикация атомарна и требует внешний путь.
+
+Artifact inventory считает SHA-256 файлов, bytes и fingerprint. Protected outcomes не очищаются. Prune повторно проверяет токен и блокирует `.prune-lock`, затем сначала сохраняет компактный durable report (`details_pruned=true`, identity/fingerprint/outcome/error codes), после чего удаляет внутренние файлы. Reservation остаётся, повтор request ID не выполняет действие заново; при ошибке удаления возможна частичная очистка, итог сообщает результат каждого кандидата. Для отката подробностей автоматического восстановления нет: удаление явно запрошено. Junction/reparse traversal запрещён.
+
+## Установка
+
+Скилл хранится в репозитории и доступен глобально через Windows junction. Установщик делегирует конфигурацию `codex mcp`, сохраняет резервную копию config и отказывается перезаписывать чужие имена. Перенос проекта требует явной новой регистрации. Регистрация и переустановка не выполняются при обычной проверке документации.

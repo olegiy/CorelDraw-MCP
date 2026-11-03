@@ -1,117 +1,62 @@
 # corel-mcp
 
-Локальный MCP-сервер для **CorelDRAW 27**: документы CDR, просмотр объектов, PNG/PDF/SVG, компиляция и выполнение VBA. Глобальный скилл `coreldraw-automation` объясняет Codex порядок работы с инструментами.
+Локальный MCP-сервер для **CorelDRAW 27**: документы CDR, ограниченная инспекция объектов, измерения геометрии, экспорт, VBA и безопасное чтение typelib. Все пользовательские сообщения и отчёты — на русском.
 
-Архитектура: Codex → MCP по stdio на TypeScript → постоянный Windows PowerShell 5.1 STA → COM/VBE CorelDRAW.
+## Установка
 
-## Требования и установка
-
-- Windows с интерактивной пользовательской сессией.
-- Node.js **24**, npm и Codex CLI в PATH.
-- CorelDRAW **27** с установленным VBA и разрешённым доступом к объектной модели редактора. Сервер не меняет настройки безопасности приложения.
-- Windows PowerShell **5.1** (`powershell.exe`); исполнитель сам запускается с `-STA`.
-
-Из корня проекта:
+Требуются Windows с интерактивной сессией, Node.js 24, Codex CLI, CorelDRAW 27 с VBA и Windows PowerShell 5.1. Из корня проекта выполните:
 
 ```powershell
 powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 ```
 
-Установщик выполнит `npm ci --ignore-scripts`, сборку, зарегистрирует `coreldraw` в пользовательском конфиге Codex и создаст junction:
+Установщик выполнит `npm ci --ignore-scripts`, сборку, регистрацию `coreldraw` и junction глобального скилла `coreldraw-automation`. Перед изменением Codex config создаётся резервная копия. Несвязанные MCP-записи и чужой каталог скилла не перезаписываются. Удаление выполняется тем же скриптом с `-Uninstall`; исходники, документы и артефакты сохраняются.
 
-```text
-%USERPROFILE%\.agents\skills\coreldraw-automation
-  → <каталог проекта>\skills\coreldraw-automation
-```
+## 18 инструментов
 
-Перед изменением конфигурации создаётся файл `config.toml.corelmcp-<время>.bak`. Чужие записи MCP и каталоги с совпадающим именем не перезаписываются. Повторная установка для этого же проекта допустима. Для уже собранного проекта можно использовать `-SkipBuild` или `npm run install:codex`.
-
-Откройте новую сессию Codex и вызовите **`$coreldraw-automation`**. Примеры запросов: «Покажи открытые документы CorelDRAW», «Сделай PNG-превью второй страницы», «Скомпилируй VBA-модули из этой папки».
-
-Проверка регистрации:
-
-```powershell
-codex mcp get coreldraw
-```
-
-Сервер запускается абсолютной командой `node <проект>\dist\index.js`, поэтому рабочая папка сессии может быть любой. Конфигурация Codex хранится в `%USERPROFILE%\.codex\config.toml` либо в каталоге, указанном существующей переменной `CODEX_HOME`. Скилл следует за обновлениями исходного проекта через junction.
-
-## Инструменты
-
-| Инструмент | Действие |
+| Группа | Инструменты |
 | --- | --- |
-| `corel_status` | Подключение, версия CorelDRAW, доступность VBA, открытые документы |
-| `corel_inspect_document` | Страницы, слои, выделение и ограниченная порция объектов со StaticID |
-| `corel_create_document` / `corel_open_document` | Новый документ в мм / открытие CDR |
-| `corel_save_document` / `corel_close_document` | Явное сохранение / закрытие |
-| `corel_export` | PNG/SVG страницы или выделения, PDF страницы или документа |
-| `corel_preview` | PNG страницы до 1200 пикселей по большей стороне по умолчанию |
-| `corel_build_vba` | Полная компиляция стандартных UTF-8 `.bas` в отдельном GMS |
-| `corel_execute_vba` | Компиляция и выполнение `Public Function Main() As String`, возвращающей JSON |
-| `corel_get_job` | Состояние, результат, ошибки, файлы и при необходимости изображение preview |
+| CorelDRAW | `corel_status`, `corel_inspect_document`, `corel_create_document`, `corel_open_document`, `corel_save_document`, `corel_close_document` |
+| Экспорт | `corel_export` (PNG/SVG/PDF/JPG/TIFF/AI/EPS/DXF/PLT), `corel_preview` |
+| VBA/API | `corel_build_vba`, `corel_execute_vba`, `corel_describe_api`, `corel_measure_shapes` |
+| Локальные операции | `corel_add_note`, `corel_export_diagnostics`, `corel_list_artifacts`, `corel_prune_artifacts` |
+| Отчёты и справка | `corel_get_job`, `corel_guide`; ресурсы `coreldraw://guide/<topic>` |
 
-Все COM-инструменты возвращают `job_id` немедленно. Затем вызывайте:
+Все COM-вызовы возвращают `job_id`. Используйте `corel_get_job` с `wait_seconds` до 20; polling не вызывает COM. Схемы и ограничения доступны через MCP `tools/list` и [справочник инструментов](skills/coreldraw-automation/references/tools.md).
 
-```json
-{"job_id":"<полученный идентификатор>","wait_seconds":20}
-```
+## Повтор, cleanup и unknown
 
-Для просмотра готового preview добавьте `"include_preview": true`. Последние 50 строк журнала включаются по умолчанию; `log_lines` позволяет запросить 0–200 строк. Схемы доступны через MCP `tools/list`; подробные параметры — в [справочнике инструментов](skills/coreldraw-automation/references/tools.md).
+Изменения требуют `request_id`; одинаковый ID с другими параметрами отклоняется. `timed_out` и `unknown` не разрешают повтор мутации. Если `succeeded` сопровождается `cleanup.completed=false`, действие уже применено, но восстановление состояния неполно; сохранены основная ошибка, `cleanup.errors`, предупреждения и артефакты. Проверьте документ и состояние приложения, затем исправьте cleanup без повторного изменения.
 
-Пример сценария для `corel_execute_vba`:
+Артефакты находятся в `%LOCALAPPDATA%\CorelDrawMcp\runs` либо `CORELDRAW_MCP_RUNS`. `corel_list_artifacts` возвращает bytes/возраст/защиту и `prune_token`. `corel_prune_artifacts` удаляет только внутренние файлы с неизменённым токеном; unknown, timed_out, незавершённые, cleanup с ошибкой и retained GMS защищены. Перед удалением сохраняется компактный report с `details_pruned=true`; reservation/request ID остаётся, поэтому повтор не запускается. Внешние CDR/экспорты сохраняются. `corel_export_diagnostics` пишет внешний атомарный allowlist-отчёт без кода, путей, имён, request ID, result и raw error text.
 
-```vba
-Option Explicit
-Public Function Main() As String
-    Dim s As Shape
-    ActiveDocument.Unit = cdrMillimeter
-    Set s = ActiveLayer.CreateRectangle2(10, 10, 40, 25)
-    s.Fill.ApplyUniformFill CreateRGBColor(45, 125, 230)
-    Main = "{""created"":true,""static_id"":" & CStr(s.StaticID) & "}"
-End Function
-```
+## Измерения и экспорт
 
-Целевой документ указывается через `document_id`, полученный в этой сессии исполнителя. Сценарий выполняется в отдельном GMS; установленный VBA-проект не редактируется. Обвязка предоставляет группу Undo и восстанавливает настройки, оптимизацию и события. **VBA имеет полный доступ к приложению и локальной системе; GMS не является sandbox.** Произвольные изменения геометрии и файлов автоматически не откатываются.
+`corel_measure_shapes` измеряет векторные фигуры в изолированной копии: per-object и aggregate minimum-area rectangle в мм. `boundary_error_mm=tolerance_mm`, `dimension_error_mm≤2*tolerance_mm`; лимит 200000 точек. PowerClip, bitmap, lens, transparency и live effects возвращают явную ошибку. Группы считаются одним объектом, occlusion не учитывается.
 
-## Надёжность и восстановление
+`corel_export` поддерживает девять форматов, страницы/выделение и PDF-документ. JPG/TIFF принимают RGB/CMYK, DPI и профиль; JPG compression, TIFF LZW/none и transparency. AI/EPS сохраняют текст или используют кривые. PNG ограничен 40 МП; экспорт идёт через staging и требует `overwrite=true` для существующего пути.
 
-- Для изменяющих операций нужен `request_id`. Повтор с теми же параметрами возвращает прежнее задание, включая сохранённый результат после перезапуска сервера. Другие параметры с тем же ID отвергаются.
-- Один исполнитель выполняет операции последовательно; именованный Windows mutex исключает пересечение с другими экземплярами. `BUSY` означает, что нужно дождаться существующего задания.
-- Статусы: `running`, `succeeded`, `failed`, `timed_out`, `unknown`. Дедлайн по умолчанию 600 секунд; допустимо 1–3600. Истечение дедлайна **не отменяет COM-вызов**: исполнитель остаётся занят, поздний результат записывается в отчёт.
-- После `unknown` сначала проверьте CorelDRAW и артефакты. Не повторяйте изменение вслепую. Перезапуск исполнителя аннулирует его `document_id`; получите свежий список документов.
-- После `VBA_BUSY` завершите или сбросьте текущий запуск в редакторе. Компилятор иногда показывает модальный диалог: закройте именно этот диалог и повторно проверьте задание. Не завершайте CorelDRAW принудительно.
-- При закрытии MCP-соединения текущая операция завершается и записывает отчёт, затем PowerShell закрывается без `Application.Quit`.
-- Если операция уже завершилась, но долго не отвечает транспорт, закройте соответствующую MCP-сессию и откройте новую. При живом старом исполнителе mutex продолжит защищать приложение.
-- `cleanup.completed=false` требует проверки предупреждений, даже если основное действие завершилось успешно.
+## VBA и документация
 
-Артефакты: `%LOCALAPPDATA%\CorelDrawMcp\runs\<job_id>\`. В каталоге находятся `request.json`, `report.json`, `run.log`, снимки модулей и GMS/preview. Код и параметры запросов сохраняются локально; удаляйте старые артефакты вручную после проверки. При ошибке GMS остаётся загруженным, при успехе выгружается.
+VBA выполняется в отдельном временном GMS с внешней Undo-группой, восстановлением настроек и событий. Это не sandbox: код имеет полный доступ к CorelDRAW и ОС. Установленные GMS не редактируются. Используйте `Option Explicit`, `Main() As String`, валидный JSON, `Err.Raise`, точные document ID и StaticID. Не вызывайте `Application.Quit`, shell, диалоги или вложенный Undo.
 
-CDR сохраняется только по явной команде. Сохранение поверх другого файла требует `overwrite=true`; закрытие несохранённых изменений — предварительного сохранения либо `discard_changes=true`. Экспорт сначала создаёт промежуточный файл в папке назначения, затем переносит результат.
+- [Скилл](skills/coreldraw-automation/SKILL.md)
+- [Инструменты](skills/coreldraw-automation/references/tools.md)
+- [VBA](skills/coreldraw-automation/references/vba.md)
+- [API 27](skills/coreldraw-automation/references/api-v27.md)
+- [Рецепты](skills/coreldraw-automation/references/recipes.md)
+- [Подводные камни](skills/coreldraw-automation/references/pitfalls.md)
+- [Архитектура](docs/architecture.md)
 
-Не переключайте и не редактируйте документы вручную во время задания: mutex координирует экземпляры сервера, а не действия пользователя в GUI. Диалоги открытия/экспорта и VBA могут потребовать вмешательства. Полностью безоконный серверный запуск не поддерживается.
-
-Переменные запуска: `CORELDRAW_MCP_RUNS` — абсолютный альтернативный каталог артефактов; `CORELDRAW_MCP_PROGID` — COM ProgID, по умолчанию `CorelDRAW.Application.27` (проверка версии 27 сохраняется).
-
-## Разработка, проверка и обновление
+## Проверка
 
 ```powershell
 npm ci --ignore-scripts
 npm test
 npm run test:integration
+node test/integration-extended.mjs
 ```
 
-`npm test` проверяет MCP через настоящий stdio-клиент с синтетическим исполнителем, менеджер заданий и межпроцессный mutex Windows. `test:integration` использует настоящий CorelDRAW, собственные временные документы и каталоги; после тестов документы закрываются. Диагностические GMS от намеренных ошибок сохраняются. Прогоны записывают `verification.json` в собственный каталог `%LOCALAPPDATA%\CorelDrawMcp-integration-*`.
+`npm test` проверяет stdio, схемы, idempotency, mutex, отчёты и синтетический worker. `npm run test:integration` использует только временные документы и сохраняет диагностику. Не утверждайте live-проверку CorelDRAW, пока не просмотрен фактический `verification.json`.
 
-Результаты проверки версии 0.1.0: **13 автотестов и 19 интеграционных сценариев**, регистрация и вызовы MCP из новой сессии Codex — [отчёт проверки](docs/verification.md).
-
-При обновлении исходников выполните `npm ci --ignore-scripts` и `npm run build`, затем перезапустите MCP-сессию после завершения активного задания. Переустановка junction не нужна. Сигнатуры API проверяются через Context7 для версии **27**: [SDK](https://community.coreldraw.com/sdk/api/draw/27/).
-
-Удалить регистрацию и junction:
-
-```powershell
-powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1 -Uninstall
-```
-
-Исходный проект, документы и артефакты запусков остаются на диске. Другие MCP-серверы и скиллы сохраняются.
-
-Первая версия работает со стандартными `.bas`-модулями; `.cls` и `.frm` не поддерживаются. PDF/SVG используют текущие параметры фильтров приложения; специализированные настройки задаются через VBA. Для PNG действует ограничение 40 мегапикселей. Подробности внутреннего устройства — в [architecture.md](docs/architecture.md).
+Результаты версии 0.2.0: [отчёт проверки](docs/verification-0.2.0.md). Векторный PLT использует 1000 единиц/дюйм для согласованного физического масштаба при повторном импорте; это не настройка оборудования.

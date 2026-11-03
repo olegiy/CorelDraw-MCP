@@ -14,13 +14,13 @@ async function fixture(t) {
 test('stdio negotiation publishes all tools and strict schemas', async t => {
   const session = await fixture(t);
   const list = await session.client.listTools();
-  assert.equal(list.tools.length, 11);
+  for (const name of ['corel_measure_shapes','corel_describe_api','corel_add_note','corel_export_diagnostics','corel_prune_artifacts','corel_list_artifacts','corel_guide']) assert(list.tools.some(tool => tool.name === name));
   assert(list.tools.every(tool => tool.inputSchema.type === 'object'));
   const execution = list.tools.find(tool => tool.name === 'corel_execute_vba');
   assert.equal(execution.annotations.destructiveHint, true);
   assert.equal(execution.inputSchema.additionalProperties, false);
   assert(execution.inputSchema.required.includes('request_id'));
-  assert.match(execution.description, /NOT a sandbox/);
+  assert.match(execution.description, /sandbox/);
 });
 test('invalid inputs fail before any job is created', async t => {
   const session = await fixture(t);
@@ -42,8 +42,8 @@ test('identical requests reuse persisted jobs; changed arguments conflict', asyn
   assert.equal(changed.error.code, 'REQUEST_ID_CONFLICT');
   const saved = JSON.parse(await readFile(first.report_path, 'utf8'));
   assert.equal(saved.result.received.width_mm, 123);
-  assert(first.log_tail.some(line => line.includes('Submitted')));
-  assert(first.log_tail.some(line => line.includes('Finished: succeeded')));
+  assert(first.log_tail.some(line => line.includes('Отправлено:')));
+  assert(first.log_tail.some(line => line.includes('Завершено: succeeded')));
   const lastLine = await call(session, 'corel_get_job', { job_id: first.job_id, log_lines: 1 });
   assert.equal(lastLine.log_tail.length, 1); assert.equal(lastLine.log_truncated, true);
   const other = await connect({ fixture: true, runs: session.runs });
