@@ -8,6 +8,7 @@ import { guide, guideTopics, readGuide } from './guides.js';
 import { LocalOperations } from './local-operations.js';
 import { VERSION } from './version.js';
 import { assertNoLinks } from './artifacts.js';
+import type { ToolPolicy } from './config.js';
 
 function response(data: object, failed = false): CallToolResult {
   return {
@@ -56,7 +57,7 @@ function safeJobLog(job: { log_path: string; run_directory: string }, limit: num
   }
   return logTail(job.log_path, limit);
 }
-export function createServer(jobs: JobManager): McpServer {
+export function createServer(jobs: JobManager, policy?: ToolPolicy): McpServer {
   const local = new LocalOperations(jobs);
   const server = new McpServer(
     { name: 'coreldraw', version: VERSION },
@@ -67,6 +68,7 @@ export function createServer(jobs: JobManager): McpServer {
   );
   for (const [name, definition] of Object.entries(toolDefinitions)) {
     if (name === 'corel_list_artifacts') continue;
+    if (policy && !policy.isEnabled(name)) continue;
     server.registerTool(
       name,
       {

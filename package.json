@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "npm run build && node --test test/*.test.mjs",
+    "check:contracts": "node scripts/check-contracts.mjs",
     "test:integration": "npm run build && node test/integration.mjs",
     "install:codex": "node scripts/install-codex.mjs",
     "uninstall:codex": "node scripts/install-codex.mjs --uninstall"

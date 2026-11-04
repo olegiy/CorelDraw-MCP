@@ -192,12 +192,18 @@ export const toolDefinitions: Record<string, Definition> = {
     schema: z.strictObject({
       ...document,
       page_index: pageIndex.optional(),
-      range: z.enum(['page', 'selection']).default('page'),
+      target: z.enum(['page', 'selection']).optional(),
+      range: z.enum(['page', 'selection']).optional(),
       max_size: z.number().int().min(64).max(2400).default(1200),
       ...deadline,
-    }),
+    })
+      .superRefine((args, ctx) => {
+        if (args.target !== undefined && args.range !== undefined && args.target !== args.range)
+          ctx.addIssue({ code: 'custom', path: ['target'], message: 'target и legacy range должны совпадать.' });
+      })
+      .transform((args) => ({ ...args, target: args.target ?? args.range ?? 'page' })),
     readOnly: true,
-    description: 'PNG-превью страницы или выделения. Получить изображение через corel_get_job.',
+    description: 'PNG-превью страницы или выделения (`target=page|selection`). Получить изображение через corel_get_job.',
   },
   corel_build_vba: {
     schema: z.strictObject({

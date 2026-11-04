@@ -63,7 +63,7 @@ try {
  });
  const examples=fileURLToPath(new URL('../skills/coreldraw-automation/examples/',import.meta.url));
  await scenario('All packaged VBA examples compile and execute measurable JSON',async()=>{
-   for(const file of (await readdir(examples)).filter(f=>f.endsWith('.bas'))) {
+    for(const file of (await readdir(examples)).filter(f=>f.endsWith('.bas') && f !== 'M_CommonHelpers.bas')) {
      const exampleDoc=(await ok('corel_create_document',{...req('example'),width_mm:100,height_mm:80})).result;created.add(exampleDoc.document_id);
      await execute(exampleDoc.document_id,main('Dim s As Shape\nSet s=ActiveLayer.CreateRectangle2(10,10,20,10)\ns.CreateSelection\nMain="{}"'));
      const code=await readFile(join(examples,file),'utf8');

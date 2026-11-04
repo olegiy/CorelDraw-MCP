@@ -242,7 +242,7 @@ function Export-Document($Document, [hashtable] $Parameters, [string] $RunDirect
     $format = $(if ($Preview) { 'png' } else { ([string]$Parameters.format).ToLowerInvariant() })
     if ($format -eq 'jpeg') { $format = 'jpg' }; if ($format -eq 'tif') { $format = 'tiff' }
     if ($format -notin @('png','svg','pdf','jpg','tiff','ai','eps','dxf','plt')) { Throw-CorelError 'UNSUPPORTED_FORMAT' ('Неподдерживаемый формат: ' + $format) }
-    $range = $(if ($Parameters.ContainsKey('range')) { ([string]$Parameters.range).ToLowerInvariant() } else { 'page' })
+    $range = $(if ($Preview -and $Parameters.ContainsKey('target') -and ([string]$Parameters.target).ToLowerInvariant() -eq 'selection') { 'selection' } elseif ($Parameters.ContainsKey('range')) { ([string]$Parameters.range).ToLowerInvariant() } elseif ($Preview -and $Parameters.ContainsKey('target')) { ([string]$Parameters.target).ToLowerInvariant() } else { 'page' })
     if (($format -eq 'pdf' -and $range -eq 'selection') -or ($format -ne 'pdf' -and $range -eq 'document')) { Throw-CorelError 'UNSUPPORTED_EXPORT_RANGE' 'Для этого формата доступны только страница или выделение; PDF поддерживает страницу или документ.' }
     $destination = $(if ($Preview) { Join-Path $RunDirectory 'preview.png' } else { Get-OutputPath $Parameters.path $format })
     $overwrite = -not $Preview -and [bool]$Parameters.overwrite
