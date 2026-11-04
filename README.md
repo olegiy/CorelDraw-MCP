@@ -14,7 +14,7 @@ powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 
 ## 18 инструментов
 
-Короткая инструкция для первого запуска: [docs/quick-start.md](docs/quick-start.md).
+Инструкция по установке, запуску и работе: [docs/launch-and-use.md](docs/launch-and-use.md). Краткая памятка: [docs/quick-start.md](docs/quick-start.md).
 
 | Группа | Инструменты |
 | --- | --- |
@@ -99,6 +99,6 @@ npm run test:integration
 node test/integration-extended.mjs
 ```
 
-`npm test` проверяет stdio, схемы, idempotency, mutex, отчёты и синтетический worker. `npm run test:integration` использует только временные документы и сохраняет диагностику. Не утверждайте live-проверку CorelDRAW, пока не просмотрен фактический `verification.json`.
+`npm test` проверяет stdio, схемы, idempotency, mutex, отчёты и синтетический worker. `npm run test:integration` использует только временные документы и сохраняет диагностику. После живых тестов удаляйте только временные CorelDRAW GMS/проекты `CorelMcp_*`; установленные сторонние GMS и пользовательские документы не трогайте. Не утверждайте live-проверку CorelDRAW, пока не просмотрен фактический `verification.json`.
 
 Результаты версии 0.2.0: [отчёт проверки](docs/verification-0.2.0.md). Векторный PLT использует 1000 единиц/дюйм для согласованного физического масштаба при повторном импорте; это не настройка оборудования.

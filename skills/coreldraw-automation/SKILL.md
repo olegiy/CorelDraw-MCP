@@ -25,7 +25,7 @@ metadata:
 
 `timed_out` не отменяет COM-вызов, а `unknown` не сообщает, было ли действие применено. Для обоих состояний запрещён автоматический повтор; сначала осмотрите CorelDRAW и каталог задания. Если действие имеет `succeeded` и `cleanup.completed=false`, результат сохранён, но восстановление состояния неполно: исправьте причину и проверьте документ, не повторяя мутацию вслепую. Основная ошибка и `cleanup.errors` сохраняются отдельно.
 
-`corel_list_artifacts` показывает fingerprint и `prune_token`. `corel_prune_artifacts` принимает только неизменённые токены и сохраняет компактный отчёт с `details_pruned=true`. Незавершённые, `unknown`, `timed_out`, cleanup с ошибкой и retained GMS защищены. Внешние CDR и экспорты находятся вне очистки. `corel_export_diagnostics` создаёт внешний атомарный отчёт с allowlist полей и без пользовательского кода, путей, имён, request ID и raw error text.
+`corel_list_artifacts` показывает fingerprint и `prune_token`. `corel_prune_artifacts` принимает только неизменённые токены и сохраняет компактный отчёт с `details_pruned=true`. Незавершённые, `unknown`, `timed_out`, cleanup с ошибкой и retained GMS защищены. Внешние CDR и экспорты находятся вне очистки. После живых или интеграционных тестов удаляйте только временные CorelDRAW GMS/проекты с именем `CorelMcp_*`; установленные сторонние GMS, пользовательские документы и несвязанные проекты не удаляйте. `corel_export_diagnostics` создаёт внешний атомарный отчёт с allowlist полей и без пользовательского кода, путей, имён, request ID и raw error text.
 
 ## VBA
 

@@ -10,4 +10,5 @@ Standalone Windows MCP server and Codex skill for CorelDRAW **27**.
 - Preserve request_id idempotency and unknown-outcome handling. Never replay an orphaned or timed-out mutation automatically.
 - Use exact document IDs and stable Shape.StaticID. Do not alter unrelated installed GMS projects or call Application.Quit.
 - Integration tests must retain diagnostics and close only the documents they created. Existing user drawings must remain intact.
+- After live/integration tests, remove only temporary CorelDRAW diagnostic GMS/projects named `CorelMcp_*`; never remove installed third-party GMS, user drawings, or unrelated documents.
 - Keep the skill, tool schemas, installer and documentation consistent when changing the public interface.
