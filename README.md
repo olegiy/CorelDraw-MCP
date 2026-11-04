@@ -26,6 +26,33 @@ powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 
 Все COM-вызовы возвращают `job_id`. Используйте `corel_get_job` с `wait_seconds` до 20; polling не вызывает COM. Схемы и ограничения доступны через MCP `tools/list` и [справочник инструментов](skills/coreldraw-automation/references/tools.md).
 
+## Локальная конфигурация
+
+При запуске читается `%LOCALAPPDATA%\CorelDrawMcp\config.json` (для отдельного
+окружения можно задать `CORELDRAW_MCP_CONFIG_ROOT`). Без файла включены все
+инструменты. Единственный ключ конфигурации: `disabled_tools`, массив уникальных
+известных имён, например `{"disabled_tools":["corel_execute_vba","corel_export"]}`.
+Изменение применяется после перезапуска сервера; отключённые tools скрыты из
+`tools/list`, вызов не принимается и не создаёт задание.
+
+`corel_status`, `corel_get_job`, `corel_guide` и `corel_list_artifacts` всегда
+доступны для диагностики и восстановления. Остальные инспекции и preview можно
+отключать явно. Некорректный JSON, неизвестные ключи/имена, повторы, размер более
+64 КиБ, недоступный путь, ссылка или junction дают `source=invalid`: остаются
+только read-only инструменты, включая preview. Сводка `tool_policy` в отчёте
+`corel_status` содержит effective/registered/total/disabled counts и сохраняется
+при опросе задания.
+
+Для атомарного обновления без записи рядом с установленным кодом:
+
+```powershell
+node --input-type=module -e "import {writeToolPolicy} from './dist/config.js'; import {join} from 'node:path'; writeToolPolicy(join(process.env.LOCALAPPDATA,'CorelDrawMcp'),{disabled_tools:['corel_export']});"
+```
+
+Это только сокращение поверхности MCP, не аутентификация и не sandbox.
+Read-only не означает отсутствие временных файлов или обращения к COM;
+разрешённый VBA по-прежнему имеет полный доступ к системе.
+
 ## Повтор, cleanup и unknown
 
 Изменения требуют `request_id`; одинаковый ID с другими параметрами отклоняется. `timed_out` и `unknown` не разрешают повтор мутации. Если `succeeded` сопровождается `cleanup.completed=false`, действие уже применено, но восстановление состояния неполно; сохранены основная ошибка, `cleanup.errors`, предупреждения и артефакты. Проверьте документ и состояние приложения, затем исправьте cleanup без повторного изменения.
@@ -39,6 +66,19 @@ powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 `corel_export` поддерживает девять форматов, страницы/выделение и PDF-документ. JPG/TIFF принимают RGB/CMYK, DPI и профиль; JPG compression, TIFF LZW/none и transparency. AI/EPS сохраняют текст или используют кривые. PNG ограничен 40 МП; экспорт идёт через staging и требует `overwrite=true` для существующего пути.
 
 ## VBA и документация
+
+Адресные рецепты используют общий helper без Main; константы StaticID заменяются
+только на проверенные числа. `error.applied=false` у recipe validation означает
+отказ до изменяющего вызова, true означает возможное частичное действие.
+Ошибка recipe cleanup отмечается отдельно. Произвольный VBA может менять любые
+документы: передача document_id и post-call TARGET_DOCUMENT_CHANGED не являются
+изоляцией или запретом побочных действий.
+
+У `corel_export_diagnostics` путь необязателен: без path создаётся уникальный
+JSON в каталоге diagnostics рядом с runs, вне reservation/job directory.
+Никакие данные не отправляются наружу. Расширенные подробности доступны только
+явным чтением исходного job report/log; краткий отчёт не является гарантией
+полного обезличивания произвольных данных.
 
 VBA выполняется в отдельном временном GMS с внешней Undo-группой, восстановлением настроек и событий. Это не sandbox: код имеет полный доступ к CorelDRAW и ОС. Установленные GMS не редактируются. Используйте `Option Explicit`, `Main() As String`, валидный JSON, `Err.Raise`, точные document ID и StaticID. Не вызывайте `Application.Quit`, shell, диалоги или вложенный Undo.
 

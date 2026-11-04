@@ -459,8 +459,10 @@ function Invoke-Vba([hashtable] $Parameters, [string] $RunDirectory, [bool] $Exe
         if ($Execute) {
             $harness = @'
 Option Explicit
-Public Function RunMain() As String
+Public Function RunMain(ByVal target As Document) As String
     On Error GoTo Failed
+    target.Activate
+    If Not Application.ActiveDocument Is target Then Err.Raise 5, "CorelMcpHarness", "TARGET_DOCUMENT_MISMATCH"
     RunMain = "OK" & vbLf & M_UserCode.Main()
     Exit Function
 Failed:
@@ -516,11 +518,24 @@ End Function
         }
         $script:Corel.Optimization = $true
         $script:Corel.EventsEnabled = $false
-        $raw = [string]$script:Corel.GMSManager.RunMacro($projectName, 'M_CorelMcpHarness.RunMain')
+        $raw = [string]$script:Corel.GMSManager.RunMacro($projectName, 'M_CorelMcpHarness.RunMain', $Document)
+        if ($script:Corel.Documents.Count -eq 0 -or (Get-ComIdentity $script:Corel.ActiveDocument) -ne (Get-ComIdentity $Document)) {
+            Throw-CorelError 'TARGET_DOCUMENT_CHANGED' 'VBA сменил активный документ; результат считается неуспешным и требует проверки побочного действия.'
+        }
         if ($raw.StartsWith("ERROR`n")) {
             $parts = $raw -split "`n", 4
             $failure = New-Object InvalidOperationException($parts[3])
             $failure.Data['code'] = 'VBA_RUNTIME_ERROR'; $failure.Data['number'] = [int]$parts[1]; $failure.Data['source'] = $parts[2]
+            if ($parts[2] -eq 'CorelMcpRecipe') {
+                $recipe = $parts[3] | ConvertFrom-Json
+                if ($recipe.applied -isnot [bool] -or $recipe.cleanup_failed -isnot [bool] -or $recipe.error_code -notin @('RECIPE_ACTION_FAILED','RECIPE_VALIDATION_FAILED')) {
+                    Throw-CorelError 'INVALID_RECIPE_ERROR' 'Некорректный структурированный результат ошибки рецепта.'
+                }
+                $failure = New-Object InvalidOperationException([string]$recipe.message)
+                $failure.Data['code'] = [string]$recipe.error_code
+                $failure.Data['applied'] = [bool]$recipe.applied
+                if ($recipe.cleanup_failed) { Add-CleanupError 'recipe.selection' (New-Object InvalidOperationException('Не удалось восстановить выделение рецепта.')) }
+            }
             throw $failure
         }
         if (-not $raw.StartsWith("OK`n")) { Throw-CorelError 'INVALID_VBA_RESULT' 'Исполнитель VBA вернул неожиданный результат.' }
@@ -643,10 +658,12 @@ function Invoke-CorelOperation {
                 $code = [string]$currentException.Data['code']
                 if ($currentException.Data.Contains('number')) { $number = [int]$currentException.Data['number'] }
                 if ($currentException.Data.Contains('source')) { $source = [string]$currentException.Data['source'] }
+                if ($currentException.Data.Contains('applied')) { $outcome.recipe_applied = [bool]$currentException.Data['applied'] }
                 break
             }
         }
         $outcome.error = @{ code = $code; number = $number; source = $source; message = $exception.Message; stage = $originalStage }
+        if ($outcome.ContainsKey('recipe_applied')) { $outcome.error.applied = $outcome.recipe_applied; $outcome.Remove('recipe_applied') }
     }
     finally {
         if ($owned -and $null -ne $script:Corel) {

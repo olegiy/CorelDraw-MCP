@@ -29,7 +29,7 @@ End Function
 - `M_Transforms.bas`, `M_Duplicate.bas` показывают преобразования, итоговые координаты и фактическое смещение.
 - `M_LayersGroups.bas` создаёт собственный слой, ShapeRange и возвращает IDs членов без использования чужого выделения.
 - `M_MoveSelection.bas` и `M_StaticFind.bas` требуют заранее осмотренного выделения; StaticFind ищет точный `StaticID` рекурсивно по странице.
-- `M_Boolean.bas`, `M_Weld.bas`, `M_Trim.bas`, `M_CurveNodes.bas` выполняют операции над собственными фигурами и читают IDs, типы сегментов и результат.
+- `M_Boolean.bas`, `M_Weld.bas`, `M_Trim.bas` выполняют операции над собственными демонстрационными фигурами. `M_CurveNodes.bas` читает только заданный StaticID готовой кривой и не преобразует источник.
 - `M_JsonLocale.bas` содержит приватные функции конвертации мм и JSON locale-safe helpers.
 
 Сигнатуры выбирайте по [API 27](api-v27.md), сверяясь с Context7. Не используйте `Evaluate`, shell, диалоги, `Application.Quit` или установленный GMS. Код VBA имеет полный доступ к CorelDRAW и ОС; отдельный GMS не является песочницей.

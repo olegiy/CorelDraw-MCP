@@ -129,7 +129,8 @@ export function diagnosticSummary(job: Job): Record<string, any> {
     },
     error: job.error
       ? {
-          code: code(job.error.code) ?? 'UNSPECIFIED_ERROR',
+           code: code(job.error.code) ?? 'UNSPECIFIED_ERROR',
+           ...(typeof job.error.applied === 'boolean' ? { applied: job.error.applied } : {}),
           ...(Number.isSafeInteger(job.error.number) ? { number: job.error.number } : {}),
         }
       : null,
@@ -222,12 +223,14 @@ export class ArtifactStore {
           artifacts: [],
           warnings: [],
           details_pruned: true,
+          ...(job.tool_policy ? { tool_policy: job.tool_policy } : {}),
           ...(job.request_id ? { request_id: job.request_id } : {}),
           ...(job.versions ? { versions: job.versions } : {}),
           ...(job.error
             ? {
                 error: {
-                  code: job.error.code,
+                   code: job.error.code,
+                   ...(typeof job.error.applied === 'boolean' ? { applied: job.error.applied } : {}),
                   stage: job.error.stage,
                   message: 'Подробности удалены по явной команде.',
                   ...(job.error.number !== undefined ? { number: job.error.number } : {}),

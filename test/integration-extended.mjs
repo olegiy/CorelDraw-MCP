@@ -65,8 +65,14 @@ try {
  await scenario('All packaged VBA examples compile and execute measurable JSON',async()=>{
     for(const file of (await readdir(examples)).filter(f=>f.endsWith('.bas') && f !== 'M_CommonHelpers.bas')) {
      const exampleDoc=(await ok('corel_create_document',{...req('example'),width_mm:100,height_mm:80})).result;created.add(exampleDoc.document_id);
-     await execute(exampleDoc.document_id,main('Dim s As Shape\nSet s=ActiveLayer.CreateRectangle2(10,10,20,10)\ns.CreateSelection\nMain="{}"'));
-     const code=await readFile(join(examples,file),'utf8');
+      const prepared=await execute(exampleDoc.document_id,main('Dim s As Shape,t As Shape,c As Shape\nSet s=ActiveDocument.ActiveLayer.CreateRectangle2(10,10,20,10)\nSet t=ActiveDocument.ActiveLayer.CreateRectangle2(20,10,20,10)\nSet c=ActiveDocument.ActiveLayer.CreateRectangle2(1,1,5,5)\nc.ConvertToCurves\ns.CreateSelection\nMain="{""first"":" & CStr(s.StaticID) & ",""second"":" & CStr(t.StaticID) & ",""curve"":" & CStr(c.StaticID) & "}"'));
+      let code=await readFile(join(examples,file),'utf8');
+      if (['M_TextUnicode.bas','M_FillOutline.bas','M_DuplicateOffset.bas','M_LayerGroup.bas','M_BooleanShapes.bas','M_CurveNodes.bas'].includes(file)) {
+        const ids=prepared.result.value;
+        code=code.replace(/(Const (?:TARGET_STATIC_ID|LEFT_STATIC_ID|FIRST_STATIC_ID) As Long = )0/g,`$1${file==='M_CurveNodes.bas'?ids.curve:ids.first}`)
+          .replace(/(Const (?:RIGHT_STATIC_ID|SECOND_STATIC_ID) As Long = )0/g,`$1${ids.second}`);
+        code+='\n'+(await readFile(join(examples,'M_CommonHelpers.bas'),'utf8')).replace(/^Option Explicit\s*/m,'');
+      }
      const result=await execute(exampleDoc.document_id,code);assert(result.result.value!==undefined,file);console.log(`RECIPE ${file}`);
      await ok('corel_close_document',{...req('close-example'),document_id:exampleDoc.document_id,discard_changes:true});created.delete(exampleDoc.document_id);
    }

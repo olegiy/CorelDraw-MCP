@@ -3,10 +3,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function connect({ runs, fixture = false } = {}) {
+export async function connect({ runs, fixture = false, configRoot } = {}) {
   const transport = new StdioClientTransport({ command: process.execPath,
     args: [fileURLToPath(new URL(fixture ? './fixture-server.mjs' : '../dist/index.js', import.meta.url))],
-    env: Object.fromEntries(Object.entries({ ...process.env, ...(runs ? { CORELDRAW_MCP_RUNS: runs } : {}) }).filter(([, value]) => value !== undefined)),
+    env: Object.fromEntries(Object.entries({ ...process.env, ...(runs ? { CORELDRAW_MCP_RUNS: runs } : {}), ...(configRoot ? { CORELDRAW_MCP_CONFIG_ROOT: configRoot } : {}) }).filter(([, value]) => value !== undefined)),
     stderr: 'pipe',
   });
   let stderr = '';

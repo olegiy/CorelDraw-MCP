@@ -75,3 +75,42 @@ test('two independent cleaners serialize one candidate and keep its durable requ
   const saved=jobs.get(job.job_id);assert.equal(saved.details_pruned,true);assert.equal(saved.pruned_inventory.token,candidate.prune_token);
   assert.equal(jobs.submit('fixture',{request_id:'two-cleaners'}).job_id,job.job_id);
 });
+
+test('all unsafe outcomes remain protected and policy/applied metadata survives eligible prune', async () => {
+  const { ArtifactStore } = await import('../dist/artifacts.js');
+  const root = mkdtempSync(join(tmpdir(), 'corelmcp-protections-'));
+  const jobs = new JobManager(root, { async run() { return { ok: true, cleanup: { completed: true } }; }, close() {} });
+  const job = jobs.submit('corel_status', {}); await tick();
+  const original = JSON.parse(readFileSync(job.report_path));
+  const store = new ArtifactStore(root, id => jobs.get(id));
+  for (const changes of [
+    { status: 'running' }, { status: 'timed_out' }, { status: 'unknown' },
+    { cleanup: { completed: false } }, { cleanup: { completed: true, project_retained: true } },
+  ]) {
+    writeFileSync(job.report_path, JSON.stringify({ ...original, ...changes }));
+    const listed = store.list().items[0];
+    assert.equal(listed.protected, true);
+    assert.equal(store.prune([{ job_id: job.job_id, prune_token: listed.prune_token }]).items[0].pruned, false);
+    assert(existsSync(join(job.run_directory, 'request.json')));
+  }
+  writeFileSync(job.report_path, JSON.stringify({ ...original, status: 'failed', error: { code: 'RECIPE_ACTION_FAILED', applied: true }, tool_policy: { source: 'user', effective_count: 17, registered_count: 17, disabled_count: 1, total_count: 18, config_path: 'private' } }));
+  const listed = store.list().items[0];
+  assert.equal(store.prune([{ job_id: job.job_id, prune_token: listed.prune_token }]).items[0].pruned, true);
+  const compact = jobs.get(job.job_id);
+  assert.equal(compact.error.applied, true);
+  assert.equal(compact.tool_policy.effective_count, 17);
+});
+
+test('diagnostic default destination is unique and redacted without a COM call', async () => {
+  const { LocalOperations } = await import('../dist/local-operations.js');
+  const root = mkdtempSync(join(tmpdir(), 'corelmcp-diag-'));
+  const jobs = new JobManager(join(root, 'runs'), { async run() { throw new Error('COM must not run'); }, close() {} });
+  const local = new LocalOperations(jobs);
+  const source = jobs.submitLocal('corel_add_note', { request_id: 'source' }, () => ({ result: { private: 'secret' } }));
+  const first = jobs.submitLocal('corel_export_diagnostics', { request_id: 'first', job_id: source.job_id }, job => local.run('corel_export_diagnostics', { job_id: source.job_id }, job));
+  const second = jobs.submitLocal('corel_export_diagnostics', { request_id: 'second', job_id: source.job_id }, job => local.run('corel_export_diagnostics', { job_id: source.job_id }, job));
+  assert.equal(first.status, 'succeeded', JSON.stringify(first));
+  assert.equal(second.status, 'succeeded');
+  assert.notEqual(first.result.path, second.result.path);
+  assert(!readFileSync(first.result.path, 'utf8').includes('secret'));
+});

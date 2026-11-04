@@ -1,5 +1,5 @@
 import { McpServer, type CallToolResult } from '@modelcontextprotocol/server';
-import { closeSync, fstatSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readSync, lstatSync } from 'node:fs';
 import { relative, isAbsolute } from 'node:path';
 import { JobManager } from './jobs.js';
 import { AutomationFailure, type Arguments } from './types.js';
@@ -83,10 +83,12 @@ export function createServer(jobs: JobManager, policy?: ToolPolicy): McpServer {
       },
       async (args: Arguments) => {
         try {
+          if (policy && !policy.isEnabled(name))
+            throw new AutomationFailure('TOOL_DISABLED', 'Инструмент отключён конфигурацией.');
           const parsed = definition.schema.parse(args);
           const job = definition.local
             ? jobs.submitLocal(name, parsed, (accepted) => local.run(name, parsed, accepted))
-            : jobs.submit(name, parsed);
+            : jobs.submit(name, parsed, name === 'corel_status' ? policy?.summary() : undefined);
           return response(
             job,
             job.status === 'failed' || job.status === 'unknown' || job.cleanup?.completed === false,
@@ -123,14 +125,28 @@ export function createServer(jobs: JobManager, policy?: ToolPolicy): McpServer {
               rel.startsWith('../') ||
               !job.artifacts.includes(path)
             )
-              throw new Error('Превью находится вне каталога задания.');
+              throw new AutomationFailure('PREVIEW_INVALID_PATH', 'Превью находится вне каталога задания.');
             assertNoLinks(path);
-            if (statSync(path).size > 10 * 1024 * 1024) throw new Error('Превью превышает 10 МиБ.');
-            result.content.push({
-              type: 'image',
-              mimeType: 'image/png',
-              data: readFileSync(path).toString('base64'),
-            });
+            if (!lstatSync(path).isFile())
+              throw new AutomationFailure('PREVIEW_INVALID_FILE', 'Превью должно быть обычным файлом.');
+            const file = openSync(path, 'r');
+            try {
+              const info = fstatSync(file);
+              if (!info.isFile() || info.size === 0 || info.size > 10 * 1024 * 1024)
+                throw new AutomationFailure('PREVIEW_INVALID_FILE', 'Превью должно быть непустым файлом не более 10 МиБ.');
+              const buffer = Buffer.alloc(info.size);
+              let offset = 0;
+              while (offset < buffer.length) {
+                const bytes = readSync(file, buffer, offset, buffer.length - offset, offset);
+                if (!bytes) throw new AutomationFailure('PREVIEW_INVALID_FILE', 'Файл превью изменился во время чтения.');
+                offset += bytes;
+              }
+              if (fstatSync(file).size !== info.size)
+                throw new AutomationFailure('PREVIEW_INVALID_FILE', 'Размер превью изменился во время чтения.');
+              result.content.push({ type: 'image', mimeType: 'image/png', data: buffer.toString('base64') });
+            } finally {
+              closeSync(file);
+            }
           }
         }
         return result;

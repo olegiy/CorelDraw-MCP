@@ -60,15 +60,17 @@ End Function
 
 Public Function FindStaticID(ByVal page As Page, ByVal wanted As Long, Optional ByVal maxDepth As Long = 8, Optional ByVal maxVisited As Long = 10000) As Shape
     Dim visited As Long, truncated As Boolean, layer As Layer, i As Long, candidate As Shape
-    If maxDepth < 0 Then Err.Raise 5, "FindStaticID", "maxDepth должен быть неотрицательным."
-    If maxVisited < 1 Then Err.Raise 5, "FindStaticID", "maxVisited должен быть положительным."
+    If maxDepth < 0 Or maxDepth > 32 Then Err.Raise 5, "FindStaticID", "maxDepth должен быть от 0 до 32."
+    If maxVisited < 1 Or maxVisited > 50000 Then Err.Raise 5, "FindStaticID", "maxVisited должен быть от 1 до 50000."
     For Each layer In page.Layers
         For i = 1 To layer.Shapes.Count
             Set candidate = FindStaticInShape(layer.Shapes(i), wanted, 0, maxDepth, maxVisited, visited, truncated)
             If Not candidate Is Nothing Then Set FindStaticID = candidate: Exit Function
-            If truncated Then Exit Function
+            If visited >= maxVisited Then Exit For
         Next i
+        If visited >= maxVisited Then Exit For
     Next layer
+    If truncated Then Err.Raise 5, "FindStaticID", "SEARCH_LIMIT: часть дерева не просмотрена."
 End Function
 
 Private Function FindStaticInShape(ByVal candidate As Shape, ByVal wanted As Long, ByVal depth As Long, ByVal maxDepth As Long, ByVal maxVisited As Long, ByRef visited As Long, ByRef truncated As Boolean) As Shape
@@ -83,11 +85,53 @@ Private Function FindStaticInShape(ByVal candidate As Shape, ByVal wanted As Lon
     For i = 1 To candidate.Shapes.Count
         Set nested = FindStaticInShape(candidate.Shapes(i), wanted, depth + 1, maxDepth, maxVisited, visited, truncated)
         If Not nested Is Nothing Then Set FindStaticInShape = nested: Exit Function
-        If truncated Then Exit Function
+        If visited >= maxVisited Then Exit Function
     Next i
+End Function
+
+Public Function RequireStaticShape(ByVal document As Document, ByVal wanted As Long, Optional ByVal editable As Boolean = True) As Shape
+    Dim found As Shape
+    If wanted <= 0 Then Err.Raise 5, "RequireStaticShape", "STATIC_ID_REQUIRED: задайте проверенный StaticID."
+    Set found = FindStaticID(document.ActivePage, wanted)
+    If found Is Nothing Then Err.Raise 5, "RequireStaticShape", "STATIC_ID_NOT_FOUND: объект не найден на целевой странице."
+    If editable And Not found.Layer.Editable Then Err.Raise 5, "RequireStaticShape", "LOCKED_LAYER: слой объекта заблокирован."
+    Set RequireStaticShape = found
 End Function
 
 Public Function RequireSingleSelection(ByVal document As Document) As Shape
     If document.SelectionRange.Count <> 1 Then Err.Raise 5, "RequireSingleSelection", "Требуется ровно одна выделенная фигура."
     Set RequireSingleSelection = document.SelectionRange(1)
+End Function
+
+Public Function CaptureRecipeSelection(ByVal document As Document) As ShapeRange
+    Dim result As ShapeRange, s As Shape
+    If document.SelectionRange.Count > 100 Then Err.Raise 5, "CaptureRecipeSelection", "SELECTION_LIMIT: максимум 100 фигур."
+    Set result = CreateShapeRange
+    For Each s In document.SelectionRange
+        result.Add s
+    Next s
+    Set CaptureRecipeSelection = result
+End Function
+
+Public Sub RestoreRecipeSelection(ByVal document As Document, ByVal saved As ShapeRange)
+    document.ClearSelection
+    If saved.Count > 0 Then saved.CreateSelection
+End Sub
+
+Public Function RecipeActionStarted(Optional ByVal reset As Boolean = False, Optional ByVal mark As Boolean = False) As Boolean
+    Static applied As Boolean
+    If reset Then applied = False
+    If mark Then applied = True
+    RecipeActionStarted = applied
+End Function
+
+Public Function RecipeFailure(ByVal message As String, ByVal document As Document, ByVal saved As ShapeRange) As String
+    Dim cleanupFailed As Boolean, applied As Boolean, code As String
+    applied = RecipeActionStarted()
+    On Error Resume Next
+    RestoreRecipeSelection document, saved
+    cleanupFailed = Err.Number <> 0
+    On Error GoTo 0
+    If applied Then code = "RECIPE_ACTION_FAILED" Else code = "RECIPE_VALIDATION_FAILED"
+    RecipeFailure = "{""error_code"":" & JsonString(code) & ",""message"":" & JsonString(message) & ",""applied"":" & JsonBoolean(applied) & ",""cleanup_failed"":" & JsonBoolean(cleanupFailed) & "}"
 End Function

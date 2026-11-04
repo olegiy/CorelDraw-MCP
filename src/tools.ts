@@ -270,7 +270,7 @@ export const toolDefinitions: Record<string, Definition> = {
     schema: z.strictObject({
       ...request,
       job_id: jobIdSchema,
-      path: absolutePath,
+      path: absolutePath.optional(),
       overwrite: z.boolean().default(false),
     }),
     readOnly: false,

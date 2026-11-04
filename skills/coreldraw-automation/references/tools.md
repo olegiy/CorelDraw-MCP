@@ -2,6 +2,16 @@
 
 Сервер возвращает `job_id` сразу после принятия вызова. Для результата вызывайте `corel_get_job(job_id, wait_seconds=20)`. Опрос читает сохранённый отчёт и не обращается к CorelDRAW. `include_preview=true` прикрепляет готовый PNG только для задания `corel_preview`. Для preview допустимы `target=page|selection` (псевдоним `range` сохраняется для совместимости); в режиме selection выделение должно быть непустым.
 
+Список отключённых инструментов можно задать в `%LOCALAPPDATA%\CorelDrawMcp\config.json`:
+`{"disabled_tools":["corel_export"]}`. Это локальное управление поверхностью
+интерфейса, а не аутентификация и не sandbox. Повреждённый конфигурационный
+файл (включая неизвестные ключи/имена, повторы, более 64 КиБ и ссылки/junction)
+отключает изменяющие инструменты и оставляет read-only диагностику с preview.
+При корректной конфигурации инспекции можно отключить; `corel_status`,
+`corel_get_job`, `corel_guide`, `corel_list_artifacts` остаются всегда.
+Изменения применяются при запуске. `corel_status.tool_policy` сохраняется в
+отчёте задания и содержит source, config_path и effective/registered/total/disabled counts.
+
 ## Инструменты
 
 | Инструмент | Основные параметры и результат |
@@ -19,7 +29,7 @@
 | `corel_describe_api` | `kind=types|members|enum`, для `members`/`enum` — имя, `filter`, `offset`, `limit` до 200; отражение IDispatch/ITypeInfo API 27 без выражений, вызовов и getter-цепочек. |
 | `corel_measure_shapes` | `document_id`, текущая или заданная страница, `static_ids` либо проверенное выделение, `tolerance_mm` 0.001–1 (по умолчанию 0.01). Возвращает размеры объектов, aggregate minimum-area rectangle и `dimension_error_mm ≤ 2*tolerance_mm`. |
 | `corel_add_note` | Локальная запись `lesson|limitation|idea`, `text` до 4000 символов, необязательно `job_id`. Запись помечена `verified=false`, не исполняется и не изменяет скилл. |
-| `corel_export_diagnostics` | `request_id`, `job_id`, внешний абсолютный путь, `overwrite=false`; атомарный отчёт с разрешённым списком версий, времён, статусов, кодов cleanup и `diagnostic_id`. Пользовательские пути, код, текст, request ID, raw errors, result и имена исключены. |
+| `corel_export_diagnostics` | `request_id`, `job_id`, необязательный внешний абсолютный `path`, `overwrite=false`; без path уникальный файл в соседнем с runs каталоге diagnostics. Атомарный отчёт с разрешённым списком версий, времён, статусов, applied, кодов cleanup и `diagnostic_id`. Пользовательские пути, код, текст, request ID, raw errors, result и имена исключены. |
 | `corel_list_artifacts` | Локальный список заданий: `bytes`, возраст, `protected`, причины защиты, `prune_token`, `details_pruned`. COM не вызывается. |
 | `corel_prune_artifacts` | `request_id`, массив `{job_id, prune_token}` до 100 элементов. Удаляет только подтверждённые внутренние артефакты; результат каждого кандидата отдельный. |
 | `corel_get_job` | `job_id`, `wait_seconds` до 20, `log_lines` 0–200, `include_preview`; читает отчёт без COM. |
@@ -46,3 +56,38 @@
 Все пути абсолютные Windows. Родительские каталоги должны существовать. Сохранение поверх другого файла и экспорт требуют `overwrite=true`; закрытие грязного документа требует сохранения либо `discard_changes=true`. Экспорт сначала создаёт промежуточный файл и публикует его после успешного фильтра.
 
 Сборка принимает 1–100 стандартных `.bas`, суммарно до 2 МиБ; пути модулей относительны `source_root`, имена ASCII и уникальны. Выполнение принимает до 256 КиБ исходника, JSON результата — до 1 МиБ. `.cls` и `.frm` не поддерживаются. UTF-8 snapshot сохраняется для диагностики; установленные GMS-проекты не изменяются.
+
+## Проверяемые контракты
+
+Точные публичные descriptions из реестра инструментов:
+
+```json
+{"corel_status":"Подключиться к CorelDRAW 27: версия, VBA, состояние приложения и точные ID документов. Возвращает job_id.","corel_inspect_document":"Ограниченная инспекция страницы и групп: StaticID, родитель, габариты, оформление, выделение. Текст только include_text=true. Возвращает job_id.","corel_create_document":"Создать несохранённый документ в миллиметрах и вернуть document_id через задание.","corel_open_document":"Открыть CDR и получить document_id. Возвращает job_id.","corel_save_document":"Явно сохранить CDR; замена другого файла требует overwrite=true. Возвращает job_id.","corel_close_document":"Закрыть точный документ; CorelDRAW не закрывается. Возвращает job_id.","corel_export":"Экспорт PNG/PDF/SVG/JPEG/TIFF/AI/EPS/DXF/PLT через промежуточный файл. Возвращает job_id.","corel_preview":"PNG-превью страницы или выделения (`target=page|selection`). Получить изображение через corel_get_job.","corel_build_vba":"Полностью скомпилировать UTF-8 .bas в отдельном GMS без выполнения. Возвращает job_id.","corel_execute_vba":"Выполнить Main() As String с JSON-результатом и восстановлением настроек. VBA имеет полный доступ к системе, это не sandbox. Возвращает job_id.","corel_describe_api":"Метаданные установленного API 27; выражения и вызовы запрещены. Возвращает job_id.","corel_measure_shapes":"Измерить векторные фигуры или выделение: минимальная ширина и прямоугольник по объектам и набору. Возвращает job_id.","corel_add_note":"Локально сохранить непроверенную находку. Текст не исполняется и не меняет скилл.","corel_export_diagnostics":"Создать локальный краткий технический отчёт без кода, путей и пользовательского содержимого.","corel_list_artifacts":"Показать размеры, возраст и защищённые артефакты заданий.","corel_prune_artifacts":"Удалить выбранные внутренние артефакты после проверки prune_token; компактный отчёт и идемпотентность сохраняются."}
+```
+
+Следующие записи перечисляют обязательные входы, значения enum и значения
+по умолчанию. Они проверяются `npm run check:contracts` по собранным Zod-схемам
+без запуска handlers или COM. Условные требования (например name для members)
+по-прежнему проверяются схемой. `target` preview вычисляется как target, затем
+legacy range, затем page; отдельного schema-default для target нет.
+
+```jsonl
+{"tool":"corel_status","required":[],"defaults":{"deadline_seconds":600},"enums":{}}
+{"tool":"corel_inspect_document","required":["document_id"],"defaults":{"offset":0,"limit":100,"recursive":false,"max_depth":8,"max_visited":10000,"include_text":false,"text_limit":1000,"deadline_seconds":600},"enums":{}}
+{"tool":"corel_create_document","required":["request_id"],"defaults":{"width_mm":210,"height_mm":297,"deadline_seconds":600},"enums":{}}
+{"tool":"corel_open_document","required":["request_id","path"],"defaults":{"deadline_seconds":600},"enums":{}}
+{"tool":"corel_save_document","required":["request_id","document_id"],"defaults":{"overwrite":false,"deadline_seconds":600},"enums":{}}
+{"tool":"corel_close_document","required":["request_id","document_id"],"defaults":{"discard_changes":false,"deadline_seconds":600},"enums":{}}
+{"tool":"corel_export","required":["request_id","document_id","path","format"],"defaults":{"range":"page","overwrite":false,"dpi":150,"deadline_seconds":600},"enums":{"format":["png","pdf","svg","jpg","jpeg","tiff","tif","ai","eps","dxf","plt"],"range":["page","selection","document"],"color_mode":["rgb","cmyk"],"tiff_compression":["lzw","none"],"text_mode":["preserve","curves"]}}
+{"tool":"corel_preview","required":["document_id"],"defaults":{"max_size":1200,"deadline_seconds":600},"enums":{"target":["page","selection"],"range":["page","selection"]}}
+{"tool":"corel_build_vba","required":["request_id","source_root"],"defaults":{"deadline_seconds":600},"enums":{}}
+{"tool":"corel_execute_vba","required":["request_id","document_id","code"],"defaults":{"deadline_seconds":600},"enums":{}}
+{"tool":"corel_describe_api","required":["kind"],"defaults":{"filter":"","offset":0,"limit":100,"deadline_seconds":600},"enums":{"kind":["types","members","enum"]}}
+{"tool":"corel_measure_shapes","required":["document_id"],"defaults":{"tolerance_mm":0.01,"deadline_seconds":600},"enums":{}}
+{"tool":"corel_add_note","required":["request_id","category","text"],"defaults":{},"enums":{"category":["lesson","limitation","idea"]}}
+{"tool":"corel_export_diagnostics","required":["request_id","job_id"],"defaults":{"overwrite":false},"enums":{}}
+{"tool":"corel_list_artifacts","required":[],"defaults":{"offset":0,"limit":50},"enums":{}}
+{"tool":"corel_prune_artifacts","required":["request_id","candidates"],"defaults":{},"enums":{}}
+{"tool":"corel_get_job","required":["job_id"],"defaults":{"wait_seconds":0,"log_lines":50,"include_preview":false},"enums":{}}
+{"tool":"corel_guide","required":[],"defaults":{"offset":0,"limit":8000},"enums":{"topic":["skill","tools","vba","api","recipes","pitfalls","install"]}}
+```

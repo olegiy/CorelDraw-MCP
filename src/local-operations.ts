@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs';
-import { join, resolve, relative, isAbsolute, sep } from 'node:path';
+import { dirname, join, resolve, relative, isAbsolute, sep } from 'node:path';
 import { ArtifactStore, assertNoLinks, atomicJson, diagnosticSummary } from './artifacts.js';
 import { JobManager } from './jobs.js';
 import { AutomationFailure, type Arguments, type Job } from './types.js';
@@ -30,7 +30,12 @@ export class LocalOperations {
       return { result: { note_id: id, path, verified: false } };
     }
     if (tool === 'corel_export_diagnostics') {
-      const path = String(args.path);
+      const destination = join(dirname(resolve(this.jobs.root)), 'diagnostics');
+      if (args.path === undefined) {
+        assertNoLinks(destination);
+        mkdirSync(destination, { recursive: true });
+      }
+      const path = args.path === undefined ? join(destination, `${job.job_id}.json`) : String(args.path);
       const rel = relative(resolve(this.jobs.root), resolve(path));
       if (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`))
         throw new AutomationFailure(

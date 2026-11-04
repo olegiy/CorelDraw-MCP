@@ -8,7 +8,29 @@ Codex общается по stdio с TypeScript MCP-сервером. `src/tools
 
 `document_id` включает UUID сессии worker и UUID документа. Worker сопоставляет IUnknown identity с открытыми документами; закрытые документы удаляются из registry, reconnect меняет сессию. Для объектов используется `Shape.StaticID`, а не порядковый индекс.
 
+Перед регистрацией инструментов сервер читает необязательный
+`%LOCALAPPDATA%\CorelDrawMcp\config.json`. Массив `disabled_tools` сокращает
+поверхность интерфейса; это не sandbox и не аутентификация. Ошибка разбора
+конфигурации отключает изменяющие инструменты и сохраняет read-only
+диагностику, включая preview. Неизвестные поля/имена, повторы, не-regular файл,
+ссылки/junction, ошибки доступа и размер более 64 КиБ также fail-closed.
+При валидном списке инспекции отключаются явно; обязательны только
+`corel_status`, `corel_get_job`, `corel_guide`, `corel_list_artifacts`.
+Политика фиксируется на запуск, проверяется перед submit и сокращает регистрацию;
+статус сохраняет `tool_policy` с effective/registered/total/disabled counts в
+durable report, не изменяя fingerprint аргументов. `writeToolPolicy` проверяет
+тот же контракт и публикует config через атомарную замену в user storage.
+
 ## VBA и экспорт
+
+Harness получает точный `Document` параметром RunMacro, активирует и проверяет
+его внутри VBA до Main. После Main worker проверяет identity активного документа
+и возвращает `TARGET_DOCUMENT_CHANGED` при смене. Это не sandbox: произвольный
+код может менять другие документы и возвращаться обратно; такие побочные
+действия нельзя предотвратить проверкой ActiveDocument. Для стандартных recipes
+ошибки с Source `CorelMcpRecipe` содержат JSON: applied, error_code,
+message, cleanup_failed. applied=true консервативно означает возможное действие;
+cleanup_failed переводится в независимую ошибку cleanup `recipe.selection`.
 
 Snapshot `.bas` читается как UTF-8, `Attribute VB_*` удаляется только в snapshot, код загружается через `CodeModule.AddFromString`. Worker создаёт уникальный временный GMS и выбирает его VBProject. Compile command 578 применяется к нему; `compiler_location` берётся из реально выделенного error span. `Main` возвращает JSON через typed harness; Node проверяет JSON до выгрузки GMS. Массивы и null передаются как raw JSON без PowerShell-unwrapping.
 

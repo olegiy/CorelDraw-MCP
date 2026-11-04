@@ -1,5 +1,10 @@
 # Архивный отчёт проверки версии 0.1.0
 
+Актуальный incremental-прогон описан в [verification-0.2.0.md](verification-0.2.0.md).
+`npm run test:integration` теперь последовательно выполняет основной harness
+и `test/integration-recipes.mjs`, включая отрицательные recipe/preview сценарии.
+Исторические результаты ниже не являются доказательством новой реализации.
+
 Проверено 3 ноября 2026 года на Windows с Node.js 24.18.1, Windows PowerShell 5.1.26100.9711 (STA) и CorelDRAW 27.2.0.135 с VBA.
 
 ## Автоматические проверки

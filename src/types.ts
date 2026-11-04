@@ -1,11 +1,20 @@
 export type Arguments = Record<string, unknown>;
 export type JobStatus = 'running' | 'timed_out' | 'succeeded' | 'failed' | 'unknown';
+export interface ToolPolicySummary {
+  source: 'default' | 'user' | 'invalid';
+  config_path: string;
+  disabled_count: number;
+  effective_count: number;
+  registered_count: number;
+  total_count: number;
+}
 export interface AutomationError {
   code: string;
   message: string;
   stage: string;
   number?: number;
   source?: string;
+  applied?: boolean;
 }
 export interface WorkerResult {
   ok: boolean;
@@ -42,6 +51,7 @@ export interface Job {
   versions?: Record<string, string>;
   details_pruned?: boolean;
   pruned_inventory?: { token: string; bytes: number };
+  tool_policy?: ToolPolicySummary;
 }
 export interface Executor {
   run(job: Job, args: Arguments, progress: (stage: string) => void): Promise<WorkerResult>;
