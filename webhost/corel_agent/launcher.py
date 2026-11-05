@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .assets import assert_no_links
 from .contracts import AgentError, ProcessIdentity, new_id
-from .owned_stdio import identity_alive, process_identity
+from .owned_stdio import identity_alive, process_identity, release_marker
 
 
 def is_elevated():
@@ -62,7 +62,8 @@ class HostOwner:
     def release(self):
         assert_no_links(self.path)
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
+            original = self.path.read_bytes()
+            data = json.loads(original)
             valid = (self.identity is not None and data.get("token") == self.token
                      and data.get("process") == self.identity.model_dump()
                      and process_identity(os.getpid()) == self.identity)
@@ -70,7 +71,10 @@ class HostOwner:
             valid = False
         if not valid:
             raise AgentError("HOST_OWNER_UNCERTAIN", "Нельзя освободить непроверенное singleton-владение.", 503)
-        self.path.unlink()
+        try:
+            release_marker(self.path, original)
+        except AgentError:
+            raise AgentError("HOST_OWNER_UNCERTAIN", "Нельзя освободить непроверенное singleton-владение.", 503) from None
 
 
 def event_names(directory):
@@ -138,6 +142,7 @@ class ControlEvents:
 
 
 def signal_existing(directory, kind):
+    import pywintypes
     import win32event
     if kind not in {"open", "stop"}:
         raise AgentError("CONTROL_INVALID", "Неизвестное действие launcher.", 422)
@@ -153,7 +158,7 @@ def signal_existing(directory, kind):
             win32event.SetEvent(handle)
         finally:
             handle.Close()
-    except (OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError, pywintypes.error):
         raise AgentError("HOST_OWNER_UNCERTAIN", "Живой владелец и его control event не подтверждены.", 503) from None
 
 
@@ -180,7 +185,7 @@ def release_dead_host(directory):
             return False
         if path.read_bytes() != original or identity_alive(identity) is not False:
             return False
-        path.unlink()
+        release_marker(path, original)
         return True
-    except (OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError, AgentError):
         return False

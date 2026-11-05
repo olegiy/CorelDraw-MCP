@@ -50,11 +50,25 @@ def process_identity(pid: int) -> ProcessIdentity:
 
 def identity_alive(identity: ProcessIdentity) -> bool | None:
     try:
-        return True if process_identity(identity.pid) == identity else None
-    except OSError as error:
+        if process_identity(identity.pid) != identity:
+            return None
+        import win32api
+        import win32event
+        import win32process
+
+        handle = win32api.OpenProcess(0x1000 | win32event.SYNCHRONIZE, False, identity.pid)
+        try:
+            created = win32process.GetProcessTimes(handle)['CreationTime'].isoformat()
+            if created != identity.creation_time:
+                return None
+            # Windows can retain an exited process object while handles remain open.
+            state = win32event.WaitForSingleObject(handle, 0)
+            return False if state == win32event.WAIT_OBJECT_0 else True if state == win32event.WAIT_TIMEOUT else None
+        finally:
+            handle.Close()
+    except Exception as error:
+        # pywintypes.error is not an OSError; 87 means no such process ID.
         return False if getattr(error, "winerror", None) == 87 else None
-    except Exception:
-        return None
 
 
 def restricted_environment(extra=None):
@@ -76,6 +90,30 @@ def atomic_json(path: Path, data):
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def release_marker(path: Path, original: bytes):
+    import win32con
+    import win32file
+
+    from .assets import assert_no_links
+
+    handle = None
+    try:
+        assert_no_links(path)
+        handle = win32file.CreateFile(str(path), win32con.GENERIC_READ | win32con.DELETE,
+            win32con.FILE_SHARE_READ, None, win32con.OPEN_EXISTING,
+            win32file.FILE_FLAG_OPEN_REPARSE_POINT, None)
+        _, current = win32file.ReadFile(handle, len(original) + 1)
+        if current != original:
+            raise LifecycleError('OWNERSHIP_UNCERTAIN', 'Маркер владения изменён; освобождение запрещено.', 503)
+        # Deny replacement/write sharing and delete this exact open file, not its path.
+        win32file.SetFileInformationByHandle(handle, win32file.FileDispositionInfo, True)
+    except Exception:
+        raise LifecycleError('OWNERSHIP_UNCERTAIN', 'Маркер владения не удалось безопасно освободить.', 503) from None
+    finally:
+        if handle is not None:
+            handle.Close()
 
 
 class OwnerMarker:
@@ -109,10 +147,11 @@ class OwnerMarker:
         atomic_json(self.path, {**data, "phase": "running", "process": identity.model_dump()})
 
     def release(self, identity: ProcessIdentity):
+        original = self.path.read_bytes()
         data = self._owned()
         if data.get("process") != identity.model_dump():
             raise LifecycleError("OWNERSHIP_UNCERTAIN", "Process identity не совпадает с владельцем.", 503)
-        self.path.unlink()
+        release_marker(self.path, original)
 
 
 class OwnedStdio:
@@ -218,9 +257,10 @@ class OwnedStdio:
             if self.identity and self.process.returncode is not None:
                 await asyncio.to_thread(self.marker.release, self.identity)
             elif self._no_child:
+                original = await asyncio.to_thread(self.marker.path.read_bytes)
                 data = await asyncio.to_thread(self.marker._owned)
                 if data.get('phase') == 'spawn_pending' and data.get('owner') == process_identity(os.getpid()).model_dump():
-                    self.marker.path.unlink()
+                    await asyncio.to_thread(release_marker, self.marker.path, original)
             self.session = None
 
     async def aclose(self):

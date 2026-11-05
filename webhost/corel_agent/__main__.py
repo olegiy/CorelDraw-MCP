@@ -162,6 +162,9 @@ def main():
         # Only fixed sanitized codes/messages, never tokens or raw library exceptions.
         print(f"{error.code}: {error.message}", file=sys.stderr)
         return 1
+    except Exception:
+        print("HOST_START_FAILED: Не удалось запустить или штатно остановить панель; проверьте локальную диагностику.", file=sys.stderr)
+        return 1
     return 0
 
 

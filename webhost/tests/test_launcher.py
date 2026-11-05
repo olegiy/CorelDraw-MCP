@@ -158,3 +158,122 @@ async def test_clean_start_clears_recovery_only_without_resuming_old_plan(store)
     await module.prepare_runtime(store, mcp, store.directory)
     assert mcp.ready is True
     assert await store.get_meta('recovery_only') is False
+
+
+def test_entrypoint_sanitizes_unexpected_startup_failure(tmp_path, monkeypatch, capsys):
+    module = implementation('__main__')
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path))
+    monkeypatch.setattr(module.sys, 'argv', ['corel_agent', '--no-browser'])
+
+    async def failing_start(*args, **kwargs):
+        raise OSError('CANARY-credential C:\\private\\drawing.cdr')
+
+    monkeypatch.setattr(module, 'serve', failing_start)
+    assert module.main() == 1
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert 'HOST_START_FAILED' in captured.err
+    assert 'CANARY' not in captured.err and 'drawing.cdr' not in captured.err
+
+
+async def test_exited_process_with_retained_windows_handle_is_not_a_live_owner(tmp_path):
+    import asyncio
+    import json
+    import sys
+
+    from corel_agent.contracts import ProcessIdentity
+    from corel_agent.owned_stdio import identity_alive
+
+    child = await asyncio.create_subprocess_exec(sys.executable, '-c',
+        'import sys; from pathlib import Path; from corel_agent.launcher import HostOwner; '
+        'HostOwner(Path(sys.argv[1])).reserve()', str(tmp_path))
+    assert await child.wait() == 0
+    marker = json.loads((tmp_path / 'runtime.json').read_text())
+    identity = ProcessIdentity.model_validate(marker['process'])
+    assert identity_alive(identity) is False
+
+
+def test_concurrent_dead_marker_release_cannot_delete_new_host_owner(tmp_path, monkeypatch):
+    import json
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    launcher = implementation('launcher')
+    marker = tmp_path / 'runtime.json'
+    marker.write_text(json.dumps({'phase': 'running', 'process': {'pid': 123, 'creation_time': 'dead'}}))
+    checking, proceed = threading.Event(), threading.Event()
+    calls = threading.local()
+
+    def dead(identity):
+        if threading.current_thread().name.endswith('_0'):
+            calls.count = getattr(calls, 'count', 0) + 1
+            if calls.count == 2:
+                checking.set()
+                assert proceed.wait(5)
+        return False
+
+    monkeypatch.setattr(launcher, 'identity_alive', dead)
+    owner = launcher.HostOwner(tmp_path)
+
+    def replacement():
+        released = launcher.release_dead_host(tmp_path)
+        owner.reserve()
+        return released
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(launcher.release_dead_host, tmp_path)
+        try:
+            assert checking.wait(5)
+            second = pool.submit(replacement)
+            # Let the other launcher reach reserve while the first checks exit.
+            from concurrent.futures import TimeoutError
+            try:
+                second.result(timeout=0.2)
+            except TimeoutError:
+                pass
+        finally:
+            proceed.set()
+        assert sorted([first.result(timeout=5), second.result(timeout=5)]) == [False, True]
+    try:
+        assert marker.exists()
+        assert json.loads(marker.read_text())['token'] == owner.token
+    finally:
+        if marker.exists():
+            owner.release()
+
+
+def test_missing_control_event_has_fixed_owner_diagnostic(tmp_path):
+    launcher = implementation('launcher')
+    owner = launcher.HostOwner(tmp_path)
+    owner.reserve()
+    try:
+        with pytest.raises(AgentError) as caught:
+            launcher.signal_existing(tmp_path, 'stop')
+        assert caught.value.code == 'HOST_OWNER_UNCERTAIN'
+    finally:
+        owner.release()
+
+
+async def test_busy_production_port_refuses_launcher_before_mcp(tmp_path, monkeypatch):
+    module = implementation('__main__')
+    launcher = implementation('launcher')
+    try:
+        listener = launcher.reserve_port()
+    except AgentError as error:
+        assert error.code == 'PORT_BUSY'
+        pytest.skip('Порт 8878 уже занят; существующий сервис не затрагивается.')
+
+    def no_mcp(**kwargs):
+        raise AssertionError('MCP must not be constructed before port reservation')
+
+    monkeypatch.setattr(module, 'CorelMcp', no_mcp)
+    directory = tmp_path / 'blocked runtime'
+    try:
+        with pytest.raises(AgentError) as caught:
+            await module.serve(directory, no_browser=True)
+        assert caught.value.code == 'PORT_BUSY'
+        assert not (directory / 'runtime.json').exists()
+        assert not (directory / 'mcp-owner.json').exists()
+        assert not (directory / 'history.sqlite3').exists()
+    finally:
+        listener.close()

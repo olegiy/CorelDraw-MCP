@@ -7,7 +7,7 @@ from pathlib import Path
 from .assets import assert_no_links
 from .contracts import AgentError, OperationResult, PreparedOperation, ProcessIdentity
 from .corel_mcp import JOB_ID
-from .owned_stdio import identity_alive
+from .owned_stdio import identity_alive, release_marker
 
 
 async def reconcile(store, bindings, directory, reports):
@@ -55,7 +55,7 @@ async def reconcile(store, bindings, directory, reports):
         assert_no_links(marker)
         if marker.read_bytes() != original or identity_alive(identity) is not False:
             raise AgentError('OWNERSHIP_UNCERTAIN', 'Владелец изменился в ходе reconciliation.', 503)
-        marker.unlink()
+        release_marker(marker, original)
     await asyncio.to_thread(release)
     await store.put_meta('recovery_pending', [])
     return True
