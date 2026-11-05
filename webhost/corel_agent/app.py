@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -27,6 +28,7 @@ from .contracts import (
     EventPage,
     FileRegister,
     Health,
+    Id,
     MessagePage,
     OperationPage,
     ProfilePage,
@@ -72,6 +74,10 @@ class LocalBoundary:
             await send(message)
         try:
             request = Request(scope, receive)
+            for key in ('offset', 'after', 'limit'):
+                values = request.query_params.getlist(key)
+                if values and (len(values) != 1 or re.fullmatch(r'[0-9]{1,18}', values[0]) is None):
+                    raise AgentError('SCHEMA_INVALID', 'Нужен ограниченный целочисленный cursor без дроби или экспоненты.', 422)
             if self.access is not None:
                 await self.access.check(request)
             elif scope["path"].startswith("/api/"):
@@ -148,7 +154,7 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
         return await store.create_conversation(command.title)
 
     @app.get("/api/v1/conversations", response_model=ConversationPage)
-    async def conversations(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
+    async def conversations(offset: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500)):
         items = await store.list_conversations(offset=offset, limit=limit)
         return ConversationPage(items=items, next_offset=offset + limit if len(items) == limit else None)
 
@@ -158,7 +164,7 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
         return BackupResult()
 
     @app.get("/api/v1/conversations/{conversation_id}/messages", response_model=MessagePage)
-    async def messages(conversation_id: str, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
+    async def messages(conversation_id: Id, offset: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500)):
         items = await store.get_messages(conversation_id, offset=offset, limit=limit)
         return MessagePage(items=items, next_offset=offset + limit if len(items) == limit else None)
 
@@ -244,58 +250,60 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
             "arguments": {}, "read_only": True, "document_id": None, "profile_id": None}))
 
     @app.get("/api/v1/runs", response_model=RunPage)
-    async def runs(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), conversation_id: str | None = None):
+    async def runs(offset: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500), conversation_id: Id | None = None):
         items = await store.list_runs(offset=offset, limit=limit, conversation_id=conversation_id)
         return RunPage(items=items, next_offset=offset + limit if len(items) == limit else None)
 
     @app.get("/api/v1/runs/{run_id}", response_model=RunSnapshot)
-    async def snapshot(run_id: str):
+    async def snapshot(run_id: Id):
         return await store.get_snapshot(run_id)
 
     @app.get("/api/v1/requests/{client_request_id}", response_model=RunSnapshot)
-    async def request_snapshot(client_request_id: str):
+    async def request_snapshot(client_request_id: Id):
         snapshot = await store.get_request(client_request_id)
         if snapshot is None:
             raise AgentError("REQUEST_NOT_FOUND", "Команда ещё не принята либо её принятие не подтверждено.", 404, retryable=True)
         return snapshot
 
     @app.post("/api/v1/runs/{run_id}/stop", response_model=RunSnapshot)
-    async def stop(run_id: str):
+    async def stop(run_id: Id):
         return await runtime.stop(run_id)
 
     @app.post("/api/v1/runs/{run_id}/confirm", response_model=RunSnapshot)
-    async def confirm(run_id: str, command: ConfirmCommand):
+    async def confirm(run_id: Id, command: ConfirmCommand):
         return await runtime.confirm(run_id, command.confirmation_id,
                                      command.operation_digest, command.approved)
 
     @app.post("/api/v1/requests/{client_request_id}/stop", response_model=RunSnapshot | None)
-    async def stop_request(client_request_id: str):
+    async def stop_request(client_request_id: Id):
         return await runtime.stop_request(client_request_id)
 
     @app.get("/api/v1/runs/{run_id}/events", response_class=EventSourceResponse)
-    async def events(request: Request, run_id: str, after: int = Query(0, ge=0)):
+    async def events(request: Request, run_id: Id, after: int = Query(0, ge=0, le=999999999999999999)):
         await store.get_snapshot(run_id)
         last = request.headers.get("last-event-id")
         if last is not None:
             if not last.isdecimal() or len(last) > 18:
                 raise AgentError("EVENT_CURSOR_INVALID", "Неверный Last-Event-ID.", 422)
             after = int(last)
+        if last is not None or after > 0:
+            await store.record_metric('reconnects')
         return EventSourceResponse(run_stream(store, runtime.hub, run_id, after), ping=2)
 
     @app.get("/api/v1/runs/{run_id}/event-log", response_model=EventPage)
-    async def event_log(run_id: str, after: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
+    async def event_log(run_id: Id, after: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500)):
         items = await store.get_events(run_id, after=after, limit=limit)
         snapshot = await store.get_snapshot(run_id)
         return EventPage(items=items, next_after=items[-1].seq if items and items[-1].seq < snapshot.last_seq else None)
 
     @app.get("/api/v1/runs/{run_id}/operations", response_model=OperationPage)
-    async def operations(run_id: str, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
+    async def operations(run_id: Id, offset: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500)):
         await store.get_snapshot(run_id)
         items = await store.get_operations(run_id, offset=offset, limit=limit)
         return OperationPage(items=items, next_offset=offset + limit if len(items) == limit else None)
 
     @app.get("/api/v1/operations/{operation_id}/report", response_model=ReportView)
-    async def report(operation_id: str):
+    async def report(operation_id: Id):
         operation = await store.get_operation(operation_id)
         return {"operation_id": operation_id, "report": operation["report"], "result": operation["result"]}
 
@@ -306,12 +314,30 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
 
     @app.post("/api/v1/recovery/review", response_model=RecoveryReview, status_code=201)
     async def recovery_review(review: RecoveryReview):
-        await store.add_review(review)
+        if review.release_for_new_context:
+            from .owned_stdio import identity_alive
+            async with runtime._lock:
+                if not review.manual_corel_checked or not review.document_id or not review.barrier_id:
+                    raise AgentError('REVIEW_CHECK_REQUIRED', 'Нужны ручная проверка CorelDRAW, точный документ и ID барьера.')
+                transport = runtime.mcp.transport
+                identity = getattr(transport, 'identity', None)
+                if (not runtime.mcp.ready or not identity or identity_alive(identity) is not True
+                        or await store.get_meta('recovery_pending', []) or await store.get_meta('recovery_only', False)
+                        or runtime._tasks):
+                    raise AgentError('REVIEW_OWNER_UNVERIFIED', 'Владелец MCP или завершение прежних операций не подтверждены.')
+                await transport.verify_owner()
+                cached = await store.get_meta('documents', {'items': [], 'stale': True})
+                if cached.get('stale', True) or review.document_id not in {item['document_id'] for item in cached['items']}:
+                    raise AgentError('REVIEW_DOCUMENT_STALE', 'Обновите документы и явно выберите текущий рисунок.')
+                await store.release_barrier(review)
+        else:
+            await store.add_review(review)
         return review
 
     @app.get("/api/v1/recovery/reviews", response_model=RecoveryReviewPage)
-    async def recovery_reviews(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
-        return RecoveryReviewPage(items=await store.list_reviews(offset=offset, limit=limit))
+    async def recovery_reviews(offset: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500)):
+        items = await store.list_reviews(offset=offset, limit=limit)
+        return RecoveryReviewPage(items=items, next_offset=offset + limit if len(items) == limit else None)
 
     @app.post("/api/v1/recovery/reconcile", response_model=ReconcileResult)
     async def recovery_reconcile(command: EmptyCommand):
@@ -347,6 +373,6 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
         cached = await store.get_meta("documents", {})
         return Health(mcp_connected=runtime.mcp.ready, store_ready=not store.failed,
             active_run_id=active.id if active else None, active_job_id=active.job_id if active else None,
-            safety_barrier=await store.get_barrier(), cached_corel_at=cached.get("at"))
+            safety_barrier=await store.get_barrier(), cached_corel_at=cached.get("at"), storage=await store.storage_state())
 
     return app

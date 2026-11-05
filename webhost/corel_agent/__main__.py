@@ -41,6 +41,59 @@ async def prepare_runtime(store, mcp, directory):
     return Runtime(store, mcp, Assets(directory, store), settings=Settings(directory))
 
 
+async def cleanup_resources(runtime, mcp, store, log, events, owner, listener):
+    async def cleanup():
+        error = None
+        drained = False
+        try:
+            if runtime or mcp:
+                await (runtime.aclose() if runtime else mcp.aclose())
+            drained = True
+        except BaseException as primary:
+            error = primary
+        for resource, method in ((store, 'aclose'), (log, 'close'), (events, 'close'),
+                                 (owner if drained and owner and owner.identity else None, 'release'), (listener, 'close')):
+            if resource is None:
+                continue
+            try:
+                result = getattr(resource, method)()
+                if method == 'aclose':
+                    await result
+            except BaseException as failure:
+                if error is None:
+                    error = failure
+        if error is not None:
+            raise error
+    task = asyncio.create_task(cleanup(), name='launcher-resource-cleanup')
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+    task.result()
+    if cancelled:
+        raise asyncio.CancelledError
+
+
+async def run_controls(server, events, access, log, *, no_browser=False):
+    opened = no_browser
+    while not server.should_exit:
+        if server.started and (not opened or events.take_open()):
+            opened = True
+            token = access.issue_bootstrap()
+            try:
+                success = await asyncio.to_thread(webbrowser.open, f'http://127.0.0.1:8878/#bootstrap={token}')
+            except Exception:
+                success = False
+            if not success:
+                log.write('browser_unavailable', code='BROWSER_UNAVAILABLE')
+        if events.take_stop():
+            server.should_exit = True
+            return
+        await asyncio.sleep(0.2)
+
+
 async def serve(directory, *, no_browser=False):
     root = Path(__file__).resolve().parents[2]
     preflight(directory)
@@ -51,11 +104,11 @@ async def serve(directory, *, no_browser=False):
             signal_existing(directory, "open")
         return
     listener = reserve_port()
-    owner = HostOwner(directory)
-    store = Store(directory)
-    mcp = CorelMcp(directory=directory)
-    events = log = runtime = None
+    owner = store = mcp = events = log = runtime = None
     try:
+        owner = HostOwner(directory)
+        store = Store(directory)
+        mcp = CorelMcp(directory=directory)
         owner.reserve()
         events = ControlEvents(directory)
         log = TechnicalLog(directory / "logs")
@@ -79,18 +132,7 @@ async def serve(directory, *, no_browser=False):
         app.mount("/", StaticFiles(directory=build, html=True), name="webui")
         server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8878,
             access_log=False, log_config=None, timeout_graceful_shutdown=None, proxy_headers=False))
-        async def controls():
-            opened = no_browser
-            while not server.should_exit:
-                if server.started and (not opened or events.take_open()):
-                    opened = True
-                    token = access.issue_bootstrap()
-                    await asyncio.to_thread(webbrowser.open, f"http://127.0.0.1:8878/#bootstrap={token}")
-                if events.take_stop():
-                    server.should_exit = True
-                    return
-                await asyncio.sleep(0.2)
-        task = asyncio.create_task(controls())
+        task = asyncio.create_task(run_controls(server, events, access, log, no_browser=no_browser))
         log.write("host_started", code="READY")
         try:
             await server.serve(sockets=[listener])
@@ -98,18 +140,7 @@ async def serve(directory, *, no_browser=False):
             server.should_exit = True
             await task
     finally:
-        if runtime:
-            await runtime.aclose()
-        else:
-            await mcp.aclose()
-        await store.aclose()
-        if log:
-            log.close()
-        if events:
-            events.close()
-        if owner.identity:
-            owner.release()
-        listener.close()
+        await cleanup_resources(runtime, mcp, store, log, events, owner, listener)
 
 
 def main():

@@ -47,9 +47,17 @@ async def diagnostics(store, *, mcp_connected, slow_subscribers=0):
         totals = db.execute("SELECT count(*),coalesce(sum(json_extract(snapshot,'$.counters.turns')),0) FROM runs").fetchone()
         operations = db.execute("SELECT count(*) FROM operations").fetchone()[0]
         approvals = db.execute("SELECT count(*) FROM approvals").fetchone()[0]
+        timed_out = db.execute("SELECT count(DISTINCT json_extract(payload,'$.data.operation_id')) FROM events WHERE json_extract(payload,'$.type')='job_progress' AND json_extract(payload,'$.data.status')='timed_out'").fetchone()[0]
+        degraded = db.execute("SELECT count(DISTINCT json_extract(payload,'$.data.operation_id')) FROM events WHERE json_extract(payload,'$.type')='job_progress' AND json_extract(payload,'$.state.monitoring_state')='degraded'").fetchone()[0]
+        unsafe = db.execute("SELECT coalesce(sum(json_extract(result,'$.outcome')='unknown'),0), coalesce(sum(json_extract(result,'$.cleanup.completed')=0),0) FROM operations").fetchone()
+        latency = db.execute("SELECT coalesce(sum(max(0,(julianday(t.finished)-julianday(t.started))*86400)),0) FROM (SELECT json_extract(payload,'$.data.operation_id') AS id, min(CASE WHEN json_extract(payload,'$.type')='tool_start' THEN json_extract(payload,'$.at') END) AS started, max(CASE WHEN json_extract(payload,'$.type')='tool_result' THEN json_extract(payload,'$.at') END) AS finished FROM events GROUP BY id) AS t WHERE t.id IS NOT NULL").fetchone()[0]
         return {"runs": totals[0], "llm_turns": totals[1], "corel_operations": operations,
-                "approvals": approvals, "outcomes": outcomes}
+                "approvals": approvals, "outcomes": outcomes, "timed_out": timed_out,
+                "unknown": unsafe[0], "cleanup_failures": unsafe[1],
+                "monitoring_degraded": degraded, "corel_latency_seconds": latency}
     metrics = await store._db(counts)
+    extras = await store.get_meta('metrics', {})
+    metrics.update({name: extras.get(name, 0) for name in ('busy', 'llm_requests', 'llm_latency_seconds', 'reconnects')})
     return {"schema_version": 1, "at": utc_now(), "mcp_connected": bool(mcp_connected),
             "store_ready": not store.failed, "storage": await store.storage_state(),
             "metrics": {**metrics, "slow_subscribers": slow_subscribers},

@@ -1,6 +1,7 @@
 """One lifespan-owned run, independent of HTTP/SSE cancellation. COM is drained."""
 
 import asyncio
+import time
 
 from .contracts import (
     TERMINAL_STATUSES,
@@ -76,7 +77,12 @@ class Runtime:
         return await asyncio.shield(task)
 
     async def start(self, command):
-        return await self._transition(self._accept(command))
+        try:
+            return await self._transition(self._accept(command))
+        except AgentError as error:
+            if error.code == 'BUSY':
+                await self.store.record_metric('busy')
+            raise
 
     async def _accept(self, command):
         async with self._lock:
@@ -87,6 +93,8 @@ class Runtime:
                 return (await self.store.accept_run(command, None)).snapshot
             if self._closing or (not self.mcp.ready and command.tool != "host_diagnostics") or self.store.failed:
                 raise AgentError("RUNTIME_BLOCKED", "Runtime недоступен; новый запуск запрещён.", 503)
+            if self.mcp.transport is not None and command.tool != 'host_diagnostics':
+                await self.mcp.transport.verify_owner()
             if await self.store.get_meta("recovery_only", False) and (not command.read_only or command.tool not in {"host_diagnostics", "corel_status"}):
                 raise AgentError("RECOVERY_ONLY", "Host находится в recovery-only режиме до проверки прежнего Job.", 503)
             context = await self._context(new_id(), command)
@@ -244,6 +252,8 @@ class Runtime:
         risk = await self.policy.classify(operation, current)
         if risk.decision == "deny" or (risk.decision == "confirm" and not approved):
             raise AgentError("APPROVAL_STALE", "Параметры, привязка или файл изменились до dispatch.")
+        if self.mcp.transport is not None:
+            await self.mcp.transport.verify_owner()
         await self.store.mark_dispatching(operation.operation_id)
         if self.technical_log:
             self.technical_log.write('dispatch', run_id=run_id, operation_id=operation.operation_id, stage=operation.tool)
@@ -327,6 +337,8 @@ class Runtime:
                 tools = self.policy.catalog(context)
                 model_task = asyncio.create_task(provider.complete(history, tools))
                 self._model_tasks[run_id] = model_task
+                started = time.perf_counter()
+                await self.store.record_metric('llm_requests')
                 try:
                     completion = await model_task
                 except asyncio.CancelledError:
@@ -336,6 +348,7 @@ class Runtime:
                     raise
                 finally:
                     self._model_tasks.pop(run_id, None)
+                    await self.store.record_metric('llm_latency_seconds', min(86400, time.perf_counter() - started))
                 if (await self.store.get_snapshot(run_id)).stop_requested:
                     await self._status(run_id, "stopped")
                     return

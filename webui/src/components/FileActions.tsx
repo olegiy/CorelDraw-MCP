@@ -25,8 +25,8 @@ export default function FileActions({ disabled, hasDocument, rootId, setRootId, 
     <button disabled={disabled || !directory} onClick={() => void root()}>Разрешить каталог</button>
     <small>{rootId ? 'Операторский каталог выбран' : 'Каталог должен существовать; создание не выполняется'}</small>
     <label>Имя результата<input value={name} disabled={disabled} onChange={event => setName(event.target.value)} /></label>
-    <label>Формат экспорта<select value={format} disabled={disabled} onChange={event => { setFormat(event.target.value); setName(`result.${event.target.value}`); }}><option value="png">PNG</option><option value="svg">SVG</option><option value="pdf">PDF</option></select></label>
-    <label>Область экспорта<select value={range} disabled={disabled} onChange={event => setRange(event.target.value)}><option value="page">Страница</option><option value="selection">Выделение</option><option value="document">Документ (PDF)</option></select></label>
+    <label>Формат экспорта<select value={format} disabled={disabled} onChange={event => { setFormat(event.target.value); setName(`result.${event.target.value}`); setRange('page'); }}><option value="png">PNG</option><option value="svg">SVG</option><option value="pdf">PDF</option></select></label>
+    <label>Область экспорта<select value={range} disabled={disabled} onChange={event => setRange(event.target.value)}><option value="page">Страница</option>{format === 'pdf' ? <option value="document">Документ (PDF)</option> : <option value="selection">Выделение</option>}</select></label>
     <label><input type="checkbox" checked={overwrite} disabled={disabled} onChange={event => setOverwrite(event.target.checked)} />Запросить перезапись с подтверждением</label>
     <button disabled={disabled || !hasDocument || !rootId || !name} onClick={() => action('corel_export', { path: `@output/${name}`, format, range, overwrite })}>Экспортировать</button>
     <button disabled={disabled || !hasDocument || !rootId || !name.toLowerCase().endsWith('.cdr')} onClick={() => action('corel_save_document', { path: `@output/${name}`, overwrite })}>Сохранить как CDR</button>

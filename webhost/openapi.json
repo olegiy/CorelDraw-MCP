@@ -683,6 +683,16 @@
             "title": "Schema Version",
             "type": "integer"
           },
+          "storage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StorageState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "store_ready": {
             "title": "Store Ready",
             "type": "boolean"
@@ -1113,12 +1123,42 @@
             "title": "Approvals",
             "type": "integer"
           },
+          "busy": {
+            "default": 0,
+            "title": "Busy",
+            "type": "integer"
+          },
+          "cleanup_failures": {
+            "default": 0,
+            "title": "Cleanup Failures",
+            "type": "integer"
+          },
+          "corel_latency_seconds": {
+            "default": 0,
+            "title": "Corel Latency Seconds",
+            "type": "number"
+          },
           "corel_operations": {
             "title": "Corel Operations",
             "type": "integer"
           },
+          "llm_latency_seconds": {
+            "default": 0,
+            "title": "Llm Latency Seconds",
+            "type": "number"
+          },
+          "llm_requests": {
+            "default": 0,
+            "title": "Llm Requests",
+            "type": "integer"
+          },
           "llm_turns": {
             "title": "Llm Turns",
+            "type": "integer"
+          },
+          "monitoring_degraded": {
+            "default": 0,
+            "title": "Monitoring Degraded",
             "type": "integer"
           },
           "outcomes": {
@@ -1128,12 +1168,27 @@
             "title": "Outcomes",
             "type": "object"
           },
+          "reconnects": {
+            "default": 0,
+            "title": "Reconnects",
+            "type": "integer"
+          },
           "runs": {
             "title": "Runs",
             "type": "integer"
           },
           "slow_subscribers": {
             "title": "Slow Subscribers",
+            "type": "integer"
+          },
+          "timed_out": {
+            "default": 0,
+            "title": "Timed Out",
+            "type": "integer"
+          },
+          "unknown": {
+            "default": 0,
+            "title": "Unknown",
             "type": "integer"
           }
         },
@@ -1614,6 +1669,18 @@
             "title": "At",
             "type": "string"
           },
+          "barrier_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrier Id"
+          },
           "document_id": {
             "anyOf": [
               {
@@ -1627,11 +1694,21 @@
             ],
             "title": "Document Id"
           },
+          "manual_corel_checked": {
+            "default": false,
+            "title": "Manual Corel Checked",
+            "type": "boolean"
+          },
           "note": {
             "maxLength": 4000,
             "minLength": 1,
             "title": "Note",
             "type": "string"
+          },
+          "release_for_new_context": {
+            "default": false,
+            "title": "Release For New Context",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1649,6 +1726,17 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
           }
         },
         "required": [
@@ -2883,6 +2971,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
@@ -3091,6 +3180,7 @@
             "name": "conversation_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Conversation Id",
               "type": "string"
             }
@@ -3101,6 +3191,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
@@ -3966,6 +4057,7 @@
             "name": "operation_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Operation Id",
               "type": "string"
             }
@@ -4558,6 +4650,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
@@ -4670,6 +4763,7 @@
             "name": "client_request_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Client Request Id",
               "type": "string"
             }
@@ -4769,6 +4863,7 @@
             "name": "client_request_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Client Request Id",
               "type": "string"
             }
@@ -4877,6 +4972,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
@@ -4901,6 +4997,7 @@
             "schema": {
               "anyOf": [
                 {
+                  "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
                   "type": "string"
                 },
                 {
@@ -5101,6 +5198,7 @@
             "name": "run_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Run Id",
               "type": "string"
             }
@@ -5200,6 +5298,7 @@
             "name": "run_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Run Id",
               "type": "string"
             }
@@ -5309,6 +5408,7 @@
             "name": "run_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Run Id",
               "type": "string"
             }
@@ -5319,6 +5419,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "After",
               "type": "integer"
@@ -5431,6 +5532,7 @@
             "name": "run_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Run Id",
               "type": "string"
             }
@@ -5441,6 +5543,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "After",
               "type": "integer"
@@ -5534,6 +5637,7 @@
             "name": "run_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Run Id",
               "type": "string"
             }
@@ -5544,6 +5648,7 @@
             "required": false,
             "schema": {
               "default": 0,
+              "maximum": 999999999999999999,
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
@@ -5656,6 +5761,7 @@
             "name": "run_id",
             "required": true,
             "schema": {
+              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
               "title": "Run Id",
               "type": "string"
             }

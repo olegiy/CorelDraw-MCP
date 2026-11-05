@@ -29,3 +29,17 @@ test('export uses selected operator root and structured output alias only', asyn
   await expect.poll(() => exported).toBe(true);
   await page.goto('about:blank');
 });
+
+test('export choices never offer PDF selection or PNG SVG document', async ({ page }) => {
+  await page.route('**/api/v1/**', route => route.fulfill({ json: { authenticated: true, csrf_token: 'b'.repeat(43), items: [], stale: true } }));
+  await page.goto('/');
+  await page.getByLabel('Только чтение').uncheck();
+  await expect(page.getByLabel('Область экспорта').locator('option[value="document"]')).toHaveCount(0);
+  await page.getByLabel('Область экспорта').selectOption('selection');
+  await page.getByLabel('Формат экспорта').selectOption('pdf');
+  await expect(page.getByLabel('Область экспорта')).toHaveValue('page');
+  await expect(page.getByLabel('Область экспорта').locator('option[value="selection"]')).toHaveCount(0);
+  await page.getByLabel('Область экспорта').selectOption('document');
+  await page.getByLabel('Формат экспорта').selectOption('svg');
+  await expect(page.getByLabel('Область экспорта')).toHaveValue('page');
+});

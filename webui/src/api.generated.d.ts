@@ -789,6 +789,7 @@ export interface components {
              * @constant
              */
             schema_version: 1;
+            storage?: components["schemas"]["StorageState"] | null;
             /** Store Ready */
             store_ready: boolean;
         };
@@ -965,18 +966,63 @@ export interface components {
         MetricSummary: {
             /** Approvals */
             approvals: number;
+            /**
+             * Busy
+             * @default 0
+             */
+            busy: number;
+            /**
+             * Cleanup Failures
+             * @default 0
+             */
+            cleanup_failures: number;
+            /**
+             * Corel Latency Seconds
+             * @default 0
+             */
+            corel_latency_seconds: number;
             /** Corel Operations */
             corel_operations: number;
+            /**
+             * Llm Latency Seconds
+             * @default 0
+             */
+            llm_latency_seconds: number;
+            /**
+             * Llm Requests
+             * @default 0
+             */
+            llm_requests: number;
             /** Llm Turns */
             llm_turns: number;
+            /**
+             * Monitoring Degraded
+             * @default 0
+             */
+            monitoring_degraded: number;
             /** Outcomes */
             outcomes: {
                 [key: string]: number;
             };
+            /**
+             * Reconnects
+             * @default 0
+             */
+            reconnects: number;
             /** Runs */
             runs: number;
             /** Slow Subscribers */
             slow_subscribers: number;
+            /**
+             * Timed Out
+             * @default 0
+             */
+            timed_out: number;
+            /**
+             * Unknown
+             * @default 0
+             */
+            unknown: number;
         };
         /** OperationPage */
         OperationPage: {
@@ -1165,15 +1211,29 @@ export interface components {
         RecoveryReview: {
             /** At */
             at?: string;
+            /** Barrier Id */
+            barrier_id?: string | null;
             /** Document Id */
             document_id?: string | null;
+            /**
+             * Manual Corel Checked
+             * @default false
+             */
+            manual_corel_checked: boolean;
             /** Note */
             note: string;
+            /**
+             * Release For New Context
+             * @default false
+             */
+            release_for_new_context: boolean;
         };
         /** RecoveryReviewPage */
         RecoveryReviewPage: {
             /** Items */
             items: components["schemas"]["RecoveryReview"][];
+            /** Next Offset */
+            next_offset?: number | null;
         };
         /** ReportView */
         ReportView: {

@@ -126,10 +126,22 @@ class OwnedStdio:
         self._task: asyncio.Task | None = None
         self._close = asyncio.Event()
         self._ready: asyncio.Future | None = None
+        self._no_child = False
 
     @property
     def returncode(self):
         return self.process.returncode if self.process else None
+
+    async def verify_owner(self):
+        def verify():
+            from .assets import assert_no_links
+            assert_no_links(self.marker.path)
+            data = self.marker._owned()
+            if (self.identity is None or self.process is None or self.returncode is not None
+                    or data.get('phase') != 'running' or data.get('process') != self.identity.model_dump()
+                    or identity_alive(self.identity) is not True):
+                raise LifecycleError('OWNERSHIP_UNCERTAIN', 'Точный текущий владелец MCP не подтверждён.', 503)
+        await asyncio.to_thread(verify)
 
     async def start(self):
         if self._task:
@@ -184,6 +196,8 @@ class OwnedStdio:
                 self._ready.set_result(None)
                 await self._close.wait()
         except BaseException as error:
+            if self.process is None and isinstance(error, OSError):
+                self._no_child = True
             if self._ready and not self._ready.done():
                 self._ready.set_exception(LifecycleError("MCP_START_FAILED", "Не удалось инициализировать owned MCP.", 503))
             if not isinstance(error, asyncio.CancelledError):
@@ -203,13 +217,21 @@ class OwnedStdio:
                 await stream.aclose()
             if self.identity and self.process.returncode is not None:
                 await asyncio.to_thread(self.marker.release, self.identity)
+            elif self._no_child:
+                data = await asyncio.to_thread(self.marker._owned)
+                if data.get('phase') == 'spawn_pending' and data.get('owner') == process_identity(os.getpid()).model_dump():
+                    self.marker.path.unlink()
             self.session = None
 
     async def aclose(self):
         self._close.set()
         if self._task:
-            try:
-                await asyncio.shield(self._task)
-            except asyncio.CancelledError:
-                await asyncio.shield(self._task)
-                raise
+            cancelled = False
+            while not self._task.done():
+                try:
+                    await asyncio.shield(self._task)
+                except asyncio.CancelledError:
+                    cancelled = True
+            self._task.result()
+            if cancelled:
+                raise asyncio.CancelledError

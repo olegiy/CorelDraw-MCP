@@ -105,3 +105,18 @@ async def test_backup_endpoint_uses_owned_directory_and_rejects_paths(client, st
     assert str(store.directory) not in response.text
     response = await client.post('/api/v1/history/backup', json={'path': 'C:/private.sqlite3'})
     assert response.status_code == 422
+
+
+async def test_health_exposes_disk_guard_and_resume_cursor_increments_metric_without_com(client, runtime, store):
+    from conftest import command, wait_run
+    run = await runtime.start(command())
+    snapshot = await wait_run(store, run.id)
+    native_before = (store.directory / 'runs/calls.jsonl').read_bytes()
+    store.quota_bytes = 1
+    response = await client.get('/api/v1/health')
+    assert response.status_code == 200 and response.json()['storage']['full'] is True
+    assert str(store.directory) not in response.text
+    response = await client.get(f'/api/v1/runs/{run.id}/events', headers={'Last-Event-ID': str(snapshot.last_seq)})
+    assert response.status_code == 200
+    assert (await client.get('/api/v1/metrics')).json()['metrics']['reconnects'] == 1
+    assert (store.directory / 'runs/calls.jsonl').read_bytes() == native_before

@@ -60,8 +60,14 @@ SSE `/runs/{id}/events` использует `event:update`, `id:seq`, heartbeat
 PNG до 10 МиБ/2400 px. Query `path` запрещён.
 
 `POST /recovery/review` записывает операторское наблюдение отдельно от исхода
-старой операции; `/recovery/reviews` читает журнал. Текущий record-only review
-не снимает safety barrier при непроверенном владельце или незавершённом Job.
+старой операции; `/recovery/reviews` читает журнал. Обычная запись review не
+снимает safety barrier. Для явного нового контекста нужны `barrier_id`,
+`release_for_new_context=true`, `manual_corel_checked=true` и точный свежий
+`document_id`. Сервер проверяет текущего MCP-владельца и отсутствие незавершённых
+dispatch/Job; запись review и снятие глобального барьера атомарны. Старые
+outcome и barrier в snapshot прежнего Run не меняются. Повторный release
+устаревшего ID даёт 409. Ручное подтверждение не выдаётся за автоматическую
+проверку содержимого рисунка.
 
 `POST /recovery/reconcile` принимает пустой объект и доступен только при
 отключённом MCP и сохранённых pending bindings. Host читает исходные отчёты

@@ -446,6 +446,7 @@ class Health(DTO):
     active_job_id: str | None = None
     safety_barrier: SafetyBarrier | None = None
     cached_corel_at: str | None = None
+    storage: 'StorageState | None' = None
 
 
 class SessionResponse(DTO):
@@ -536,6 +537,15 @@ class MetricSummary(DTO):
     approvals: int
     outcomes: dict[str, int]
     slow_subscribers: int
+    timed_out: int = 0
+    unknown: int = 0
+    cleanup_failures: int = 0
+    monitoring_degraded: int = 0
+    corel_latency_seconds: float = 0
+    busy: int = 0
+    llm_requests: int = 0
+    llm_latency_seconds: float = 0
+    reconnects: int = 0
 
 
 class DiagnosticsSummary(DTO):
@@ -551,11 +561,15 @@ class DiagnosticsSummary(DTO):
 class RecoveryReview(DTO):
     note: str = Field(min_length=1, max_length=4000)
     document_id: DocumentId | None = None
+    barrier_id: Id | None = None
+    release_for_new_context: StrictBool = False
+    manual_corel_checked: StrictBool = False
     at: str = Field(default_factory=utc_now)
 
 
 class RecoveryReviewPage(DTO):
     items: list[RecoveryReview]
+    next_offset: int | None = None
 
 
 class EmptyCommand(DTO):

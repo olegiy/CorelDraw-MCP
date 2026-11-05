@@ -500,6 +500,16 @@ class Store:
         await self._db(lambda db: db.execute("INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                        (key, canonical(value))), write=True)
 
+    async def record_metric(self, name, amount=1):
+        if name not in {'busy', 'llm_requests', 'llm_latency_seconds', 'reconnects'} or not isinstance(amount, int | float) or not 0 <= amount <= 86400:
+            raise ValueError('Metric outside fixed allowlist')
+        def record(db):
+            row = db.execute("SELECT value FROM meta WHERE key='metrics'").fetchone()
+            values = json.loads(row[0]) if row else {}
+            values[name] = values.get(name, 0) + amount
+            db.execute("INSERT INTO meta VALUES('metrics',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (canonical(values),))
+        await self._db(record, write=True)
+
     async def get_meta(self, key, default=None):
         def query(db):
             row = db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
@@ -597,6 +607,19 @@ class Store:
     async def add_review(self, review):
         await self._db(lambda db: db.execute("INSERT INTO reviews VALUES(?,?,?)",
                        (new_id(), canonical(review), utc_now())), write=True)
+
+    async def release_barrier(self, review):
+        def release(db):
+            barrier = self._barrier(db)
+            if not barrier or barrier.id != review.barrier_id:
+                raise AgentError('REVIEW_STALE', 'Барьер изменился или уже рассмотрен.')
+            if db.execute("SELECT 1 FROM runs WHERE unfinished=1 LIMIT 1").fetchone():
+                raise AgentError('REVIEW_JOB_PENDING', 'Незавершённый Run блокирует снятие барьера.')
+            if db.execute("SELECT 1 FROM operations WHERE state IN ('dispatching','known_job') LIMIT 1").fetchone():
+                raise AgentError('REVIEW_JOB_PENDING', 'Исход отправленной операции ещё не подтверждён.')
+            db.execute('INSERT INTO reviews VALUES(?,?,?)', (new_id(), canonical(review), utc_now()))
+            db.execute("DELETE FROM meta WHERE key='safety_barrier'")
+        await self._db(release, write=True)
 
     async def list_reviews(self, *, offset=0, limit=100):
         self.page(offset, limit)

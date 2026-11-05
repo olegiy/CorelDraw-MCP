@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { api, terminal } from './api';
 import type { components } from './api.generated';
 import { applyRunEvent } from './runEvents';
@@ -6,12 +6,14 @@ import { applyRunEvent } from './runEvents';
 export type StreamUpdate = components['schemas']['MessageDeltaEvent'] | components['schemas']['MessageEvent'] | components['schemas']['ToolProposedEvent'] | components['schemas']['ConfirmationEvent'] | components['schemas']['ToolStartEvent'] | components['schemas']['JobProgressEvent'] | components['schemas']['ToolResultEvent'] | components['schemas']['ImageEvent'] | components['schemas']['StatusEvent'] | components['schemas']['WarningEvent'] | components['schemas']['ErrorEvent'];
 
 export function useRunStream(run: components['schemas']['RunSnapshot'] | null, onEvent: (event: StreamUpdate) => void, onRecovery: (snapshot: components['schemas']['RunSnapshot']) => void, onError: (message: string) => void, onState?: (state: components['schemas']['EventState']) => void) {
+  const [details, setDetails] = useState({ stage: '', warnings: [] as string[], messages: [] as components['schemas']['MessageView'][] });
   const cursor = useRef({ id: '', seq: 0 });
   const latestEvent = useEffectEvent(onEvent);
   const recover = useEffectEvent(onRecovery);
   const fail = useEffectEvent(onError);
   const stateChanged = useEffectEvent((state: components['schemas']['EventState']) => onState?.(state));
   useEffect(() => {
+    setDetails({ stage: '', warnings: [], messages: [] });
     if (!run) return;
     cursor.current = { id: run.id, seq: run.last_seq };
     let closed = false;
@@ -40,6 +42,9 @@ export function useRunStream(run: components['schemas']['RunSnapshot'] | null, o
           return;
         }
         cursor.current.seq = event.seq;
+        if (event.type === 'job_progress') setDetails(current => ({ ...current, stage: `${event.data.stage} · ${event.data.status}` }));
+        if (event.type === 'warning' || event.type === 'error') setDetails(current => ({ ...current, warnings: [...current.warnings.slice(-49), `${event.data.code}: ${event.data.message}`] }));
+        if (event.type === 'message') setDetails(current => ({ ...current, messages: [...current.messages.filter(item => item.id !== event.data.id), { ...event.data, run_id: event.run_id, at: event.at ?? '' }] }));
         latestEvent(event);
         stateChanged(event.state);
         if (event.state.status === 'completed' || event.state.status === 'failed' || event.state.status === 'stopped' || event.state.status === 'uncertain' || event.state.status === 'halted') source.close();
@@ -54,4 +59,5 @@ export function useRunStream(run: components['schemas']['RunSnapshot'] | null, o
     connect(run.last_seq);
     return () => { closed = true; source.close(); };
   }, [run?.id]);
+  return details;
 }

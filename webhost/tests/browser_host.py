@@ -42,6 +42,8 @@ class FixtureProvider:
         await asyncio.sleep(1)
         self.turn += 1
         if self.turn == 1:
+            if any(item.get('role') == 'user' and item.get('content') == 'fixture:cleanup-failure' for item in history):
+                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_execute_vba', arguments={'code': 'cleanup fail'}),))
             return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_preview', arguments={'target': 'page'}),))
         return Completion(content='Превью получено; операция завершена.')
     async def aclose(self):
@@ -52,6 +54,19 @@ async def main():
     root = Path(__file__).resolve().parents[2]
     temporary = tempfile.TemporaryDirectory(prefix='corel-agent-browser-')
     directory = Path(temporary.name)
+    loop = asyncio.get_running_loop()
+    previous_handler = loop.get_exception_handler()
+    def exception_handler(loop, context):
+        error = context.get('exception')
+        # Chromium closes its HTTP socket while the Windows proactor callback
+        # is still queued. This is a test-host teardown artifact, not app data.
+        if isinstance(error, ConnectionResetError) and getattr(error, 'winerror', None) == 10054:
+            return
+        if previous_handler:
+            previous_handler(loop, context)
+        else:
+            loop.default_exception_handler(context)
+    loop.set_exception_handler(exception_handler)
     transport = OwnedStdio(command=shutil.which('node'), args=[str(root / 'webhost/tests/fixtures/panel-server.mjs'), '--slow'],
                            directory=directory, env={'CORELDRAW_MCP_RUNS': str(directory / 'runs')})
     mcp = CorelMcp(transport=transport, poll_interval=0.02)

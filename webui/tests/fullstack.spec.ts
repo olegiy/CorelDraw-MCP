@@ -50,3 +50,36 @@ test('two tabs observe one accepted run and explicit Stop prevents next native s
   expect(stopped.counters.calls).toBeLessThanOrEqual(1);
   await context.close();
 });
+
+test('actual host preserves cleanup failure outcome after operator releases new context', async ({ browser }) => {
+  const context = await browser.newContext(); const page = await context.newPage();
+  await page.goto('http://127.0.0.1:18880/');
+  await page.getByRole('button', { name: 'Обновить документы' }).click();
+  await expect(page.getByRole('status')).toContainText('completed');
+  await page.getByLabel('Целевой документ').selectOption('fixture-b');
+  await page.getByLabel('Только чтение').uncheck();
+  await page.getByLabel('Сообщение агенту').fill('fixture:cleanup-failure');
+  await page.getByRole('button', { name: 'Отправить', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').locator('pre')).toContainText('cleanup fail');
+  await page.getByRole('button', { name: 'Подтвердить один раз' }).click();
+  await expect(page.getByRole('status')).toContainText('halted');
+  const runs = await (await context.request.get('http://127.0.0.1:18880/api/v1/runs')).json();
+  const halted = runs.items.find((run: { status: string }) => run.status === 'halted');
+  await expect(page.getByTestId('global-barrier')).toContainText('CLEANUP_INCOMPLETE');
+  await page.getByLabel('Комментарий рассмотрения').fill('Проверены тестовый рисунок и cleanup report');
+  await page.getByLabel('Я вручную проверил CorelDRAW и исходную диагностику').check();
+  await page.getByRole('button', { name: 'Разрешить новый контекст' }).click();
+  await expect(page.getByTestId('global-barrier')).not.toBeVisible();
+  await expect(page.getByLabel('Только чтение')).toBeChecked();
+  const old = await (await context.request.get(`http://127.0.0.1:18880/api/v1/runs/${halted.id}`)).json();
+  expect(old.status).toBe('halted'); expect(old.safety_barrier).not.toBeNull();
+  await page.getByLabel('Только чтение').uncheck();
+  await page.getByLabel('Целевой документ').selectOption('');
+  await page.getByRole('button', { name: 'Создать новый CDR', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('completed');
+  const after = (await (await context.request.get('http://127.0.0.1:18880/api/v1/runs')).json()).items;
+  expect(after.some((item: { id: string; status: string; document_id: string }) => item.id !== halted.id && item.status === 'completed' && item.document_id?.startsWith('fixture-created-'))).toBe(true);
+  expect((await (await context.request.get('http://127.0.0.1:18880/api/v1/health')).json()).safety_barrier).toBeNull();
+  await context.close();
+});
