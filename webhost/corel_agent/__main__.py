@@ -61,6 +61,7 @@ async def serve(directory, *, no_browser=False):
         log = TechnicalLog(directory / "logs")
         await store.open()
         runtime = await prepare_runtime(store, mcp, directory)
+        runtime.technical_log = log
         if await store.get_meta("recovery_pending"):
             # Recovery-only host remains read-only until an explicit verified reconcile.
             await store.put_meta("recovery_only", True)

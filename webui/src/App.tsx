@@ -43,8 +43,8 @@ export default function App() {
     let active = true;
     setConversation(run.conversation_id);
     setRuns(current => [run, ...current.filter(item => item.id !== run.id)]);
-    void api<components['schemas']['MessagePage']>(`/conversations/${run.conversation_id}/messages`).then(page => { if (active) setMessages(page.items); }).catch(error => { if (active) setError(error.message); });
-    void api<components['schemas']['OperationPage']>(`/runs/${run.id}/operations`).then(page => { if (active) setOperations(page.items); }).catch(error => { if (active) setError(error.message); });
+    void (async () => { let offset = 0; const all = []; for (;;) { const page = await api<components['schemas']['MessagePage']>(`/conversations/${run.conversation_id}/messages?offset=${offset}&limit=100`); all.push(...page.items); if (page.next_offset == null || page.next_offset <= offset) break; offset = page.next_offset; } if (active) setMessages(all); })().catch(error => { if (active) setError(error.message); });
+    void (async () => { let offset = 0; const all = []; for (;;) { const page = await api<components['schemas']['OperationPage']>(`/runs/${run.id}/operations?offset=${offset}&limit=100`); all.push(...page.items); if (page.next_offset == null || page.next_offset <= offset) break; offset = page.next_offset; } if (active) setOperations(all); })().catch(error => { if (active) setError(error.message); });
     return () => { active = false; };
   }, [runId, run?.status]);
   useEffect(() => { setPreview(null); }, [runId]);

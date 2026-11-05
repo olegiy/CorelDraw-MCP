@@ -28,3 +28,16 @@ async def test_metrics_and_diagnostics_exclude_report_code_and_paths(store):
     assert "storage" in report and report["mcp_connected"] is True
     assert str(store.directory) not in json.dumps(report)
     assert "events" not in report and "messages" not in report
+
+
+async def test_runtime_lifecycle_log_is_allowlisted_and_excludes_report_data(runtime, store, tmp_path):
+    module = implementation('observability')
+    log = module.TechnicalLog(tmp_path)
+    runtime.technical_log = log
+    from conftest import command, wait_run
+    run = await runtime.start(command(message='CANARY prompt C:/private.cdr'))
+    await wait_run(store, run.id)
+    log.close()
+    text = (tmp_path / 'technical.jsonl').read_text(encoding='utf-8')
+    assert 'CANARY' not in text and 'private.cdr' not in text
+    assert 'run_id' in text and 'outcome' in text

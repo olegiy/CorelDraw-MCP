@@ -23,11 +23,12 @@ from .store import canonical
 
 
 class Runtime:
-    def __init__(self, store, mcp, assets, *, hub=None, policy=None, settings=None, provider_factory=None):
+    def __init__(self, store, mcp, assets, *, hub=None, policy=None, settings=None, provider_factory=None, technical_log=None):
         self.store, self.mcp, self.assets = store, mcp, assets
         self.hub = hub or EventHub()
         self.policy = policy or Policy(mcp.catalog)
         self.settings, self.provider_factory = settings, provider_factory
+        self.technical_log = technical_log
         self._lock = asyncio.Lock()
         self._tasks = {}
         self._accepting = set()
@@ -38,6 +39,8 @@ class Runtime:
 
     async def _status(self, run_id, status, **changes):
         snapshot = await self.store.set_status(run_id, status, **changes)
+        if self.technical_log:
+            self.technical_log.write('run_status', run_id=run_id, outcome=status)
         self.hub.publish(run_id)
         return snapshot
 
@@ -118,6 +121,9 @@ class Runtime:
 
     async def _update_job(self, update):
         await self.store.record_job(update)
+        if self.technical_log:
+            self.technical_log.write('job_progress', operation_id=update.operation_id, job_id=update.job_id,
+                                     stage=update.stage, outcome=update.status)
         operation = await self.store.get_operation(update.operation_id)
         self.hub.publish(operation["run_id"])
 
@@ -239,6 +245,8 @@ class Runtime:
         if risk.decision == "deny" or (risk.decision == "confirm" and not approved):
             raise AgentError("APPROVAL_STALE", "Параметры, привязка или файл изменились до dispatch.")
         await self.store.mark_dispatching(operation.operation_id)
+        if self.technical_log:
+            self.technical_log.write('dispatch', run_id=run_id, operation_id=operation.operation_id, stage=operation.tool)
         self.hub.publish(run_id)
         result = await self.mcp.call_job(operation, self._update_job)
         outcome = await self._save_result(operation, result)
