@@ -511,3 +511,47 @@ class ReportView(DTO):
 class ProfileTestResult(DTO):
     native_tools: Literal[True] = True
     message: str = "Модель вернула валидированный native tool call; CorelDRAW не вызывался."
+
+
+class Artifact(DTO):
+    artifact_id: Id
+    display_name: str
+    media_type: Literal["image/png", "image/svg+xml", "application/pdf", "application/json", "application/octet-stream"]
+    bytes: int
+
+
+class StorageState(DTO):
+    bytes: int
+    free_bytes: int
+    quota_bytes: int
+    warning: bool
+    full: bool
+
+
+class MetricSummary(DTO):
+    runs: int
+    llm_turns: int
+    corel_operations: int
+    approvals: int
+    outcomes: dict[str, int]
+    slow_subscribers: int
+
+
+class DiagnosticsSummary(DTO):
+    schema_version: Literal[1] = 1
+    at: str
+    mcp_connected: bool
+    store_ready: bool
+    storage: StorageState
+    metrics: MetricSummary
+    safety_barrier_present: bool
+
+
+class RecoveryReview(DTO):
+    note: str = Field(min_length=1, max_length=4000)
+    document_id: DocumentId | None = None
+    at: str = Field(default_factory=utc_now)
+
+
+class RecoveryReviewPage(DTO):
+    items: list[RecoveryReview]

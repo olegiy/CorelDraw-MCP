@@ -1,10 +1,16 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, terminal } from './api';
 import type { Documents, Preview, Run } from './api';
 import PreviewPanel from './components/PreviewPanel';
-
-interface Update { schema_version: number; run_id: string; seq: number; type: string;
-  data: Record<string, unknown>; state: { status: Run['status'] } }
+import Chat from './components/Chat';
+import DocumentPanel from './components/DocumentPanel';
+import SettingsDialog from './components/SettingsDialog';
+import type { components } from './api.generated';
+import ApprovalDialog from './components/ApprovalDialog';
+import RunPanel from './components/RunPanel';
+import { useRunStream } from './useRunStream';
+import FileActions from './components/FileActions';
+import MessageList from './components/MessageList';
 
 export default function App() {
   const [documents, setDocuments] = useState<Documents>({ items: [], at: null, stale: true });
@@ -12,48 +18,42 @@ export default function App() {
   const [run, setRun] = useState<Run | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState('');
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState(false); const [readOnly, setReadOnly] = useState(true);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [rootId, setRootId] = useState<string | null>(null);
+  const [operations, setOperations] = useState<components['schemas']['OperationView'][]>([]);
+  const [approval, setApproval] = useState<components['schemas']['ConfirmationRequest'] | null>(null);
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [messages, setMessages] = useState<components['schemas']['MessageView'][]>([]);
+  const pendingRequest = useRef<string | null>(null);
   const [conversation] = useState(() => crypto.randomUUID());
   const watermark = useRef({ id: '', seq: 0 });
   const runId = run?.id;
   const busy = pending || (!!run && !terminal(run.status));
 
   useEffect(() => { void api<Documents>('/documents').then(setDocuments).catch(error => setError(error.message)); }, []);
-  const onUpdate = useEffectEvent((event: Update) => {
-    if (event.run_id !== watermark.current.id || event.seq <= watermark.current.seq) return false;
-    if (event.schema_version !== 1 || !Number.isSafeInteger(event.seq) || event.seq !== watermark.current.seq + 1) {
-      void api<Run>(`/runs/${encodeURIComponent(watermark.current.id)}`).then(snapshot => {
-        watermark.current.seq = snapshot.last_seq; setRun(snapshot);
-      }).catch(error => setError(error.message));
-      return false;
-    }
-    watermark.current.seq = event.seq;
-    setRun(current => current ? { ...current, status: event.state.status, last_seq: event.seq } : current);
-    if (event.type === 'image') setPreview(event.data as unknown as Preview);
-    if (event.type === 'status' && terminal(event.state.status)) {
-      void api<Documents>('/documents').then(setDocuments).catch(error => setError(error.message));
-      return true;
-    }
-    return false;
-  });
+  useEffect(() => { void api<components['schemas']['ProfilePage']>('/profiles').then(page => setProfileId(page.items[0]?.id ?? null)).catch(error => setError(error.message)); }, []);
+  useEffect(() => { void api<components['schemas']['RunPage']>('/runs').then(page => {
+    setRuns(page.items); const active = page.items.find(item => !terminal(item.status));
+    if (active) { watermark.current = { id: active.id, seq: active.last_seq }; setRun(active); setDocumentId(active.document_id ?? ''); setApproval(active.pending_confirmation ?? null); }
+  }).catch(error => setError(error.message)); }, []);
   useEffect(() => {
-    if (!runId) return;
-    const source = new EventSource(`/api/v1/runs/${encodeURIComponent(runId)}/events?after=${watermark.current.seq}`);
-    source.addEventListener('update', event => {
-      try { if (onUpdate(JSON.parse((event as MessageEvent).data))) source.close(); }
-      catch { setError('Поток событий повреждён. Состояние доступно в истории.'); }
-    });
-    source.onerror = () => setError('Соединение браузера потеряно. Агент продолжает работу в фоне.');
-    return () => source.close();
-  }, [runId]);
+    if (!run) return;
+    let active = true;
+    void api<components['schemas']['MessagePage']>(`/conversations/${run.conversation_id}/messages`).then(page => { if (active) setMessages(page.items); }).catch(error => { if (active) setError(error.message); });
+    void api<components['schemas']['OperationPage']>(`/runs/${run.id}/operations`).then(page => { if (active) setOperations(page.items); }).catch(error => { if (active) setError(error.message); });
+    return () => { active = false; };
+  }, [runId, run?.status]);
+  useRunStream(run, event => { watermark.current.seq = event.seq; setRun(current => current ? { ...current, status: event.state.status, last_seq: event.seq } : current); if (event.type === 'image') setPreview(event.data); if (event.type === 'confirmation') setApproval(event.data); if (event.type === 'status' && event.state.status !== 'awaiting_confirmation') setApproval(null); if (event.type === 'status' && terminal(event.state.status)) void api<Documents>('/documents').then(setDocuments).catch(error => setError(error.message)); if (['tool_start', 'tool_result', 'confirmation'].includes(event.type)) void api<components['schemas']['OperationPage']>(`/runs/${event.run_id}/operations`).then(page => setOperations(page.items)).catch(error => setError(error.message)); }, snapshot => { watermark.current = { id: snapshot.id, seq: snapshot.last_seq }; setRun(snapshot); setApproval(snapshot.pending_confirmation ?? null); void (async () => { let after = 0; for (;;) { const page = await api<components['schemas']['EventPage']>(`/runs/${snapshot.id}/event-log?after=${after}&limit=500`); const latest = [...page.items].reverse().find(item => item.type === 'image'); if (latest?.type === 'image') setPreview(latest.data); if (page.next_after == null) break; if (page.next_after <= after) throw new Error('Некорректная пагинация журнала.'); after = page.next_after; } })().catch(error => setError(error.message)); }, setError);
 
   async function action(tool: string, arguments_: Record<string, unknown> = {}) {
     setPending(true); setError(''); setRun(null);
     const clientRequestId = crypto.randomUUID();
+    pendingRequest.current = clientRequestId;
     try {
       const accepted = await api<Run>('/actions', { method: 'POST', body: JSON.stringify({
         client_request_id: clientRequestId, conversation_id: conversation, kind: 'manual', tool,
-        document_id: tool === 'corel_status' ? null : documentId, arguments: arguments_, read_only: true,
+        document_id: ['corel_status', 'corel_create_document', 'corel_open_document'].includes(tool) ? null : documentId, arguments: arguments_, read_only: readOnly, output_root_id: rootId,
       }) });
       watermark.current = { id: accepted.id, seq: accepted.last_seq }; setRun(accepted);
     } catch (error) {
@@ -61,29 +61,39 @@ export default function App() {
         const accepted = await api<Run>(`/requests/${clientRequestId}`);
         watermark.current = { id: accepted.id, seq: accepted.last_seq }; setRun(accepted);
       } catch { setError(error instanceof Error ? error.message : 'Не удалось подтвердить принятие команды.'); }
-    } finally { setPending(false); }
+    } finally { setPending(false); pendingRequest.current = null; }
+  }
+
+  async function agent(message: string) {
+    setPending(true); setError(''); setRun(null);
+    const requestId = crypto.randomUUID(); pendingRequest.current = requestId;
+    try { const accepted = await api<Run>('/runs', { method: 'POST', body: JSON.stringify({ client_request_id: requestId, conversation_id: conversation, kind: 'agent', profile_id: profileId, document_id: documentId || null, message, arguments: {}, read_only: readOnly, output_root_id: rootId }) }); watermark.current = { id: accepted.id, seq: accepted.last_seq }; setRun(accepted); }
+    catch (error) { try { const accepted = await api<Run>(`/requests/${requestId}`); watermark.current = { id: accepted.id, seq: accepted.last_seq }; setRun(accepted); } catch { setError(error instanceof Error ? error.message : 'Не удалось подтвердить принятие команды. Не отправляйте её повторно с новым ID.'); } } finally { setPending(false); pendingRequest.current = null; }
+  }
+
+  async function saveProfile(model: string, baseUrl: string, key: string, consent: boolean) {
+    try {
+      const id = profileId ?? crypto.randomUUID();
+      const saved = await api<components['schemas']['ProfileSnapshot']>(`/profiles/${id}`, { method: 'PUT', body: JSON.stringify({ profile: { id, name: model, model, base_url: baseUrl, local: ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(baseUrl).hostname), context_approved: consent, vision: false, send_preview: false }, ...(key ? { api_key: key } : {}) }) });
+      setProfileId(saved.id);
+    } catch (error) { throw error instanceof Error ? error : new Error('Профиль не сохранён.'); }
   }
 
   return <div className="shell">
-    <header className="app-header"><div><h1>CorelDRAW Agent</h1><small>Локальная панель · Только чтение</small></div>
-      {run && !terminal(run.status) ? <button className="danger" onClick={() => { void api<Run>(`/runs/${run.id}/stop`, { method: 'POST' }).then(setRun).catch(error => setError(error.message)); }}>Стоп</button> : null}
+    <header className="app-header"><div><h1>CorelDRAW Agent</h1><small>Локальная панель · {readOnly ? 'Только чтение' : 'Обычная запись разрешена; VBA требует подтверждения'}</small></div>
+      <div className="header-actions"><SettingsDialog save={saveProfile} />{pendingRequest.current || (run && !terminal(run.status)) ? <button className="danger" onClick={() => { const request = pendingRequest.current; const promise = request ? api<Run | null>(`/requests/${request}/stop`, { method: 'POST' }) : api<Run>(`/runs/${run!.id}/stop`, { method: 'POST' }); void promise.then(snapshot => { if (snapshot) { watermark.current = { id: snapshot.id, seq: snapshot.last_seq }; setRun(snapshot); } }).catch(error => setError(error.message)); }}>Стоп</button> : null}</div>
     </header>
     <main className="workspace">
-      <section className="panel document-panel"><h2>Документ</h2>
-        <button disabled={busy} onClick={() => void action('corel_status')}>Обновить документы</button>
-        <label>Целевой документ<select value={documentId} disabled={busy || documents.stale} onChange={event => setDocumentId(event.target.value)}>
-          <option value="">Выберите документ</option>{(documents.items ?? []).map(doc => <option key={doc.document_id} value={doc.document_id}>{doc.name}</option>)}
-        </select></label>
-        <small>{documents.stale ? 'Список устарел' : `Кэш: ${documents.at ?? 'нет данных'}`}</small>
-        <button disabled={busy || !documentId} onClick={() => void action('corel_inspect_document')}>Инспекция</button>
-        <button disabled={busy || !documentId} onClick={() => void action('corel_preview', { target: 'page' })}>Превью страницы</button>
-        <button disabled={busy || !documentId} onClick={() => void action('corel_preview', { target: 'selection' })}>Превью выделения</button>
-      </section>
+      <div><DocumentPanel documents={documents} documentId={documentId} busy={busy} readOnly={readOnly} setReadOnly={setReadOnly} setDocumentId={setDocumentId} refresh={() => void action('corel_status')} action={(tool, args) => void action(tool, args)} />
+      <FileActions disabled={busy || readOnly} hasDocument={!!documentId} rootId={rootId} setRootId={setRootId} action={(tool, args) => void action(tool, args)} fail={setError} />
+      <section className="panel"><h2>История</h2>{runs.map(item => <button key={item.id} disabled={busy && item.id !== run?.id} onClick={() => { watermark.current = { id: item.id, seq: item.last_seq }; setRun(item); setApproval(item.pending_confirmation ?? null); }}>{item.kind} · {item.status}</button>)}</section></div>
       <section className="panel"><h2>Операции</h2><p role="status">{run ? `Состояние: ${run.status}` : 'Подключение к CorelDRAW выполняется только по явному запросу.'}</p>
         {error ? <p role="alert" className="error">{error}</p> : null}
         <p className="muted">Закрытие вкладки не останавливает отправленную операцию. «Стоп» запрещает следующие шаги, но не отменяет COM и не выполняет Undo.</p>
-        <PreviewPanel preview={preview} />
+        <MessageList messages={messages} />
+        <RunPanel operations={operations} /><PreviewPanel preview={preview} /><Chat busy={busy} submit={agent} />
       </section>
     </main>
+    <ApprovalDialog pending={approval} decide={approved => { if (!run || !approval) return; const saved = approval; setApproval(null); void api<Run>(`/runs/${run.id}/confirm`, { method: 'POST', body: JSON.stringify({ confirmation_id: saved.confirmation_id, operation_digest: saved.operation_digest, approved }) }).then(setRun).catch(error => setError(error.message)); }} />
   </div>;
 }

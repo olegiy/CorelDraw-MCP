@@ -2,6 +2,7 @@
 
 import asyncio
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -16,6 +17,7 @@ from .contracts import (
     Conversation,
     ConversationCreate,
     ConversationPage,
+    DiagnosticsSummary,
     DocumentsCache,
     ErrorResponse,
     EventPage,
@@ -28,6 +30,8 @@ from .contracts import (
     ProfileTestResult,
     ProfileUpdate,
     PublicFileRef,
+    RecoveryReview,
+    RecoveryReviewPage,
     ReportView,
     RunCommand,
     RunPage,
@@ -224,6 +228,11 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
         return await runtime.start(command.model_copy(update={"kind": "manual", "tool": "corel_status",
             "arguments": {}, "read_only": True, "document_id": None, "profile_id": None}))
 
+    @app.post("/api/v1/diagnostics", response_model=RunSnapshot, status_code=202)
+    async def diagnostics_run(command: RunCommand):
+        return await runtime.start(command.model_copy(update={"kind": "manual", "tool": "host_diagnostics",
+            "arguments": {}, "read_only": True, "document_id": None, "profile_id": None}))
+
     @app.get("/api/v1/runs", response_model=RunPage)
     async def runs(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), conversation_id: str | None = None):
         items = await store.list_runs(offset=offset, limit=limit, conversation_id=conversation_id)
@@ -279,6 +288,28 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
     async def report(operation_id: str):
         operation = await store.get_operation(operation_id)
         return {"operation_id": operation_id, "report": operation["report"], "result": operation["result"]}
+
+    @app.get("/api/v1/metrics", response_model=DiagnosticsSummary)
+    async def metrics():
+        from .observability import diagnostics
+        return await diagnostics(store, mcp_connected=runtime.mcp.ready, slow_subscribers=runtime.hub.slow_subscribers)
+
+    @app.post("/api/v1/recovery/review", response_model=RecoveryReview, status_code=201)
+    async def recovery_review(review: RecoveryReview):
+        await store.add_review(review)
+        return review
+
+    @app.get("/api/v1/recovery/reviews", response_model=RecoveryReviewPage)
+    async def recovery_reviews(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
+        return RecoveryReviewPage(items=await store.list_reviews(offset=offset, limit=limit))
+
+    @app.get("/api/v1/artifacts/{artifact_id}")
+    async def artifact(artifact_id: str):
+        data, metadata = await assets.read_artifact(artifact_id)
+        from fastapi.responses import Response
+        response = Response(data, media_type=metadata["media_type"])
+        response.headers["content-disposition"] = f"attachment; filename*=UTF-8''{quote(metadata['display_name'], safe='')}"
+        return response
 
     @app.get("/api/v1/images/{image_id}")
     async def image(image_id: str):

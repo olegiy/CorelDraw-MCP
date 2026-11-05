@@ -78,3 +78,20 @@ async def test_profile_native_test_does_not_call_corel(client, runtime, store, m
     result = await client.post(f"/api/v1/profiles/{item.id}/test", json={})
     assert result.status_code == 200 and result.json()["native_tools"] is True
     assert not (store.directory / "runs/calls.jsonl").exists()
+
+
+async def test_diagnostics_is_durable_manual_run_and_download_is_registered(client, store):
+    from conftest import command, wait_run
+    response = await client.post('/api/v1/diagnostics', json=command().model_dump())
+    assert response.status_code == 202
+    run = await wait_run(store, response.json()['id'])
+    assert run.status == 'completed'
+    registered = await store.list_assets()
+    assert len(registered) == 1
+    response = await client.get(f'/api/v1/artifacts/{registered[0]["id"]}')
+    assert response.status_code == 200 and response.headers['content-type'] == 'application/json'
+    assert 'attachment' in response.headers['content-disposition']
+    assert str(store.directory) not in response.text
+    assert not (store.directory / 'runs/calls.jsonl').exists()
+    metrics = await client.get('/api/v1/metrics')
+    assert metrics.status_code == 200 and metrics.json()['metrics']['runs'] == 1

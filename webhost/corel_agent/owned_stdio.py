@@ -50,7 +50,7 @@ def process_identity(pid: int) -> ProcessIdentity:
 
 def identity_alive(identity: ProcessIdentity) -> bool | None:
     try:
-        return process_identity(identity.pid) == identity
+        return True if process_identity(identity.pid) == identity else None
     except OSError as error:
         return False if getattr(error, "winerror", None) == 87 else None
     except Exception:

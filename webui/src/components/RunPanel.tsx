@@ -5,6 +5,7 @@ export default function RunPanel({ operations }: { operations: components['schem
     <summary>{operation.prepared.tool} · {operation.result?.outcome ?? operation.state}</summary>
     <p>Job: {operation.job_id ?? 'ещё не получен'}</p>
     <p>Applied: {String(operation.result?.applied ?? 'неизвестно')} · Cleanup: {String(operation.result?.cleanup?.completed ?? 'нет данных')}</p>
+    {operation.result?.report?.artifact_id ? <a href={`/api/v1/artifacts/${encodeURIComponent(operation.result.report.artifact_id as string)}`}>Скачать {String(operation.result.report.display_name ?? 'artifact')}</a> : null}
     <pre>{JSON.stringify(operation.prepared.arguments, null, 2)}</pre>
     <a href={`/api/v1/operations/${encodeURIComponent(operation.id)}/report`} target="_blank" rel="noreferrer">Локальный отчёт</a>
   </details>)}</div>;

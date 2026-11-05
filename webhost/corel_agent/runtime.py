@@ -16,6 +16,7 @@ from .contracts import (
     utc_now,
 )
 from .events import EventHub
+from .observability import diagnostics
 from .policy import NEW_DOCUMENT, Policy
 from .provider import Provider
 from .store import canonical
@@ -33,6 +34,7 @@ class Runtime:
         self._closing = False
         self._approval_waiters = {}
         self._model_tasks = {}
+        self._shutdown_task = None
 
     async def _status(self, run_id, status, **changes):
         snapshot = await self.store.set_status(run_id, status, **changes)
@@ -79,8 +81,10 @@ class Runtime:
                 return duplicate.snapshot
             if await self.store.is_stop_requested(command.client_request_id):
                 return (await self.store.accept_run(command, None)).snapshot
-            if self._closing or not self.mcp.ready or self.store.failed:
+            if self._closing or (not self.mcp.ready and command.tool != "host_diagnostics") or self.store.failed:
                 raise AgentError("RUNTIME_BLOCKED", "Runtime недоступен; новый запуск запрещён.", 503)
+            if await self.store.get_meta("recovery_only", False) and (not command.read_only or command.tool not in {"host_diagnostics", "corel_status"}):
+                raise AgentError("RECOVERY_ONLY", "Host находится в recovery-only режиме до проверки прежнего Job.", 503)
             context = await self._context(new_id(), command)
             frozen = None
             if command.kind == "agent":
@@ -93,7 +97,7 @@ class Runtime:
                 context = context.model_copy(update={"profile": frozen.profile})
                 if self.policy.privacy.contains_secret(command.message):
                     raise AgentError("SECRET_IN_OPERATION", "Сообщение содержит credential value.", 403)
-            else:
+            elif command.tool != "host_diagnostics":
                 proposed = await self.policy.prepare(command.tool, command.arguments, context)
                 risk = await self.policy.classify(proposed, context)
                 if risk.decision == "deny":
@@ -127,12 +131,14 @@ class Runtime:
                 operation_id=operation.operation_id, job_id=result.job_id), status="halted")
             self.hub.publish(operation.run_id)
             return "halted"
-        if result.outcome == "failed":
-            return "failed"
         if not result.cleanup or result.cleanup.get("completed") is not True:
+            if result.outcome == "failed" and result.job_id is None and result.applied is False:
+                return "failed"
             await self.store.set_barrier(SafetyBarrier(reason="CLEANUP_NOT_PROVEN", run_id=operation.run_id,
                 operation_id=operation.operation_id, job_id=result.job_id), status="halted")
             return "halted"
+        if result.outcome == "failed":
+            return "failed"
         if operation.tool == "corel_status":
             documents = result.report.get("result", {}).get("documents", [])
             await self.store.put_meta("documents", {"items": documents, "at": utc_now(), "stale": False,
@@ -161,6 +167,16 @@ class Runtime:
                 if document["document_id"] == operation.document_id:
                     document["path"] = operation.arguments["path"]
             await self.store.put_meta("documents", cached)
+        if operation.tool == "corel_export":
+            context = OperationContext.model_validate(await self.store.get_meta(f"context:{operation.run_id}"))
+            try:
+                artifact = await self.assets.register_export(operation.arguments["path"], context.output_root,
+                                                              operation.arguments["format"])
+                await self.store.add_message(operation.run_id, "tool", canonical(artifact))
+                self.hub.publish(operation.run_id)
+            except (AgentError, OSError):
+                await self.store.append_event(operation.run_id, "warning", {"code": "DOWNLOAD_UNAVAILABLE",
+                    "message": "Corel-отчёт сохранён; проверенный download недоступен. Исход COM не изменён."})
         if operation.tool == "corel_inspect_document":
             document = result.report.get("result", {}).get("document")
             if isinstance(document, dict) and document.get("document_id") == operation.document_id:
@@ -367,7 +383,15 @@ class Runtime:
                 await self._status(run_id, "stopped")
                 return
             await self._status(run_id, "running")
-            _, outcome, _ = await self._execute(command.tool, command.arguments, run_id)
+            if command.tool == "host_diagnostics":
+                report = await diagnostics(self.store, mcp_connected=self.mcp.ready,
+                                           slow_subscribers=self.hub.slow_subscribers)
+                artifact = await self.assets.save_diagnostics(report)
+                await self.store.add_message(run_id, "tool", canonical(artifact))
+                self.hub.publish(run_id)
+                outcome = None
+            else:
+                _, outcome, _ = await self._execute(command.tool, command.arguments, run_id)
             snapshot = await self.store.get_snapshot(run_id)
             await self._status(run_id, outcome or ("stopped" if snapshot.stop_requested else "completed"),
                 counters=snapshot.counters.model_copy(update={"reserved_postchecks": 0}))
@@ -409,11 +433,24 @@ class Runtime:
         return snapshot
 
     async def aclose(self):
+        if self._shutdown_task is None:
+            self._shutdown_task = asyncio.create_task(self._shutdown(), name="corel-agent-shutdown")
+        cancelled = False
+        while not self._shutdown_task.done():
+            try:
+                await asyncio.shield(self._shutdown_task)
+            except asyncio.CancelledError:
+                cancelled = True
+        self._shutdown_task.result()
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _shutdown(self):
         self._closing = True
         if self._accepting:
-            await asyncio.shield(asyncio.gather(*self._accepting, return_exceptions=True))
+            await asyncio.gather(*self._accepting, return_exceptions=True)
         for run_id in tuple(self._tasks):
-            await self.stop(run_id)
+            await self._stop(run_id)
         if self._tasks:
-            await asyncio.shield(asyncio.gather(*self._tasks.values(), return_exceptions=True))
+            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
         await self.mcp.aclose()

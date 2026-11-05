@@ -93,3 +93,48 @@ async def test_unknown_barrier_survives_reopen(store):
     await store.aclose()
     await store.open()
     assert await store.get_barrier() is not None
+
+
+async def test_missing_cleanup_after_terminal_report_sets_barrier(store):
+    run = (await store.accept_run(command(read_only=False), None)).snapshot
+    op = operation(run)
+    await store.record_operation(op)
+    await store.mark_dispatching(op.operation_id)
+    from corel_agent.contracts import OperationResult
+    await store.complete_operation(OperationResult(operation_id=op.operation_id, job_id="known-job",
+        outcome="succeeded", report={"status": "succeeded"}, applied=True, cleanup=None))
+    await store.recover()
+    assert await store.get_barrier() is not None
+    with pytest.raises(AgentError) as caught:
+        await store.accept_run(command(read_only=False), None)
+    assert caught.value.code == "SAFETY_BARRIER"
+
+
+async def test_failed_applied_operation_without_cleanup_sets_barrier(store):
+    run = (await store.accept_run(command(read_only=False), None)).snapshot
+    op = operation(run)
+    await store.record_operation(op)
+    await store.mark_dispatching(op.operation_id)
+    from corel_agent.contracts import OperationResult
+    await store.complete_operation(OperationResult(operation_id=op.operation_id, job_id="known-job",
+        outcome="failed", report={"status": "failed"}, applied=True, cleanup=None))
+    await store.recover()
+    assert await store.get_barrier() is not None
+
+
+async def test_recovery_invalidates_old_worker_document_cache(store):
+    await store.put_meta("documents", {"items": [{"document_id": "old-worker:1"}], "stale": False})
+    await store.recover()
+    assert (await store.get_meta("documents"))["stale"] is True
+
+
+async def test_recovery_retains_actual_job_binding_from_emergency_sidecar(store):
+    run = (await store.accept_run(command(read_only=False), None)).snapshot
+    op = operation(run)
+    await store.record_operation(op)
+    await store.mark_dispatching(op.operation_id)
+    await store.emergency(op.operation_id, JobUpdate(operation_id=op.operation_id, job_id="known-job",
+        status="running", stage="executing", report={"job_id": "known-job", "status": "running"}).model_dump())
+    recovered = await store.recover()
+    assert recovered[0]["job_id"] == "known-job"
+    assert (await store.get_operation(op.operation_id))["job_id"] == "known-job"

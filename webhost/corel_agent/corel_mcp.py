@@ -163,6 +163,8 @@ class CorelMcp:
         if self._lane.locked():
             raise AgentError("BUSY", "MCP-lane занята; скрытая параллельная операция запрещена.")
         async with self._lane:
+            if self.persistence_failed and known_job is None:
+                raise AgentError("PERSISTENCE_FAILED", "Сохранение результата не подтверждено; новый dispatch запрещён.", 503)
             if not self.ready or self._closing:
                 raise AgentError("MCP_UNAVAILABLE", "Owned MCP не готов.", 503)
             if known_job:
@@ -177,6 +179,11 @@ class CorelMcp:
                     raise AgentError("MCP_REPORT_INVALID", "Нет фактического job_id.", 503)
                 if not JOB_ID.fullmatch(report["job_id"]):
                     raise AgentError("MCP_REPORT_INVALID", "Неверный job_id.", 503)
+                if report.get("status") not in {"running", "timed_out", "succeeded", "failed", "unknown"}:
+                    raise AgentError("MCP_REPORT_INVALID", "Несовместимый статус Job.", 503)
+                if report.get("tool") != operation.tool or (operation.corel_request_id is not None and
+                        report.get("request_id") != operation.corel_request_id):
+                    raise AgentError("MCP_REPORT_INVALID", "Привязка Job не совпадает с отправленной операцией.", 503)
             except Exception:
                 return OperationResult(operation_id=operation.operation_id, outcome="unknown", isError=True,
                     report={"status": "unknown", "error": {"code": "DISPATCH_OUTCOME_UNKNOWN",
@@ -198,6 +205,19 @@ class CorelMcp:
         return await asyncio.shield(task)
 
     async def aclose(self):
+        if not hasattr(self, "_shutdown_task"):
+            self._shutdown_task = asyncio.create_task(self._shutdown())
+        cancelled = False
+        while not self._shutdown_task.done():
+            try:
+                await asyncio.shield(self._shutdown_task)
+            except asyncio.CancelledError:
+                cancelled = True
+        self._shutdown_task.result()
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _shutdown(self):
         # Drain first; setting closing before drain would reject a queued known operation.
         if self._inflight:
             await asyncio.shield(asyncio.gather(*self._inflight, return_exceptions=True))

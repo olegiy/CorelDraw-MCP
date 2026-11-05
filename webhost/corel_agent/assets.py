@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from .contracts import AgentError, ImageData, new_id
+from .contracts import AgentError, Artifact, ImageData, new_id
 
 MAX_PREVIEW_BYTES = 10 * 1024**2
 ID_PATTERN = re.compile(r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$")
@@ -101,4 +101,65 @@ class Assets:
         metadata = await self.store.get_asset(image_id, "image")
         data = await asyncio.to_thread(read_verified, self.directory / f"{image_id}.png",
                                        metadata["sha256"])
+        return data, metadata
+
+    async def register_export(self, path, root, format):
+        from .policy import PathGuard
+        guard = PathGuard()
+        def inspect():
+            file = guard.path(path)
+            if guard.directory(root.path) != file.parent:
+                raise AgentError("PATH_DENIED", "Артефакт вне явно выбранного output root.", 403)
+            media = {"png": "image/png", "svg": "image/svg+xml", "pdf": "application/pdf", "cdr": "application/octet-stream"}
+            if format not in media or file.suffix.lower() != f".{format}" or not file.is_file():
+                raise AgentError("ARTIFACT_INVALID", "Результат экспорта отсутствует или имеет неверный формат.")
+            size = file.stat().st_size
+            if not 0 < size <= 256 * 1024**2:
+                raise AgentError("ARTIFACT_INVALID", "Размер download-артефакта вне допустимых границ.")
+            identity = guard.file_fingerprint(str(file))
+            digest = hashlib.sha256(file.read_bytes()).hexdigest()
+            if identity != guard.file_fingerprint(str(file)):
+                raise AgentError("FILE_CHANGED", "Артефакт изменился при регистрации.")
+            artifact = Artifact(artifact_id=new_id(), display_name=file.name, media_type=media[format], bytes=size)
+            return artifact, {**artifact.model_dump(), "path": str(file), "root": root.path,
+                               "fingerprint": identity, "sha256": digest}
+        artifact, metadata = await asyncio.to_thread(inspect)
+        await self.store.register_asset(artifact.artifact_id, "export", metadata)
+        return artifact
+
+    async def save_diagnostics(self, report):
+        from .contracts import DiagnosticsSummary
+        from .store import canonical
+        # Validate the allowlist before writing, rather than serializing arbitrary caller keys.
+        validated = DiagnosticsSummary.model_validate(report)
+        data = canonical(validated).encode("utf-8")
+        artifact = Artifact(artifact_id=new_id(), display_name="coreldraw-agent-diagnostics.json",
+                            media_type="application/json", bytes=len(data))
+        def save():
+            assert_no_links(self.directory)
+            self.directory.mkdir(parents=True, exist_ok=True)
+            write_bytes(self.directory / f"{artifact.artifact_id}.json", data)
+        await asyncio.to_thread(save)
+        await self.store.register_asset(artifact.artifact_id, "diagnostic", {
+            **artifact.model_dump(), "sha256": hashlib.sha256(data).hexdigest()})
+        return artifact
+
+    async def read_artifact(self, artifact_id):
+        if not ID_PATTERN.fullmatch(artifact_id):
+            raise AgentError("ASSET_NOT_FOUND", "Нужен зарегистрированный artifact_id.", 404)
+        metadata = await self.store.get_asset(artifact_id)
+        if metadata["kind"] == "diagnostic":
+            path = self.directory / f"{artifact_id}.json"
+        elif metadata["kind"] == "export":
+            from .policy import PathGuard
+            def verify():
+                guard = PathGuard()
+                path = guard.path(metadata["path"])
+                if path.parent != guard.directory(metadata["root"]) or guard.file_fingerprint(str(path)) != metadata["fingerprint"]:
+                    raise AgentError("ASSET_CHANGED", "Файл изменился с момента регистрации.")
+                return path
+            path = await asyncio.to_thread(verify)
+        else:
+            raise AgentError("ASSET_NOT_FOUND", "Артефакт не разрешён для download.", 404)
+        data = await asyncio.to_thread(read_verified, path, metadata["sha256"], 256 * 1024**2)
         return data, metadata

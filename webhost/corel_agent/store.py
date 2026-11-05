@@ -422,10 +422,18 @@ class Store:
             db.execute("UPDATE operations SET state='terminal', job_id=?, report=?, result=? WHERE id=?",
                        (result.job_id, canonical(result.report), result.model_dump_json(), result.operation_id))
             snapshot = self._snapshot(db, row[0])
+            unsafe = result.outcome == "unknown" or (result.job_id is not None and
+                (not result.cleanup or result.cleanup.get("completed") is not True))
+            changes = {"active_operation_id": None}
+            if unsafe:
+                barrier = SafetyBarrier(reason="COREL_OUTCOME_UNKNOWN" if result.outcome == "unknown" else "CLEANUP_NOT_PROVEN",
+                    run_id=snapshot.id, operation_id=result.operation_id, job_id=result.job_id)
+                self._set_barrier(db, barrier)
+                changes.update(safety_barrier=barrier, status="uncertain" if result.outcome == "unknown" else "halted")
             return self._event(db, snapshot, "tool_result", {
                 "operation_id": result.operation_id, "outcome": result.outcome, "applied": result.applied,
                 "cleanup": result.cleanup, "error": result.report.get("error"),
-            }, {"active_operation_id": None})[0]
+            }, changes)[0]
         try:
             return await self._db(complete, write=True)
         except AgentError:
@@ -475,6 +483,33 @@ class Store:
 
     async def recover(self):
         def recover(db):
+            from .assets import assert_no_links
+            from .contracts import JobUpdate, OperationResult
+            emergency = self.directory / "emergency"
+            assert_no_links(emergency)
+            if emergency.exists():
+                for path in emergency.glob("*.json"):
+                    assert_no_links(path)
+                    if not path.is_file() or path.stat().st_size > 16 * 1024**2:
+                        raise AgentError("EMERGENCY_INVALID", "Emergency evidence требует ручного рассмотрения.", 503)
+                    payload = json.loads(path.read_text(encoding="utf-8"))
+                    evidence = OperationResult.model_validate(payload) if "outcome" in payload else JobUpdate.model_validate(payload)
+                    row = db.execute("SELECT * FROM operations WHERE id=?", (evidence.operation_id,)).fetchone()
+                    if (row is None or path.stem != evidence.operation_id or
+                            (row["job_id"] and row["job_id"] != evidence.job_id)):
+                        raise AgentError("EMERGENCY_CONFLICT", "Emergency job binding противоречит ledger; replay запрещён.", 503)
+                    if row["state"] == "terminal":
+                        continue
+                    db.execute("UPDATE operations SET job_id=?, report=?, state=? WHERE id=?", (
+                        evidence.job_id, canonical(evidence.report),
+                        "terminal" if isinstance(evidence, OperationResult) else "known_job", evidence.operation_id))
+                    if isinstance(evidence, OperationResult):
+                        db.execute("UPDATE operations SET result=? WHERE id=?", (evidence.model_dump_json(), evidence.operation_id))
+            cached = db.execute("SELECT value FROM meta WHERE key='documents'").fetchone()
+            if cached:
+                documents = json.loads(cached[0])
+                documents["stale"] = True
+                db.execute("UPDATE meta SET value=? WHERE key='documents'", (canonical(documents),))
             db.execute("UPDATE approvals SET state='invalidated' WHERE state='pending'")
             pending = []
             for row in db.execute("SELECT snapshot FROM runs WHERE unfinished=1").fetchall():
@@ -492,7 +527,8 @@ class Store:
                     changes["safety_barrier"], status = barrier, "uncertain"
                 elif operation and operation["report"]:
                     report = json.loads(operation["report"])
-                    if report.get("status") == "unknown" or report.get("cleanup", {}).get("completed") is False:
+                    if report.get("status") == "unknown" or (operation["job_id"] and
+                            (not isinstance(report.get("cleanup"), dict) or report["cleanup"].get("completed") is not True)):
                         status = "uncertain" if report.get("status") == "unknown" else "halted"
                         barrier = SafetyBarrier(reason="RECOVERY_REVIEW_REQUIRED", run_id=snapshot.id,
                                                 operation_id=operation["id"], job_id=operation["job_id"])
@@ -516,3 +552,12 @@ class Store:
 
     async def list_assets(self):
         return await self._db(lambda db: [dict(row) for row in db.execute("SELECT id,kind FROM assets ORDER BY rowid LIMIT 500")])
+
+    async def add_review(self, review):
+        await self._db(lambda db: db.execute("INSERT INTO reviews VALUES(?,?,?)",
+                       (new_id(), canonical(review), utc_now())), write=True)
+
+    async def list_reviews(self, *, offset=0, limit=100):
+        self.page(offset, limit)
+        return await self._db(lambda db: [json.loads(row[0]) for row in db.execute(
+            "SELECT payload FROM reviews ORDER BY rowid DESC LIMIT ? OFFSET ?", (limit, offset))])

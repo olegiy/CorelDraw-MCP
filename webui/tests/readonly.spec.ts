@@ -7,7 +7,7 @@ test('readonly documents and exact selection preview', async ({ page }) => {
     if (path.endsWith('/actions')) {
       const body = route.request().postDataJSON();
       target = body.arguments?.target ?? 'page';
-      await route.fulfill({ json: { id: '00000000-0000-0000-0000-000000000001', status: 'preparing', last_seq: 0, document_id: body.document_id } });
+      await route.fulfill({ json: { id: '00000000-0000-0000-0000-000000000001', conversation_id: body.conversation_id, status: 'preparing', last_seq: 0, document_id: body.document_id } });
     } else if (path.endsWith('/events')) {
       const state = { status: 'completed' };
       const events = [
@@ -31,4 +31,5 @@ test('readonly documents and exact selection preview', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Превью CorelDRAW' })).toBeVisible();
   await expect(page.getByTestId('preview-binding')).toContainText('fixture-b');
   await expect(page.getByTestId('preview-binding')).toContainText('selection');
+  await page.goto('about:blank');
 });
