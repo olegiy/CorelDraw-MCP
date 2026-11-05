@@ -107,6 +107,7 @@ class RunCommand(DTO):
     tool: str | None = None
     arguments: dict[str, Any] = Field(default_factory=dict)
     read_only: StrictBool = True
+    new_document: StrictBool = False
     output_root_id: Id | None = None
     max_calls: int = Field(default=20, ge=1, le=100, strict=True)
 
@@ -555,3 +556,17 @@ class RecoveryReview(DTO):
 
 class RecoveryReviewPage(DTO):
     items: list[RecoveryReview]
+
+
+class EmptyCommand(DTO):
+    pass
+
+
+class ReconcileResult(DTO):
+    reconciled: Literal[True] = True
+    message: str = "Прежние terminal reports сохранены. Старый агентный план не возобновляется; нужен новый контекст."
+
+
+class BackupResult(DTO):
+    created: Literal[True] = True
+    message: str = "Согласованная резервная копия сохранена в каталоге истории панели."

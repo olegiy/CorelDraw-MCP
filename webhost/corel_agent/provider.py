@@ -67,6 +67,16 @@ class Provider:
             raise AgentError("MODEL_RESPONSE_INVALID", "Ответ модели прерван или содержит некорректные native tool calls; выполнение запрещено.", 502) from None
 
     async def complete(self, history, tools, emit_delta=None):
+        for message in history:
+            content = message.get('content')
+            if isinstance(content, list) and any(item.get('type') == 'image_url' for item in content):
+                if not self.profile.vision or not self.profile.send_preview:
+                    raise AgentError('PREVIEW_CONSENT_REQUIRED', 'Передача превью требует обоих frozen consent flags.', 403)
+                for item in content:
+                    if item.get('type') == 'image_url':
+                        url = item.get('image_url', {}).get('url', '')
+                        if not isinstance(url, str) or not url.startswith('data:image/png;base64,'):
+                            raise AgentError('PREVIEW_INVALID', 'Разрешено только проверенное inline PNG без внешнего URL.', 422)
         started = time.perf_counter()
         async with self._slot:
             payload = {"model": self.profile.model, "messages": self.privacy.for_model(history),

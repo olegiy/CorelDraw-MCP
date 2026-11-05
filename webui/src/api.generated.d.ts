@@ -192,6 +192,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** History Backup */
+        post: operations["history_backup_api_v1_history_backup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/images/{image_id}": {
         parameters: {
             query?: never;
@@ -288,6 +305,23 @@ export interface paths {
         put?: never;
         /** Test Profile */
         post: operations["test_profile_api_v1_profiles__profile_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recovery/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recovery Reconcile */
+        post: operations["recovery_reconcile_api_v1_recovery_reconcile_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -504,6 +538,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BackupResult */
+        BackupResult: {
+            /**
+             * Created
+             * @default true
+             * @constant
+             */
+            created: true;
+            /**
+             * Message
+             * @default Согласованная резервная копия сохранена в каталоге истории панели.
+             */
+            message: string;
+        };
         /** ConfirmCommand */
         ConfirmCommand: {
             /** Approved */
@@ -651,6 +699,8 @@ export interface components {
              */
             stale: boolean;
         };
+        /** EmptyCommand */
+        EmptyCommand: Record<string, never>;
         /** ErrorEvent */
         ErrorEvent: {
             /** At */
@@ -1097,6 +1147,20 @@ export interface components {
             /** File Ref */
             file_ref: string;
         };
+        /** ReconcileResult */
+        ReconcileResult: {
+            /**
+             * Message
+             * @default Прежние terminal reports сохранены. Старый агентный план не возобновляется; нужен новый контекст.
+             */
+            message: string;
+            /**
+             * Reconciled
+             * @default true
+             * @constant
+             */
+            reconciled: true;
+        };
         /** RecoveryReview */
         RecoveryReview: {
             /** At */
@@ -1149,6 +1213,11 @@ export interface components {
              * @default
              */
             message: string;
+            /**
+             * New Document
+             * @default false
+             */
+            new_document: boolean;
             /** Output Root Id */
             output_root_id?: string | null;
             /** Profile Id */
@@ -2465,6 +2534,93 @@ export interface operations {
             };
         };
     };
+    history_backup_api_v1_history_backup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmptyCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupResult"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     image_api_v1_images__image_id__get: {
         parameters: {
             query?: never;
@@ -2908,6 +3064,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileTestResult"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    recovery_reconcile_api_v1_recovery_reconcile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmptyCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileResult"];
                 };
             };
             /** @description Unauthorized */

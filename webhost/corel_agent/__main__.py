@@ -20,6 +20,7 @@ from .launcher import (
     ControlEvents,
     HostOwner,
     preflight,
+    release_dead_host,
     reserve_port,
     signal_existing,
     verify_existing,
@@ -27,21 +28,24 @@ from .launcher import (
 from .observability import TechnicalLog
 from .runtime import Runtime
 from .settings import Settings
+from .storage_acl import ensure_private
 from .store import Store
 
 
 async def prepare_runtime(store, mcp, directory):
     recovery = await store.recover()
     await store.put_meta("recovery_pending", recovery)
-    if not recovery:
+    if not recovery and not (directory / "mcp-owner.json").exists():
         await mcp.start()
+        await store.put_meta("recovery_only", False)
     return Runtime(store, mcp, Assets(directory, store), settings=Settings(directory))
 
 
 async def serve(directory, *, no_browser=False):
     root = Path(__file__).resolve().parents[2]
     preflight(directory)
-    if (directory / "runtime.json").exists():
+    ensure_private(directory)
+    if (directory / "runtime.json").exists() and not release_dead_host(directory):
         verify_existing(directory)
         if not no_browser:
             signal_existing(directory, "open")

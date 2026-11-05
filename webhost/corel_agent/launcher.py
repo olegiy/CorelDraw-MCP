@@ -167,3 +167,20 @@ def verify_existing(directory):
             raise ValueError
     except (ValueError, OSError, KeyError):
         raise AgentError("HOST_OWNER_UNCERTAIN", "Существующий владелец не подтверждён; запуск запрещён.", 503) from None
+
+
+def release_dead_host(directory):
+    path = Path(directory) / "runtime.json"
+    try:
+        assert_no_links(path)
+        original = path.read_bytes()
+        data = json.loads(original)
+        identity = ProcessIdentity.model_validate(data["process"])
+        if data.get("phase") != "running" or identity_alive(identity) is not False:
+            return False
+        if path.read_bytes() != original or identity_alive(identity) is not False:
+            return False
+        path.unlink()
+        return True
+    except (OSError, ValueError, KeyError):
+        return False

@@ -123,3 +123,38 @@ async def test_startup_known_job_creates_recovery_only_runtime_without_second_mc
     assert await store.get_meta('recovery_pending')
     with pytest.raises(AgentError):
         await runtime.start(command(read_only=False))
+
+
+def test_dead_host_marker_is_released_only_after_exact_double_check(tmp_path, monkeypatch):
+    import json
+    module = implementation('launcher')
+    marker = tmp_path / 'runtime.json'
+    marker.write_text(json.dumps({'phase': 'running', 'process': {'pid': 123, 'creation_time': 'test'}}))
+    monkeypatch.setattr(module, 'identity_alive', lambda identity: False)
+    assert module.release_dead_host(tmp_path) is True
+    assert not marker.exists()
+
+
+def test_unknown_host_marker_never_released(tmp_path, monkeypatch):
+    import json
+    module = implementation('launcher')
+    marker = tmp_path / 'runtime.json'
+    original = json.dumps({'phase': 'running', 'process': {'pid': 123, 'creation_time': 'test'}})
+    marker.write_text(original)
+    monkeypatch.setattr(module, 'identity_alive', lambda identity: None)
+    assert module.release_dead_host(tmp_path) is False
+    assert marker.read_text() == original
+
+
+async def test_clean_start_clears_recovery_only_without_resuming_old_plan(store):
+    module = implementation('__main__')
+    await store.put_meta('recovery_only', True)
+    class FreshMcp:
+        ready = False
+        catalog = ()
+        async def start(self):
+            self.ready = True
+    mcp = FreshMcp()
+    await module.prepare_runtime(store, mcp, store.directory)
+    assert mcp.ready is True
+    assert await store.get_meta('recovery_only') is False

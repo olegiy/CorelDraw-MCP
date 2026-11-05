@@ -5,11 +5,12 @@ import { applyRunEvent } from './runEvents';
 
 export type StreamUpdate = components['schemas']['MessageDeltaEvent'] | components['schemas']['MessageEvent'] | components['schemas']['ToolProposedEvent'] | components['schemas']['ConfirmationEvent'] | components['schemas']['ToolStartEvent'] | components['schemas']['JobProgressEvent'] | components['schemas']['ToolResultEvent'] | components['schemas']['ImageEvent'] | components['schemas']['StatusEvent'] | components['schemas']['WarningEvent'] | components['schemas']['ErrorEvent'];
 
-export function useRunStream(run: components['schemas']['RunSnapshot'] | null, onEvent: (event: StreamUpdate) => void, onRecovery: (snapshot: components['schemas']['RunSnapshot']) => void, onError: (message: string) => void) {
+export function useRunStream(run: components['schemas']['RunSnapshot'] | null, onEvent: (event: StreamUpdate) => void, onRecovery: (snapshot: components['schemas']['RunSnapshot']) => void, onError: (message: string) => void, onState?: (state: components['schemas']['EventState']) => void) {
   const cursor = useRef({ id: '', seq: 0 });
   const latestEvent = useEffectEvent(onEvent);
   const recover = useEffectEvent(onRecovery);
   const fail = useEffectEvent(onError);
+  const stateChanged = useEffectEvent((state: components['schemas']['EventState']) => onState?.(state));
   useEffect(() => {
     if (!run) return;
     cursor.current = { id: run.id, seq: run.last_seq };
@@ -40,6 +41,7 @@ export function useRunStream(run: components['schemas']['RunSnapshot'] | null, o
         }
         cursor.current.seq = event.seq;
         latestEvent(event);
+        stateChanged(event.state);
         if (event.state.status === 'completed' || event.state.status === 'failed' || event.state.status === 'stopped' || event.state.status === 'uncertain' || event.state.status === 'halted') source.close();
       } catch { fail('Поток событий повреждён. Состояние доступно в истории.'); }
     };

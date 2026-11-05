@@ -95,3 +95,13 @@ async def test_diagnostics_is_durable_manual_run_and_download_is_registered(clie
     assert not (store.directory / 'runs/calls.jsonl').exists()
     metrics = await client.get('/api/v1/metrics')
     assert metrics.status_code == 200 and metrics.json()['metrics']['runs'] == 1
+
+
+async def test_backup_endpoint_uses_owned_directory_and_rejects_paths(client, store):
+    response = await client.post('/api/v1/history/backup', json={})
+    assert response.status_code == 201
+    assert response.json()['created'] is True
+    assert len(list((store.directory / 'backups').glob('*.sqlite3'))) == 1
+    assert str(store.directory) not in response.text
+    response = await client.post('/api/v1/history/backup', json={'path': 'C:/private.sqlite3'})
+    assert response.status_code == 422

@@ -83,6 +83,9 @@ repair/replay VBA не выполняется. Потеря HTTP-ответа р
 ## Хранилище И Recovery
 
 Данные панели: `%LOCALAPPDATA%\CorelDrawAgent`.
+При запуске проверяются owner и защищённый ACL каталога: разрешения получает
+только текущий Windows-пользователь. Существующий каталог с непроверенными
+правами не исправляется молча; запуск останавливается до операторской проверки.
 Corel jobs остаются в `%LOCALAPPDATA%\CorelDrawMcp\runs`.
 API keys хранятся только в Credential Manager namespace `coreldraw_agent`;
 недоступность vault не включает fallback в JSON/env.

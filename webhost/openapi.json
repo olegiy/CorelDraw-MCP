@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "BackupResult": {
+        "additionalProperties": false,
+        "properties": {
+          "created": {
+            "const": true,
+            "default": true,
+            "title": "Created",
+            "type": "boolean"
+          },
+          "message": {
+            "default": "Согласованная резервная копия сохранена в каталоге истории панели.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "BackupResult",
+        "type": "object"
+      },
       "ConfirmCommand": {
         "additionalProperties": false,
         "properties": {
@@ -340,6 +358,12 @@
           }
         },
         "title": "DocumentsCache",
+        "type": "object"
+      },
+      "EmptyCommand": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "EmptyCommand",
         "type": "object"
       },
       "ErrorEvent": {
@@ -1565,6 +1589,24 @@
         "title": "PublicFileRef",
         "type": "object"
       },
+      "ReconcileResult": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "default": "Прежние terminal reports сохранены. Старый агентный план не возобновляется; нужен новый контекст.",
+            "title": "Message",
+            "type": "string"
+          },
+          "reconciled": {
+            "const": true,
+            "default": true,
+            "title": "Reconciled",
+            "type": "boolean"
+          }
+        },
+        "title": "ReconcileResult",
+        "type": "object"
+      },
       "RecoveryReview": {
         "additionalProperties": false,
         "properties": {
@@ -1704,6 +1746,11 @@
             "maxLength": 65536,
             "title": "Message",
             "type": "string"
+          },
+          "new_document": {
+            "default": false,
+            "title": "New Document",
+            "type": "boolean"
           },
           "output_root_id": {
             "anyOf": [
@@ -3627,6 +3674,104 @@
         "summary": "Health"
       }
     },
+    "/api/v1/history/backup": {
+      "post": {
+        "operationId": "history_backup_api_v1_history_backup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "History Backup"
+      }
+    },
     "/api/v1/images/{image_id}": {
       "get": {
         "operationId": "image_api_v1_images__image_id__get",
@@ -4205,6 +4350,104 @@
           }
         },
         "summary": "Test Profile"
+      }
+    },
+    "/api/v1/recovery/reconcile": {
+      "post": {
+        "operationId": "recovery_reconcile_api_v1_recovery_reconcile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Recovery Reconcile"
       }
     },
     "/api/v1/recovery/review": {

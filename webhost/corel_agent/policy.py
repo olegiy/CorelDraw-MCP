@@ -270,6 +270,8 @@ class Policy:
             if operation.tool == "corel_close_document":
                 return decision("confirm", "Закрытие точного документа может привести к потере несохранённых изменений.")
             if operation.tool in {"corel_save_document", "corel_export"} and operation.file_fingerprint:
+                if operation.arguments.get("overwrite") is True:
+                    return decision("confirm", "Явная перезапись существующего файла требует согласия; кэш текущего пути CDR не подтверждает его актуальную роль.")
                 selected_save = (operation.tool == "corel_save_document" and current_state.current_document_path
                     and ntpath.normcase(operation.arguments["path"]) == ntpath.normcase(current_state.current_document_path))
                 if not selected_save:

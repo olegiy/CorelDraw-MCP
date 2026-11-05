@@ -113,6 +113,15 @@ async def test_save_selected_cdr_current_path_is_ordinary(policy, context, tmp_p
     assert (await policy.classify(operation, context)).decision == "allow"
 
 
+async def test_cached_current_path_never_grants_unapproved_overwrite(policy, context, tmp_path):
+    path = tmp_path / 'previous-current.cdr'
+    path.write_bytes(b'preserve original')
+    context = context.model_copy(update={'current_document_path': str(path)})
+    operation = await policy.prepare('corel_save_document', {'overwrite': True}, context)
+    assert (await policy.classify(operation, context)).decision == 'confirm'
+    assert path.read_bytes() == b'preserve original'
+
+
 async def test_missing_tool_and_invalid_format_fail_closed(policy, context):
     with pytest.raises(AgentError):
         await policy.prepare("corel_prune_artifacts", {}, context)

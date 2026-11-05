@@ -142,6 +142,13 @@ class CorelMcp:
                 if changed:
                     await self._emit(operation, report, callback, is_error=response.isError)
             except Exception:
+                if self.transport is not None and self.transport.returncode is not None:
+                    self.ready = False
+                    exited = {**report, "status": "unknown", "stage": "transport_exited",
+                        "error": {"code": "MCP_PROCESS_EXITED", "message": "Owned MCP завершился до terminal report; фактический Job сохранён, повтор запрещён."}}
+                    await self._emit(operation, exited, callback, "degraded", is_error=True)
+                    return OperationResult(operation_id=operation.operation_id, job_id=job_id,
+                        outcome="unknown", report=exited, applied=None, cleanup=None, isError=True)
                 if terminal_preview:
                     return self._result(operation, report, is_error=True)
                 monitoring = "degraded"

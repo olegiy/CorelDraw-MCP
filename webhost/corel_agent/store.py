@@ -107,6 +107,33 @@ class Store:
                 self._connection = None
         await asyncio.to_thread(closing)
 
+    def _backup_sync(self):
+        target_dir = self.directory / "backups"
+        from .assets import assert_no_links
+        assert_no_links(target_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        assert_no_links(target_dir)
+        destination = target_dir / f"history-{new_id()}.sqlite3"
+        backup_db = sqlite3.connect(destination)
+        try:
+            with self._lock:
+                if self._connection is None:
+                    raise AgentError("STORE_UNAVAILABLE", "Хранилище недоступно.", 503)
+                self._connection.backup(backup_db)
+            backup_db.execute("PRAGMA wal_checkpoint(PASSIVE)")
+            backup_db.commit()
+        finally:
+            backup_db.close()
+        return destination
+
+    async def backup(self):
+        try:
+            return await asyncio.to_thread(self._backup_sync)
+        except AgentError:
+            raise
+        except (OSError, sqlite3.Error):
+            raise AgentError("BACKUP_UNAVAILABLE", "Резервная копия не создана; исходное хранилище сохранено.", 503) from None
+
     @contextmanager
     def _transaction(self, db):
         db.execute("BEGIN IMMEDIATE")
@@ -303,6 +330,20 @@ class Store:
         return await self._db(lambda db: [dict(row) for row in db.execute(
             "SELECT id,run_id,role,text,at FROM messages WHERE conversation_id=? ORDER BY rowid LIMIT ? OFFSET ?",
             (conversation_id, limit, offset)).fetchall()])
+
+    async def previous_dialog(self, conversation_id, current_run):
+        def query(db):
+            rows = db.execute("SELECT role,text FROM messages WHERE conversation_id=? AND run_id<>? AND role IN ('user','assistant') ORDER BY rowid DESC LIMIT 100",
+                              (conversation_id, current_run)).fetchall()
+            dialog, size = [], 0
+            for row in rows:
+                size += len(row['text'].encode('utf-8'))
+                if size > 256 * 1024:
+                    break
+                if row['text']:
+                    dialog.append({'role': row['role'], 'content': row['text']})
+            return list(reversed(dialog))
+        return await self._db(query)
 
     async def create_conversation(self, title="Новая переписка"):
         item = {"id": new_id(), "title": title, "created_at": utc_now()}

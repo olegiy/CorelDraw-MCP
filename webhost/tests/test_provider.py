@@ -41,6 +41,23 @@ async def test_native_call_uses_frozen_model_and_validated_arguments():
         await provider.aclose()
 
 
+async def test_provider_refuses_image_content_without_frozen_consent():
+    requests = []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json=response())
+    provider = implementation('provider').Provider(profile(stream_responses=False), SecretStr('fake'),
+                                                    transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(AgentError) as caught:
+            await provider.complete([{'role': 'user', 'content': [{'type': 'image_url',
+                'image_url': {'url': 'data:image/png;base64,AAAA'}}]}], [])
+        assert caught.value.code == 'PREVIEW_CONSENT_REQUIRED'
+        assert requests == []
+    finally:
+        await provider.aclose()
+
+
 @pytest.mark.parametrize("calls", [
     [call(name="unknown")], [call(arguments="not json")], [call(arguments='{"target":"bad"}')],
     [call(), call()], [call(arguments='{"target":"page","target":"selection"}')],

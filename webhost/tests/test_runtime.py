@@ -57,6 +57,24 @@ async def test_agent_serializes_terminal_tool_results_before_next_turn(runtime, 
     assert provider.closed
 
 
+@pytest.mark.parametrize('allowed', [False, True])
+async def test_preview_to_model_requires_both_frozen_consents(runtime, store, allowed):
+    provider, cmd = await configure(runtime, store, [completion('corel_preview'), completion()])
+    original = (await runtime.settings.list_profiles())[0]
+    await runtime.settings.save(original.model_copy(update={'vision': allowed, 'send_preview': allowed}))
+    run = await runtime.start(cmd)
+    assert (await wait_run(store, run.id)).status == 'completed'
+    image_messages = [message for message in provider.histories[1]
+                      if isinstance(message.get('content'), list)]
+    assert bool(image_messages) is allowed
+    if allowed:
+        image = image_messages[0]['content'][1]
+        assert image['type'] == 'image_url'
+        assert image['image_url']['url'].startswith('data:image/png;base64,')
+    messages = await store.get_messages(cmd.conversation_id)
+    assert not any('data:image/png;base64,' in item['text'] for item in messages)
+
+
 async def test_duplicate_request_returns_frozen_profile_without_vault_lookup(runtime, store):
     provider, cmd = await configure(runtime, store, [completion()])
     run = await runtime.start(cmd)
@@ -65,6 +83,21 @@ async def test_duplicate_request_returns_frozen_profile_without_vault_lookup(run
     duplicate = await runtime.start(cmd)
     assert duplicate.id == run.id and duplicate.profile.model == "fixture"
     assert len(provider.histories) == 1
+
+
+async def test_next_run_in_same_conversation_receives_previous_finished_dialog(runtime, store):
+    provider, cmd = await configure(runtime, store, [completion()])
+    first = await runtime.start(cmd)
+    await wait_run(store, first.id)
+    followup = FakeProvider([completion()])
+    runtime.provider_factory = lambda frozen: followup
+    from corel_agent.contracts import new_id
+    second = await runtime.start(cmd.model_copy(update={'client_request_id': new_id(), 'message': 'Продолжи прежний ответ'}))
+    assert (await wait_run(store, second.id)).status == 'completed'
+    history = followup.histories[0]
+    assert any(item.get('role') == 'user' and item.get('content') == cmd.message for item in history)
+    assert any(item.get('role') == 'assistant' and item.get('content') == 'Готово' for item in history)
+    assert history[-1]['content'] == 'Продолжи прежний ответ'
 
 
 async def test_dangerous_background_step_waits_for_confirmation(runtime, store):
@@ -134,3 +167,23 @@ async def test_unbound_agent_does_not_guess_active_document(runtime, store):
     with pytest.raises(AgentError) as caught:
         await runtime.start(cmd.model_copy(update={"document_id": None}))
     assert caught.value.code == "DOCUMENT_REQUIRED" and provider.histories == []
+
+
+async def test_explicit_new_document_intent_binds_actual_created_id(runtime, store):
+    provider, cmd = await configure(runtime, store, [completion('corel_create_document'), completion('corel_preview'), completion()])
+    cmd = cmd.model_copy(update={'document_id': None, 'read_only': False, 'new_document': True})
+    run = await runtime.start(cmd)
+    final = await wait_run(store, run.id)
+    assert final.status == 'completed'
+    assert final.document_id.startswith('fixture-created-')
+    preview = calls(store, 'corel_preview')[-1]
+    assert preview['args']['document_id'] == final.document_id
+    assert len(calls(store, 'corel_create_document')) == 1
+
+
+async def test_new_document_intent_cannot_detach_selected_document(runtime, store):
+    provider, cmd = await configure(runtime, store, [completion()])
+    with pytest.raises(AgentError) as caught:
+        await runtime.start(cmd.model_copy(update={'new_document': True, 'read_only': False}))
+    assert caught.value.code == 'DOCUMENT_INTENT_CONFLICT'
+    assert provider.histories == []

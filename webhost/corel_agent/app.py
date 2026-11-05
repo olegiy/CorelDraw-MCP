@@ -1,7 +1,9 @@
 """Thin API. No endpoint can start a model/MCP task except durable runtime commands."""
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import FastAPI, Query, Request
@@ -13,12 +15,14 @@ from .access import COOKIE_NAME, MAX_BODY_BYTES, SECURITY_HEADERS
 from .contracts import (
     TERMINAL_STATUSES,
     AgentError,
+    BackupResult,
     ConfirmCommand,
     Conversation,
     ConversationCreate,
     ConversationPage,
     DiagnosticsSummary,
     DocumentsCache,
+    EmptyCommand,
     ErrorResponse,
     EventPage,
     FileRegister,
@@ -30,6 +34,7 @@ from .contracts import (
     ProfileTestResult,
     ProfileUpdate,
     PublicFileRef,
+    ReconcileResult,
     RecoveryReview,
     RecoveryReviewPage,
     ReportView,
@@ -146,6 +151,11 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
     async def conversations(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
         items = await store.list_conversations(offset=offset, limit=limit)
         return ConversationPage(items=items, next_offset=offset + limit if len(items) == limit else None)
+
+    @app.post("/api/v1/history/backup", response_model=BackupResult, status_code=201)
+    async def history_backup(command: EmptyCommand):
+        await store.backup()
+        return BackupResult()
 
     @app.get("/api/v1/conversations/{conversation_id}/messages", response_model=MessagePage)
     async def messages(conversation_id: str, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
@@ -302,6 +312,20 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
     @app.get("/api/v1/recovery/reviews", response_model=RecoveryReviewPage)
     async def recovery_reviews(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500)):
         return RecoveryReviewPage(items=await store.list_reviews(offset=offset, limit=limit))
+
+    @app.post("/api/v1/recovery/reconcile", response_model=ReconcileResult)
+    async def recovery_reconcile(command: EmptyCommand):
+        from .recovery import reconcile
+        async with runtime._lock:
+            pending = await store.get_meta("recovery_pending", [])
+            if runtime.mcp.ready or runtime._tasks or (not pending and not (store.directory / 'mcp-owner.json').exists()):
+                raise AgentError("RECOVERY_NOT_ALLOWED", "Reconciliation разрешена только recovery-only host без активных новых операций.")
+            local = os.environ.get("LOCALAPPDATA")
+            if not local:
+                raise AgentError("RECOVERY_ROOT_UNAVAILABLE", "Не определён фиксированный Corel runs root.", 503)
+            await reconcile(store, pending, store.directory, Path(local) / "CorelDrawMcp" / "runs")
+            await store.put_meta("recovery_only", True)
+            return ReconcileResult()
 
     @app.get("/api/v1/artifacts/{artifact_id}")
     async def artifact(artifact_id: str):
