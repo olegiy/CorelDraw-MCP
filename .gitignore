@@ -3,3 +3,10 @@ dist/
 artifacts/
 *.log
 .env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+webui/test-results/
+webui/playwright-report/

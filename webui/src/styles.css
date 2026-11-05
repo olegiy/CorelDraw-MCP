@@ -1,0 +1,34 @@
+/* Adapted from CAD-Agent-Next styles.css; MIT notice in THIRD_PARTY_NOTICES.md. */
+:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #242830; background: #fbfbfc; font-synthesis: none; line-height: 1.6; --blue: #4578ed; --muted: #646c79; --line: #e7e9ee; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); border-radius: 11px; padding: 9px 14px; background: white; color: #454d5b; min-height: 40px; }
+button:hover { background: #f2f4f8; border-color: #cbd1dc; }
+button:disabled { cursor: default; opacity: .45; }
+button.primary { background: #3468dc; border-color: #3468dc; color: white; }
+button.danger { color: #b44040; border-color: #edd0d0; }
+:focus-visible { outline: 3px solid #8bb0ff; outline-offset: 3px; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 18px; font-weight: 650; letter-spacing: -.5px; line-height: 1.3; }
+h2 { font-size: 21px; font-weight: 650; line-height: 1.3; margin-bottom: 12px; }
+p + p { margin-top: 10px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; }
+input, select, textarea { width: 100%; background: white; color: #303743; border: 1px solid #dce0e7; border-radius: 10px; padding: 10px 12px; min-width: 0; }
+small, .muted { font-size: 12px; color: var(--muted); }
+pre, code { font-family: 'Cascadia Code', Consolas, monospace; }
+.shell { min-height: 100dvh; }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 32px; border-bottom: 1px solid #eceef2; background: white; }
+.workspace { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; padding: 24px; max-width: 1500px; margin: auto; }
+.panel { min-width: 0; background: white; border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+.document-panel { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+.error { color: #a13a3a; overflow-wrap: anywhere; }
+figure { margin: 24px 0 0; }
+figure img { display: block; max-width: 100%; max-height: 580px; border: 1px solid var(--line); border-radius: 12px; object-fit: contain; }
+figcaption { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin-top: 10px; }
+dialog { max-width: min(900px, 94vw); max-height: 90dvh; border: 1px solid var(--line); border-radius: 16px; padding: 24px; overflow: auto; }
+dialog::backdrop { background: #18233266; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.dialog-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 18px; }
+.operation-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 10px; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .workspace { grid-template-columns: minmax(0, 1fr); padding: 14px; gap: 14px; } .app-header { padding: 14px 18px; } }
