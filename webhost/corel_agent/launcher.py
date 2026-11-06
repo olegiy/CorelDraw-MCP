@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from .assets import assert_no_links
@@ -80,6 +81,31 @@ class HostOwner:
 def event_names(directory):
     digest = hashlib.sha256(str(Path(directory).resolve()).lower().encode("utf-8")).hexdigest()[:24]
     return {kind: f"Local\\CorelDrawAgent_{digest}_{kind}" for kind in ("open", "stop")}
+
+
+@contextmanager
+def startup_lock(directory):
+    import pywintypes
+    import win32event
+    handle = None
+    acquired = False
+    try:
+        name = event_names(directory)['open'].removesuffix('_open') + '_startup'
+        handle = win32event.CreateMutex(user_security(), False, name)
+        status = win32event.WaitForSingleObject(handle, 30000)
+        acquired = status in (win32event.WAIT_OBJECT_0, win32event.WAIT_ABANDONED)
+        if status != win32event.WAIT_OBJECT_0:
+            raise AgentError('STARTUP_OWNER_UNCERTAIN', 'Запуск/удаление заняты или прежнее владение требует проверки.', 503)
+        yield
+    except pywintypes.error:
+        raise AgentError('STARTUP_OWNER_UNCERTAIN', 'Не удалось подтвердить владение запуском/удалением.', 503) from None
+    finally:
+        if handle is not None:
+            try:
+                if acquired:
+                    win32event.ReleaseMutex(handle)
+            finally:
+                handle.Close()
 
 
 def user_security():

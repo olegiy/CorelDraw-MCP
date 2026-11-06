@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $root 'webhost\.venv\Scripts\python.exe'
 function Assert-Exit { if ($LASTEXITCODE -ne 0) { throw 'Проверка CorelAgent завершилась ошибкой.' } }

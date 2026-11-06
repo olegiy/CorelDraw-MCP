@@ -6,10 +6,11 @@ TypeScript → PowerShell 5.1 STA → CorelDRAW 27.
 
 ## Статус
 
-Разработка MVP продолжается. Non-live tests не подтверждают безопасность
-живого VBA, совместимость всех экспортов и сохранность пользовательских
-рисунков в реальном CorelDRAW. До отдельного live smoke не используйте панель
-для единственных экземпляров рабочих документов.
+HTTP/Corel smoke на двух временных документах, repo-local установка и штатный
+launcher-rollout подтверждены отдельно. Полная live-матрица остаётся ограниченной. Non-live tests
+не подтверждают безопасность произвольного VBA, всех экспортов или сложных
+пользовательских рисунков. Не используйте панель для единственных экземпляров
+рабочих документов без проверки нужного сценария на копиях.
 
 Предоставленный live-отчёт
 `%TEMP%\kilo\CorelMcp-live-JFL8BX\live-verification.json` фиксирует успешные
@@ -36,6 +37,10 @@ Python зависимости по hash lockfile и собирает MCP/UI. О�
 CorelDRAW и не меняет регистрацию Codex. Запуск установки требует отдельного
 решения оператора. При разработке уже созданное repo-local окружение не
 равнозначно установке в пользовательское окружение.
+Перед установкой пакетов проверяются Node.js 24 и Python 3.12 в существующем
+venv; несовместимый venv автоматически не пересоздаётся. Scripts совместимы
+с Windows PowerShell 5.1 и PowerShell 7; UTF-8 BOM сохраняет русские строки
+при запуске в Windows PowerShell.
 
 `scripts/Start-CorelAgent.ps1` запускает host в текущем терминале.
 `-NoBrowser` не открывает окно и не печатает bootstrap-секрет.
@@ -43,6 +48,17 @@ CorelDRAW и не меняет регистрацию Codex. Запуск уст
 `scripts/Stop-CorelAgent.ps1` запрашивает штатную остановку, не убивает процесс
 по имени, PID или порту. Терминал host нельзя принудительно закрывать во время
 COM. Освобождение singleton происходит после drain транспорта.
+
+`scripts/Uninstall-CorelAgent.ps1 -WhatIf` показывает удаления без их выполнения.
+Штатное удаление затрагивает только `webhost/.venv`, `webui/dist` и зависимости
+UI/codegen. При любом owner marker или reparse point оно отказывает до удаления.
+История, профили, credentials, Corel reports, исходники и существующий MCP
+не удаляются. Реальное удаление требует отдельного решения оператора.
+Launcher и uninstall используют общий Windows mutex: проверка markers и удаление
+не пересекаются с резервированием нового host. Lock освобождается до async/COM
+работы launcher; далее запуск защищён durable owner marker. Не изменяйте дерево
+файлов извне во время удаления: защита от вредоносного процесса того же пользователя
+и атомарность всей рекурсивной файловой операции не входят в этот контракт.
 
 ## Доступ
 
@@ -128,10 +144,116 @@ process handles и история принадлежат исключитель�
 до создания MCP/хранилища. Если порт уже занят другим сервисом, тест пропускается
 и не вмешивается в существующий процесс. Положительная приёмка на временном
 порту не заменяет проверку установленного launcher на `8878`.
+Дополнительный non-live acceptance запускает настоящий launcher на `8878`
+и собранный UI в отдельном headless Edge: bootstrap удаляется из адреса,
+cookie остаётся HttpOnly/Strict, история читается после reload и экран помещается
+в 390 px. Только внешний Corel MCP заменён тестовым Node executor; браузер
+не меняет пользовательский профиль, а штатный Stop освобождает обоих владельцев.
+Если порт занят, тест пропускается без обращения к существующему сервису.
+
+`test_scripts.py` выполняет копии install/start/stop scripts в пути с пробелами,
+заменяя только внешние команды установки/запуска. Проверяются hash-lock аргументы,
+рабочие каталоги, неподдерживаемый toolchain и прекращение после первого отказа.
+`test_uninstall.py` выполняет настоящее удаление исключительно тестового дерева,
+проверяя сохранность sentinel-данных, `-WhatIf`, owner markers и junction.
+Эти проверки не являются установкой или удалением пользовательской панели.
 
 Проверка `CORELDRAW_AGENT_LIVE` и имени fixture сама по себе не является live
 smoke. M3 требует фактических операций панели на двух временных документах,
 проверки PNG/пустого выделения, before/after inventory и сохранённых отчётов.
 Коллекция opt-in tests и успешный non-live gate не заменяют эти доказательства.
-До реализации настоящего smoke тест `test_live_panel.py` явно пропускается,
-в том числе при `CORELDRAW_AGENT_LIVE=1`, и не выдаёт ложный успешный результат.
+Настоящий HTTP/Corel smoke реализован в `webhost/tests/panel_smoke.py`; entrypoint
+`test_live_panel.py` запускает его только при `CORELDRAW_AGENT_LIVE=1` и валидном
+`CORELDRAW_AGENT_LIVE_FIXTURE`. Обычный `Verify-CorelAgent.ps1` исключает live tests.
+
+Fixture является локальным consent manifest, а не списком чужих document IDs.
+Его поля: `schema_version: 1`, `approved: true`,
+`create_temporary_documents: true`, `execute_reviewed_vba: true`,
+`discard_created_documents: true`, существующий приватный `output_directory`
+внутри текущего `%LOCALAPPDATA%`
+и `vba_sha256` для двух фиксированных программ `geometry` и `inventory`.
+Неизвестные/повторные поля, отсутствующий файл, изменённый SHA-256, ссылка,
+неподтверждённое согласие и Python `-O` приводят к отказу до запуска MCP.
+Общие, наследующие небезопасные ACL, UNC и внешние output roots запрещены;
+существующие ACL автоматически не исправляются. Отдельный root можно подготовить
+без CorelDRAW из `webhost` штатной функцией, создающей только новый каталог:
+
+```powershell
+.venv\Scripts\python.exe -c "import os; from pathlib import Path; from corel_agent.storage_acl import ensure_private; ensure_private(Path(os.environ['LOCALAPPDATA']) / 'CorelDrawAgentSmoke')"
+```
+
+Шаблон с `approved: false` можно посмотреть без запуска CorelDRAW из `webhost`:
+
+```powershell
+.venv\Scripts\python.exe tests\panel_smoke.py --output-directory "$env:LOCALAPPDATA\CorelDrawAgentSmoke"
+```
+
+После отдельного разрешения оператора и проверки fixture настоящий прогон
+выполняется из `webhost` в обычной интерактивной Windows-сессии:
+
+```powershell
+$env:CORELDRAW_AGENT_LIVE = '1'
+$env:CORELDRAW_AGENT_LIVE_FIXTURE = 'C:\absolute\reviewed-fixture.json'
+.venv\Scripts\python.exe -m pytest -q -s -m live tests\test_live_panel.py
+```
+
+Сценарий использует реальные HTTP handlers/CSRF/approvals панели через ASGI,
+Runtime и штатный Node MCP. Provider, Vault, установка, browser/порт `8878` и
+внешние рисунки не используются как цели мутаций. Создаются два собственных
+несохранённых документа, их IDs берутся только из успешных Corel reports.
+Проверяются VBA-прямоугольник/StaticID, неизменность второго документа при работе
+с первым, `EMPTY_SELECTION`, четыре PNG `page|selection`, имена GMS и baseline
+инспекции всех страниц уже открытых документов. Более 32 исходных документов,
+32 страниц в исходном документе или неполная инспекция дают отказ, не обещание
+сохранности непроверенной области.
+
+В новом защищённом `CorelMcp-panel-smoke-*` сохраняются `verification.json`,
+четыре проверенных PNG и `host` с историей/исходными Corel reports. Поле `authority`
+различает настоящий `live` и тестовый `fixture`; `ok` выставляется только после
+проверок и scoped cleanup. Fixture читается одним fd, его точный SHA-256
+сохраняется в proof. `baseline_complete`, `failure_stage`, `cleanup_state` и
+`unresolved_creations` различают отсутствие baseline, частичный cleanup и
+создание документа без подтверждённого ID. Закрываются только подтверждённые собственные IDs с
+явным approval. При safety barrier новые cleanup-мутации запрещены; оставшиеся
+IDs и отчёты сохраняются для ручной проверки. Сторонние проекты, в том числе
+ранее существовавшие `CorelMcp_*`, не удаляются. Штатный MCP unload касается
+только проекта конкретной успешной операции, с проверкой `project_retained: false`.
+При ошибке VBA штатный worker намеренно сохраняет диагностический GMS/snapshot;
+smoke не меняет этот контракт, фиксирует `retained_projects`, ставит barrier и
+не продолжает cleanup-мутации. Нужна ручная проверка только перечисленных
+собственных проектов. Отмена также блокирует новые мутации: завершение текущего
+Job и сохранение proof shield-ятся от повторной отмены; `SMOKE_CANCELLED` не
+может стать успешной приёмкой.
+
+Этот smoke проверяет HTTP/backend/Corel boundary, а не установленный launcher,
+браузерный UI или весь M3. Для M3 нужны фактический live-прогон, просмотр его
+отчёта и отдельно проверенный rollout. Non-live проверки сценария запускаются
+с `authority: fixture` и никогда не подменяют эти доказательства.
+
+Фактический HTTP/Corel smoke подтверждён 2026-11-06 в CorelDRAW 27.2.0.135:
+новый прогон после операторского перезапуска завершился за 21 секунду,
+`LIVE_EXIT_CODE=0`, `authority: live`, `ok: true`. Два собственных документа
+закрыты; четыре PNG `page|selection` и unload всех собственных GMS проверены.
+Baseline был пустым, поэтому это не является live-доказательством сохранности
+сложных уже открытых пользовательских рисунков. Отчёт хранится в приватном
+`CorelDrawAgentSmoke-20261106T0447Z/CorelMcp-panel-smoke-a5e18edd-72b8-4198-8db9-609d7e87d7e9/verification.json`
+внутри `%LOCALAPPDATA%`. Предыдущий неуспешный Run и его диагностика не изменены.
+Причина прежнего COM/VBA зависания не установлена; успешный новый прогон не
+означает исправление этой первопричины или завершение installed/UI rollout M3.
+
+2026-11-06 отдельно разрешённая repo-local установка завершилась успешно:
+фиксированные Python зависимости, MCP/UI/codegen `npm ci` и сборки выполнены
+с включённой TLS-проверкой. В штатном `%LOCALAPPDATA%\CorelDrawAgent` проверены
+NoBrowser, duplicate Start без второго MCP, обычный Start и Stop на `8878`.
+Оба host/MCP завершились естественно, markers исчезли и порт освобождён;
+сохранено `0 Run`, safety barrier отсутствует. Модельные/VBA/Corel-команды,
+запись credentials и реальное удаление не выполнялись. Эта проверка подтверждает
+запуск/остановку установленной панели, не live модельный профиль или всю матрицу
+документов, экспортов и отказов Windows/COM.
+Итоговый `Verify-CorelAgent.ps1` после исправлений ревью: 88 MCP, 252 Python
+и 27 Playwright-тестов, `VERIFY_EXIT_CODE=0`. Профильный набор scripts/launcher/
+uninstall содержит 59 прошедших тестов. Причина прежнего Proactor/`10054`
+timeout также не объявляется исправленной; тестовый finalizer сохраняет
+первичную ошибку и завершает cleanup собственных ресурсов. Создание venv
+с нуля остаётся отдельным непокрытым fixture-сценарием; реальная установка
+проверена на уже существующем Python 3.12 venv.

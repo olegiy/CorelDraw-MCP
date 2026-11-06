@@ -23,6 +23,7 @@ from .launcher import (
     release_dead_host,
     reserve_port,
     signal_existing,
+    startup_lock,
     verify_existing,
 )
 from .observability import TechnicalLog
@@ -97,19 +98,22 @@ async def run_controls(server, events, access, log, *, no_browser=False):
 async def serve(directory, *, no_browser=False):
     root = Path(__file__).resolve().parents[2]
     preflight(directory)
-    ensure_private(directory)
-    if (directory / "runtime.json").exists() and not release_dead_host(directory):
-        verify_existing(directory)
-        if not no_browser:
-            signal_existing(directory, "open")
-        return
-    listener = reserve_port()
-    owner = store = mcp = events = log = runtime = None
+    listener = owner = store = mcp = events = log = runtime = None
     try:
-        owner = HostOwner(directory)
-        store = Store(directory)
-        mcp = CorelMcp(directory=directory)
-        owner.reserve()
+        # No awaits while owning this thread-bound lock. Uninstall holds the
+        # same lock through deletion; the durable owner protects the later run.
+        with startup_lock(directory):
+            ensure_private(directory)
+            if (directory / "runtime.json").exists() and not release_dead_host(directory):
+                verify_existing(directory)
+                if not no_browser:
+                    signal_existing(directory, "open")
+                return
+            listener = reserve_port()
+            owner = HostOwner(directory)
+            store = Store(directory)
+            mcp = CorelMcp(directory=directory)
+            owner.reserve()
         events = ControlEvents(directory)
         log = TechnicalLog(directory / "logs")
         await store.open()

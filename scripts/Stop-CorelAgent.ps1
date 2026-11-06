@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $root 'webhost\.venv\Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $python)) { throw 'Python runtime панели отсутствует.' }

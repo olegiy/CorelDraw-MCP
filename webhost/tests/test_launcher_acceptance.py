@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import shutil
 import sys
 from urllib.parse import parse_qs, urlsplit
@@ -20,6 +21,68 @@ async def until(predicate):
     async with asyncio.timeout(10):
         while not predicate():
             await asyncio.sleep(0.01)
+
+
+async def finish_browser_host(task, *, timeout=10, primary=None):
+    try:
+        await asyncio.wait_for(asyncio.shield(task), timeout)
+    except TimeoutError as timeout_error:
+        # Cancel only this test-owned HTTP wait. serve's production finally
+        # still shields the fixture MCP drain and exact owner release.
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except BaseException:
+            timeout_error.add_note('TEST_HOST_CLEANUP_FAILED')
+        if primary is not None:
+            primary.add_note('TEST_HOST_SHUTDOWN_TIMEOUT')
+            return
+        raise AssertionError('TEST_HOST_SHUTDOWN_TIMEOUT') from timeout_error
+    except BaseException:
+        if primary is not None:
+            primary.add_note('TEST_HOST_CLEANUP_FAILED')
+            return
+        raise
+
+
+async def test_browser_harness_timeout_still_drains_its_owned_fixture():
+    drained = asyncio.Event()
+
+    async def stalled_http_host():
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0.01)
+            drained.set()
+
+    task = asyncio.create_task(stalled_http_host())
+    try:
+        with pytest.raises(AssertionError, match='TEST_HOST_SHUTDOWN_TIMEOUT'):
+            await finish_browser_host(task, timeout=0.01)
+        assert task.done() and drained.is_set()
+    finally:
+        if not task.done():
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+
+async def test_browser_harness_cleanup_preserves_primary_failure():
+    async def stalled_http_host():
+        await asyncio.Event().wait()
+
+    task = asyncio.create_task(stalled_http_host())
+    primary = ValueError('fixture browser failure')
+    try:
+        try:
+            raise primary
+        finally:
+            await finish_browser_host(task, timeout=0.01, primary=primary)
+    except BaseException as actual:
+        assert actual is primary
+    assert task.done()
 
 
 @pytest.fixture
@@ -220,3 +283,60 @@ async def test_launcher_after_dead_host_recovers_dispatch_without_mcp_replay(tmp
         await asyncio.wait_for(asyncio.shield(task), 10)
     assert not (directory / 'runtime.json').exists()
     assert (directory / 'mcp-owner.json').read_bytes() == mcp_marker
+
+
+async def test_fixed_port_launcher_serves_compiled_ui_and_real_browser_without_com(tmp_path, launcher_harness, monkeypatch):
+    module, launcher, state = launcher_harness
+    # Restore the production reservation, not an ephemeral listener or Host override.
+    monkeypatch.setattr(module, 'reserve_port', launcher.reserve_port)
+    directory = tmp_path / 'production port fixture'
+    task = asyncio.create_task(module.serve(directory))
+    primary = None
+    try:
+        await until(lambda: task.done() or (state['servers'] and state['servers'][0].started))
+        if task.done():
+            try:
+                task.result()
+            except AgentError as error:
+                if error.code == 'PORT_BUSY':
+                    assert state['mcps'] == state['servers'] == []
+                    pytest.skip('Порт 8878 занят; существующий сервис не затрагивается.')
+                raise
+        await until(lambda: state['urls'])
+        async with httpx.AsyncClient(base_url='http://127.0.0.1:8878', trust_env=False) as client:
+            response = await client.get('/')
+            assert response.status_code == 200
+            assert 'text/html' in response.headers['content-type']
+            assert response.headers['x-content-type-options'] == 'nosniff'
+            assert 'no-store' in response.headers['cache-control']
+            assert "frame-ancestors 'none'" in response.headers['content-security-policy']
+            assert (await client.get('/api/v1/health')).status_code == 401
+            assert (await client.get('/api/v1/health', headers={'Host': '127.0.0.1:18880'})).status_code == 403
+
+        driver = await asyncio.create_subprocess_exec(shutil.which('node'),
+            str(ROOT / 'webhost/tests/launcher_browser.mjs'),
+            env={**os.environ, 'COREL_TEST_BOOTSTRAP_URL': state['urls'][0]},
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        try:
+            stdout, stderr = await asyncio.wait_for(driver.communicate(), 45)
+        except TimeoutError:
+            # Only this test-owned browser driver, never the host/MCP executor.
+            driver.terminate()
+            await driver.communicate()
+            assert driver.returncode is not None
+            raise
+        assert driver.returncode == 0, stderr.decode(errors='replace')
+        assert json.loads(stdout) == {'bootstrap_cleared': True, 'history_restored': True, 'mobile_no_overflow': True}
+        assert len(state['mcps']) == len(state['servers']) == 1
+        calls = [json.loads(line) for line in (directory / 'runs/calls.jsonl').read_text().splitlines()]
+        assert [call['tool'] for call in calls] == ['corel_status']
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        if state['servers'] and not task.done():
+            launcher.signal_existing(directory, 'stop')
+        await finish_browser_host(task, primary=primary)
+    assert state['mcps'][0].transport.returncode == 0
+    assert not (directory / 'runtime.json').exists()
+    assert not (directory / 'mcp-owner.json').exists()

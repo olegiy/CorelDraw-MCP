@@ -1,4 +1,4 @@
-[CmdletBinding(SupportsShouldProcess)]
+﻿[CmdletBinding(SupportsShouldProcess)]
 param()
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -18,11 +18,21 @@ function Assert-NoReparseAncestors([string]$Path) {
 Assert-NoReparseAncestors $root
 $runtime = Join-Path $env:LOCALAPPDATA 'CorelDrawAgent\runtime.json'
 $mcpOwner = Join-Path $env:LOCALAPPDATA 'CorelDrawAgent\mcp-owner.json'
+$dataRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'CorelDrawAgent')).ToLowerInvariant()
+$sha = [Security.Cryptography.SHA256]::Create()
+try { $digest = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($dataRoot)))).Replace('-', '').ToLowerInvariant().Substring(0, 24) }
+finally { $sha.Dispose() }
+$mutex = [Threading.Mutex]::new($false, ('Local\CorelDrawAgent_' + $digest + '_startup'))
+$acquired = $false
+try {
+try { $acquired = $mutex.WaitOne(30000) }
+catch [Threading.AbandonedMutexException] { $acquired = $true; throw 'Прежний запуск/удаление требует проверки; удаление запрещено.' }
+if (-not $acquired) { throw 'Запуск/удаление заняты; удаление запрещено.' }
 if ((Test-Path -LiteralPath $runtime) -or (Test-Path -LiteralPath $mcpOwner)) {
     throw 'Сначала штатно остановите и проверьте владельцев host/MCP. Удаление работающего runtime запрещено.'
 }
 $targets = @()
-foreach ($relative in @('webhost\.venv', 'webui\dist', 'webui\node_modules')) {
+foreach ($relative in @('webhost\.venv', 'webui\dist', 'webui\node_modules', 'webui\codegen\node_modules')) {
     $target = Join-Path $root $relative
     Assert-NoReparseAncestors $target
     if (-not ([IO.Path]::GetFullPath($target)).StartsWith(([IO.Path]::GetFullPath($root) + [IO.Path]::DirectorySeparatorChar), [StringComparison]::OrdinalIgnoreCase)) { throw 'Назначение удаления вне проекта.' }
@@ -42,5 +52,9 @@ foreach ($relative in @('webhost\.venv', 'webui\dist', 'webui\node_modules')) {
 foreach ($target in $targets) {
     Assert-NoReparseAncestors $target
     if ($PSCmdlet.ShouldProcess($target, 'Удалить только runtime/build панели')) { Remove-Item -LiteralPath $target -Recurse -Force }
+}
+} finally {
+    try { if ($acquired) { $mutex.ReleaseMutex() } }
+    finally { $mutex.Dispose() }
 }
 # История, credentials, исходники, Corel runs и регистрация Codex сохраняются.
