@@ -3,7 +3,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { connect, operation } from './helpers.mjs';
 
-const root = await mkdtemp(join(process.env.LOCALAPPDATA, 'CorelDrawMcp-recipes-'));
+const root = await mkdtemp(join(process.env.CORELDRAW_MCP_INTEGRATION_PARENT || process.env.LOCALAPPDATA, 'CorelDrawMcp-recipes-'));
 const session = await connect({ runs: join(root, 'runs'), configRoot: root });
 const owned = new Set(), checks = [];
 let serial = 0;
@@ -46,6 +46,8 @@ try {
   const other = (await ok('corel_create_document', { ...request(), width_mm: 50, height_mm: 50 })).result.document_id;
   owned.add(other);
   await run(other, main('ActiveLayer.CreateRectangle2 1,1,3,4\nMain="{}"'));
+  const otherPath = join(root, 'owned-other.cdr');
+  await ok('corel_save_document', { ...request(), document_id: other, path: otherPath });
   const unrelated = await snapshot(other);
   const setup = await run(doc, main('Dim a As Shape,b As Shape,t As Shape,c As Shape\nSet a=ActiveLayer.CreateRectangle2(10,10,20,20)\nSet b=ActiveLayer.CreateRectangle2(20,10,20,20)\nSet t=ActiveLayer.CreateArtisticText(2,50,"untouched")\nSet c=ActiveLayer.CreateRectangle2(1,1,5,5)\nc.ConvertToCurves\na.CreateSelection\nMain="{""a"":" & CStr(a.StaticID) & ",""b"":" & CStr(b.StaticID) & ",""text"":" & CStr(t.StaticID) & ",""curve"":" & CStr(c.StaticID) & "}"'));
   const ids = setup.result.value;
@@ -177,7 +179,7 @@ try {
   });
   await check('VBA document switching is detected after Main returns', async () => {
     const before = await snapshot(other);
-    const switched = await run(doc, main('Application.Documents.Item(2).Activate\nActiveDocument.ActiveLayer.CreateRectangle2 70,70,2,2\nMain="{}"'), false);
+    const switched = await run(doc, main(`Dim candidate As Document, target As Document\nFor Each candidate In Application.Documents\nIf candidate.FullFileName="${otherPath.replaceAll('"', '""')}" Then Set target=candidate\nNext candidate\nIf target Is Nothing Then Err.Raise 5,"test","OWNED_DOCUMENT_NOT_FOUND"\ntarget.Activate\nActiveDocument.ActiveLayer.CreateRectangle2 70,70,2,2\nMain="{}"`), false);
     assert.equal(switched.status, 'failed');
     assert.equal(switched.error.code, 'TARGET_DOCUMENT_CHANGED');
     assert.equal((await snapshot(other)).total_shapes, before.total_shapes + 1);

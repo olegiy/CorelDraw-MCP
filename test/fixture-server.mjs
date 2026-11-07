@@ -10,7 +10,7 @@ const fixture = {
   async run(job, args, progress) {
     progress('fixture_running');
     if (args.code === 'lose executor') throw new Error('Synthetic executor loss');
-    if (args.code === 'delay') await delay(1400);
+    if (args.code === 'delay') await delay(Math.min(10000, Number(process.env.CORELDRAW_MCP_TEST_DELAY_MS) || 1400));
     if (args.code === 'fail') return { ok: false, error: { code: 'VBA_RUNTIME_ERROR', stage: 'executing_vba', message: 'Synthetic failure', number: 123 } };
     if (args.code === 'cleanup fail') return { ok: true, result: { applied: true }, cleanup: { completed: false, errors: [{ step: 'fixture', code: 'CLEANUP_FAILED', message: 'Не удалось восстановить настройку' }] } };
     if (job.tool === 'corel_preview') {

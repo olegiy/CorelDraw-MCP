@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { connect, operation, call } from './helpers.mjs';
 
-const root = await mkdtemp(join(process.env.LOCALAPPDATA, 'CorelDrawMcp-extended-'));
+const root = await mkdtemp(join(process.env.CORELDRAW_MCP_INTEGRATION_PARENT || process.env.LOCALAPPDATA, 'CorelDrawMcp-extended-'));
 const runs = join(root, 'runs'); const session = await connect({ runs });
 const created = new Set(); const checks = []; let serial = 0;
 const req = name => ({ request_id: `extended-${name}-${++serial}` });

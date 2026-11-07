@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { connect, operation, call } from './helpers.mjs';
 
-const root = await mkdtemp(join(process.env.LOCALAPPDATA, 'CorelDrawMcp-integration-'));
+const root = await mkdtemp(join(process.env.CORELDRAW_MCP_INTEGRATION_PARENT || process.env.LOCALAPPDATA, 'CorelDrawMcp-integration-'));
 const runs = join(root, 'runs');
 let session = await connect({ runs });
 const drawings = new Set();
