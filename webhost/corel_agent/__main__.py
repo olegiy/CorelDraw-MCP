@@ -150,7 +150,11 @@ async def serve(directory, *, no_browser=False):
 def main():
     parser = argparse.ArgumentParser(description="Локальная панель агента CorelDRAW")
     parser.add_argument("--no-browser", action="store_true")
-    parser.add_argument("--stop", action="store_true")
+    controls = parser.add_mutually_exclusive_group()
+    controls.add_argument("--stop", action="store_true")
+    controls.add_argument("--restart", action="store_true")
+    parser.add_argument("--restart-timeout", type=int, choices=range(1, 121), default=15,
+                        metavar="1..120")
     args = parser.parse_args()
     try:
         base = os.environ.get("LOCALAPPDATA")
@@ -161,6 +165,10 @@ def main():
             preflight(directory)
             signal_existing(directory, "stop")
         else:
+            if args.restart:
+                from .restart import stop_for_restart
+                preflight(directory)
+                stop_for_restart(directory, timeout=args.restart_timeout)
             asyncio.run(serve(directory, no_browser=args.no_browser))
     except AgentError as error:
         # Only fixed sanitized codes/messages, never tokens or raw library exceptions.

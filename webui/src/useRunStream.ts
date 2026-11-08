@@ -1,9 +1,9 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { api, terminal } from './api';
+import { api, runStatus, terminal } from './api';
 import type { components } from './api.generated';
 import { applyRunEvent } from './runEvents';
 
-export type StreamUpdate = components['schemas']['MessageDeltaEvent'] | components['schemas']['MessageEvent'] | components['schemas']['ToolProposedEvent'] | components['schemas']['ConfirmationEvent'] | components['schemas']['ToolStartEvent'] | components['schemas']['JobProgressEvent'] | components['schemas']['ToolResultEvent'] | components['schemas']['ImageEvent'] | components['schemas']['StatusEvent'] | components['schemas']['WarningEvent'] | components['schemas']['ErrorEvent'];
+export type StreamUpdate = components['schemas']['MessageDeltaEvent'] | components['schemas']['MessageEvent'] | components['schemas']['ToolProposedEvent'] | components['schemas']['ToolStartEvent'] | components['schemas']['JobProgressEvent'] | components['schemas']['ToolResultEvent'] | components['schemas']['ImageEvent'] | components['schemas']['StatusEvent'] | components['schemas']['WarningEvent'] | components['schemas']['ErrorEvent'];
 
 export function useRunStream(run: components['schemas']['RunSnapshot'] | null, onEvent: (event: StreamUpdate) => void, onRecovery: (snapshot: components['schemas']['RunSnapshot']) => void, onError: (message: string) => void, onState?: (state: components['schemas']['EventState']) => void) {
   const [details, setDetails] = useState({ stage: '', warnings: [] as string[], messages: [] as components['schemas']['MessageView'][] });
@@ -47,7 +47,7 @@ export function useRunStream(run: components['schemas']['RunSnapshot'] | null, o
         if (event.type === 'message') setDetails(current => ({ ...current, messages: [...current.messages.filter(item => item.id !== event.data.id), { ...event.data, run_id: event.run_id, at: event.at ?? '' }] }));
         latestEvent(event);
         stateChanged(event.state);
-        if (event.state.status === 'completed' || event.state.status === 'failed' || event.state.status === 'stopped' || event.state.status === 'uncertain' || event.state.status === 'halted') source.close();
+        if (terminal(runStatus(event.state.status))) source.close();
       } catch { fail('Поток событий повреждён. Состояние доступно в истории.'); }
     };
     function connect(after: number) {

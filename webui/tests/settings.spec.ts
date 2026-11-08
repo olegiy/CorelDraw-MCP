@@ -20,17 +20,17 @@ test('settings remains modal on vault failure and Escape clears credentials', as
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Credential Manager');
   await expect.poll(() => saved).not.toBeNull();
-  expect((saved!.profile as { context_approved: boolean }).context_approved).toBe(false);
-  expect((saved!.profile as { vision: boolean }).vision).toBe(false);
-  expect((saved!.profile as { send_preview: boolean }).send_preview).toBe(false);
+  expect(saved!.profile).not.toHaveProperty('context_approved');
+  expect(saved!.profile).not.toHaveProperty('vision');
+  expect(saved!.profile).not.toHaveProperty('send_preview');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.getByRole('button', { name: 'Настройки модели' }).click();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
 });
 
-test('Vision and preview transmission need separate explicit choices', async ({ page }) => {
-  let saved: { profile: { vision: boolean; send_preview: boolean } } | null = null;
+test('minimal profile sends no permission fields and explains automatic previews', async ({ page }) => {
+  let saved: { profile: Record<string, unknown> } | null = null;
   await page.route('**/api/v1/**', route => {
     if (route.request().method() === 'PUT') { saved = route.request().postDataJSON(); return route.fulfill({ json: saved!.profile }); }
     return route.fulfill({ json: { authenticated: true, csrf_token: 'b'.repeat(43), items: [], stale: true } });
@@ -38,13 +38,12 @@ test('Vision and preview transmission need separate explicit choices', async ({ 
   await page.goto('/');
   await page.getByRole('button', { name: 'Настройки модели' }).click();
   await page.getByLabel('Модель', { exact: true }).fill('vision-test');
-  await expect(page.getByLabel('Модель поддерживает Vision')).not.toBeChecked();
-  await expect(page.getByLabel('Разрешить отправку PNG-превью модели')).toBeDisabled();
-  await page.getByLabel('Модель поддерживает Vision').check();
-  await expect(page.getByLabel('Разрешить отправку PNG-превью модели')).not.toBeChecked();
-  await page.getByLabel('Разрешить отправку PNG-превью модели').check();
+  await expect(page.getByRole('dialog').getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toContainText('PNG-превью передаются модели автоматически');
   await page.getByRole('button', { name: 'Сохранить в Credential Manager' }).click();
-  await expect.poll(() => saved?.profile.send_preview).toBe(true);
-  expect(saved!.profile.vision).toBe(true);
+  await expect.poll(() => saved?.profile.model).toBe('vision-test');
+  expect(saved!.profile).not.toHaveProperty('context_approved');
+  expect(saved!.profile).not.toHaveProperty('vision');
+  expect(saved!.profile).not.toHaveProperty('send_preview');
   await page.goto('about:blank');
 });

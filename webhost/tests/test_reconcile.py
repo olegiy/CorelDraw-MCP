@@ -9,7 +9,7 @@ from corel_agent.contracts import AgentError, JobUpdate, ProcessIdentity
 
 async def test_verified_dead_owner_recovers_terminal_report_without_dispatch(store, tmp_path, monkeypatch):
     module = implementation('recovery')
-    run = (await store.accept_run(command(read_only=False), None)).snapshot
+    run = (await store.accept_run(command(), None)).snapshot
     op = operation(run)
     await store.record_operation(op)
     await store.mark_dispatching(op.operation_id)
@@ -43,15 +43,15 @@ async def test_unverified_owner_never_releases_marker(store, tmp_path, monkeypat
     assert marker.exists()
 
 
-async def test_recovery_restart_refresh_and_review_allow_only_new_context(store, tmp_path, monkeypatch):
+@pytest.mark.parametrize('outcome', ['succeeded', 'unknown'])
+async def test_recovery_restart_refresh_allows_only_proven_new_context(store, tmp_path, monkeypatch, outcome):
     import shutil
     from pathlib import Path
 
-    import httpx
     from conftest import wait_run
-    from test_manual_api import HarnessAccess
+    from test_readiness import drain
 
-    run = (await store.accept_run(command(read_only=False), None)).snapshot
+    run = (await store.accept_run(command(), None)).snapshot
     op = operation(run)
     await store.record_operation(op)
     await store.mark_dispatching(op.operation_id)
@@ -63,8 +63,8 @@ async def test_recovery_restart_refresh_and_review_allow_only_new_context(store,
     report_dir = reports / job_id
     report_dir.mkdir(parents=True)
     (report_dir / 'report.json').write_text(json.dumps({'job_id': job_id, 'tool': op.tool,
-        'request_id': op.corel_request_id, 'owner_pid': 123, 'status': 'unknown',
-        'cleanup': {'completed': False}, 'error': {'applied': True}}))
+        'request_id': op.corel_request_id, 'owner_pid': 123, 'status': outcome,
+        'cleanup': {'completed': outcome == 'succeeded'}, 'error': {'applied': True}}))
     (tmp_path / 'mcp-owner.json').write_text(json.dumps({'phase': 'running',
         'process': {'pid': 123, 'creation_time': 'old-owner'}}))
     recovery = implementation('recovery')
@@ -80,18 +80,19 @@ async def test_recovery_restart_refresh_and_review_allow_only_new_context(store,
         assert await store.get_meta('recovery_only') is False
         status = await runtime.start(command())
         await wait_run(store, status.id)
-        barrier = await store.get_barrier()
-        assert barrier is not None
-        app = implementation('app').create_app(runtime=runtime, store=store, assets=runtime.assets, access=HarnessAccess())
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://127.0.0.1:8878') as client:
-            response = await client.post('/api/v1/recovery/review', json={'note': 'Новый worker, рисунок и отчёт проверены',
-                'barrier_id': barrier.id, 'document_id': 'fixture-b', 'manual_corel_checked': True,
-                'release_for_new_context': True})
-            assert response.status_code == 201
-        assert (await store.get_snapshot(run.id)).status == 'uncertain'
-        assert (await store.get_operation(op.operation_id))['result']['outcome'] == 'unknown'
-        assert await store.get_barrier() is None
-        new = await runtime.start(command(tool='corel_inspect_document', document_id='fixture-b', read_only=False))
-        assert (await wait_run(store, new.id)).status == 'completed'
+        await drain(runtime)
+        expected = 'uncertain' if outcome == 'unknown' else 'interrupted'
+        assert (await store.get_snapshot(run.id)).status == expected
+        assert (await store.get_operation(op.operation_id))['result']['outcome'] == outcome
+        new_command = command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'})
+        if outcome == 'unknown':
+            assert await store.get_barrier() is not None
+            with pytest.raises(AgentError):
+                await runtime.start(new_command)
+        else:
+            assert await store.get_barrier() is None
+            new = await runtime.start(new_command)
+            assert (await wait_run(store, new.id)).status == 'completed'
+        assert (await store.get_snapshot(run.id)).status == expected
     finally:
         await runtime.aclose()

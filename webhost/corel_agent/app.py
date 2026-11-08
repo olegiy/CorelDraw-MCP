@@ -1,6 +1,8 @@
 """Thin API. No endpoint can start a model/MCP task except durable runtime commands."""
 
 import asyncio
+import base64
+import io
 import os
 import re
 from contextlib import asynccontextmanager
@@ -10,6 +12,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from PIL import Image
 from sse_starlette import EventSourceResponse
 
 from .access import COOKIE_NAME, MAX_BODY_BYTES, SECURITY_HEADERS
@@ -17,7 +20,6 @@ from .contracts import (
     TERMINAL_STATUSES,
     AgentError,
     BackupResult,
-    ConfirmCommand,
     Conversation,
     ConversationCreate,
     ConversationPage,
@@ -26,7 +28,6 @@ from .contracts import (
     EmptyCommand,
     ErrorResponse,
     EventPage,
-    FileRegister,
     Health,
     Id,
     MessagePage,
@@ -35,9 +36,7 @@ from .contracts import (
     ProfileSnapshot,
     ProfileTestResult,
     ProfileUpdate,
-    PublicFileRef,
     ReconcileResult,
-    RecoveryReview,
     RecoveryReviewPage,
     ReportView,
     RunCommand,
@@ -180,52 +179,46 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
             raise AgentError("PROFILE_ID_CONFLICT", "ID профиля в URL и теле не совпадают.")
         if not runtime.settings:
             raise AgentError("SETTINGS_UNAVAILABLE", "Хранилище профиля не подключено.", 503)
+        if command.api_key is not None:
+            runtime.policy.privacy.register_secret(command.api_key.get_secret_value())
+        if runtime.policy.privacy.contains_secret(command.profile.model_dump(mode='json')):
+            raise AgentError('SECRET_IN_PROFILE', 'Значение ключа нельзя сохранять в метаданных профиля.', 403)
         return await runtime.settings.save(command.profile, command.api_key)
 
     @app.post("/api/v1/profiles/{profile_id}/test", response_model=ProfileTestResult)
     async def test_profile(profile_id: str):
         if not runtime.settings:
             raise AgentError("SETTINGS_UNAVAILABLE", "Хранилище профиля не подключено.", 503)
-        frozen = await runtime.settings.freeze(profile_id, require_consent=False)
+        frozen = await runtime.settings.freeze(profile_id)
         provider = Provider(frozen.profile, frozen.secret)
         try:
             tool = ToolDefinition(name="corel_agent_probe", description="Проверка native tools без CorelDRAW.",
-                input_schema={"type": "object", "properties": {"ok": {"type": "boolean", "const": True}},
-                              "required": ["ok"], "additionalProperties": False})
-            completion = await provider.complete([{"role": "user", "content":
-                "Вызови corel_agent_probe с ok=true. Это тест API без пользовательских документов."}], [tool])
+                input_schema={"type": "object", "properties": {"ok": {"type": "boolean", "const": True},
+                    "pixel_color": {"type": "string", "enum": ["red", "green", "blue"]}},
+                              "required": ["ok", "pixel_color"], "additionalProperties": False})
+            png = io.BytesIO()
+            Image.new("RGB", (1, 1), "red").save(png, format="PNG")
+            completion = await provider.complete([{"role": "user", "content": [
+                {"type": "text", "text": "Определи цвет пикселя на PNG и вызови corel_agent_probe с ok=true и pixel_color. Это тест API без пользовательских документов."},
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(png.getvalue()).decode("ascii")}},
+            ]}], [tool])
             if (len(completion.tool_calls) != 1 or completion.tool_calls[0].name != tool.name
-                    or completion.tool_calls[0].arguments != {"ok": True}):
-                raise AgentError("NATIVE_TOOLS_REQUIRED", "Модель не вернула обязательный native tool call.", 502)
+                    or completion.tool_calls[0].arguments != {"ok": True, "pixel_color": "red"}):
+                raise AgentError("MODEL_CAPABILITIES_REQUIRED", "Модель должна обработать PNG и вернуть корректный native tool call; повтор не выполнялся.", 502)
             return ProfileTestResult()
         finally:
             await provider.aclose()
 
     @app.get("/api/v1/workspace", response_model=Workspace)
     async def workspace():
-        return await store.get_meta("workspace", Workspace().model_dump())
+        return await store.get_workspace()
 
     @app.put("/api/v1/workspace", response_model=Workspace)
     async def set_workspace(command: Workspace):
-        if len({root.id for root in command.output_roots}) != len(command.output_roots):
-            raise AgentError("ROOT_ID_CONFLICT", "ID output roots должны быть уникальны.", 422)
-        roots = []
-        for root in command.output_roots:
-            path = await asyncio.to_thread(PathGuard().directory, root.path)
-            roots.append(root.model_copy(update={"path": str(path)}))
-        result = Workspace(output_roots=roots)
+        path = await asyncio.to_thread(PathGuard().directory, command.output_directory) if command.output_directory else None
+        result = Workspace(output_directory=str(path) if path else None)
         await store.put_meta("workspace", result.model_dump(mode="json"))
         return result
-
-    @app.post("/api/v1/files/register", response_model=PublicFileRef, status_code=201)
-    async def register_file(command: FileRegister):
-        reference = await PathGuard().register_file(command.path)
-        async with runtime._lock:
-            files = await store.get_meta("files", [])
-            if len(files) >= 100:
-                raise AgentError("FILE_REF_LIMIT", "Достигнут лимит зарегистрированных CDR.")
-            await store.put_meta("files", [*files, reference.model_dump(mode="json")])
-        return PublicFileRef(file_ref=reference.file_ref, display_name=reference.display_name)
 
     @app.post("/api/v1/actions", response_model=RunSnapshot, status_code=202)
     async def action(command: RunCommand):
@@ -269,11 +262,6 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
     async def stop(run_id: Id):
         return await runtime.stop(run_id)
 
-    @app.post("/api/v1/runs/{run_id}/confirm", response_model=RunSnapshot)
-    async def confirm(run_id: Id, command: ConfirmCommand):
-        return await runtime.confirm(run_id, command.confirmation_id,
-                                     command.operation_digest, command.approved)
-
     @app.post("/api/v1/requests/{client_request_id}/stop", response_model=RunSnapshot | None)
     async def stop_request(client_request_id: Id):
         return await runtime.stop_request(client_request_id)
@@ -312,28 +300,6 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
         from .observability import diagnostics
         return await diagnostics(store, mcp_connected=runtime.mcp.ready, slow_subscribers=runtime.hub.slow_subscribers)
 
-    @app.post("/api/v1/recovery/review", response_model=RecoveryReview, status_code=201)
-    async def recovery_review(review: RecoveryReview):
-        if review.release_for_new_context:
-            from .owned_stdio import identity_alive
-            async with runtime._lock:
-                if not review.manual_corel_checked or not review.document_id or not review.barrier_id:
-                    raise AgentError('REVIEW_CHECK_REQUIRED', 'Нужны ручная проверка CorelDRAW, точный документ и ID барьера.')
-                transport = runtime.mcp.transport
-                identity = getattr(transport, 'identity', None)
-                if (not runtime.mcp.ready or not identity or identity_alive(identity) is not True
-                        or await store.get_meta('recovery_pending', []) or await store.get_meta('recovery_only', False)
-                        or runtime._tasks):
-                    raise AgentError('REVIEW_OWNER_UNVERIFIED', 'Владелец MCP или завершение прежних операций не подтверждены.')
-                await transport.verify_owner()
-                cached = await store.get_meta('documents', {'items': [], 'stale': True})
-                if cached.get('stale', True) or review.document_id not in {item['document_id'] for item in cached['items']}:
-                    raise AgentError('REVIEW_DOCUMENT_STALE', 'Обновите документы и явно выберите текущий рисунок.')
-                await store.release_barrier(review)
-        else:
-            await store.add_review(review)
-        return review
-
     @app.get("/api/v1/recovery/reviews", response_model=RecoveryReviewPage)
     async def recovery_reviews(offset: int = Query(0, ge=0, le=999999999999999999), limit: int = Query(100, ge=1, le=500)):
         items = await store.list_reviews(offset=offset, limit=limit)
@@ -351,6 +317,7 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
                 raise AgentError("RECOVERY_ROOT_UNAVAILABLE", "Не определён фиксированный Corel runs root.", 503)
             await reconcile(store, pending, store.directory, Path(local) / "CorelDrawMcp" / "runs")
             await store.put_meta("recovery_only", True)
+            await runtime._refresh_readiness_locked()
             return ReconcileResult()
 
     @app.get("/api/v1/artifacts/{artifact_id}")
@@ -368,11 +335,14 @@ def create_app(*, runtime=None, store=None, assets=None, access=None, lifespan=N
 
     @app.get("/api/v1/health", response_model=Health)
     async def health():
+        async with runtime._lock:
+            await runtime._refresh_readiness_locked()
         runs = await store.list_runs(limit=500)
         active = next((run for run in runs if run.status not in TERMINAL_STATUSES), None)
         cached = await store.get_meta("documents", {})
         return Health(mcp_connected=runtime.mcp.ready, store_ready=not store.failed,
             active_run_id=active.id if active else None, active_job_id=active.job_id if active else None,
-            safety_barrier=await store.get_barrier(), cached_corel_at=cached.get("at"), storage=await store.storage_state())
+            safety_barrier=await store.get_barrier(), cached_corel_at=cached.get("at"),
+            readiness_reason=runtime.readiness_reason, storage=await store.storage_state())
 
     return app

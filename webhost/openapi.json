@@ -1,6 +1,32 @@
 {
   "components": {
     "schemas": {
+      "AuditReview": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "id": {
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "data"
+        ],
+        "title": "AuditReview",
+        "type": "object"
+      },
       "BackupResult": {
         "additionalProperties": false,
         "properties": {
@@ -17,109 +43,6 @@
           }
         },
         "title": "BackupResult",
-        "type": "object"
-      },
-      "ConfirmCommand": {
-        "additionalProperties": false,
-        "properties": {
-          "approved": {
-            "title": "Approved",
-            "type": "boolean"
-          },
-          "confirmation_id": {
-            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-            "title": "Confirmation Id",
-            "type": "string"
-          },
-          "operation_digest": {
-            "pattern": "^[a-f0-9]{64}$",
-            "title": "Operation Digest",
-            "type": "string"
-          }
-        },
-        "required": [
-          "confirmation_id",
-          "operation_digest",
-          "approved"
-        ],
-        "title": "ConfirmCommand",
-        "type": "object"
-      },
-      "ConfirmationEvent": {
-        "additionalProperties": false,
-        "properties": {
-          "at": {
-            "title": "At",
-            "type": "string"
-          },
-          "data": {
-            "$ref": "#/components/schemas/ConfirmationRequest"
-          },
-          "run_id": {
-            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-            "title": "Run Id",
-            "type": "string"
-          },
-          "schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Schema Version",
-            "type": "integer"
-          },
-          "seq": {
-            "minimum": 1.0,
-            "title": "Seq",
-            "type": "integer"
-          },
-          "state": {
-            "$ref": "#/components/schemas/EventState"
-          },
-          "type": {
-            "const": "confirmation",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "run_id",
-          "seq",
-          "state",
-          "type",
-          "data"
-        ],
-        "title": "ConfirmationEvent",
-        "type": "object"
-      },
-      "ConfirmationRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "confirmation_id": {
-            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-            "title": "Confirmation Id",
-            "type": "string"
-          },
-          "operation": {
-            "$ref": "#/components/schemas/PreparedOperation"
-          },
-          "operation_digest": {
-            "pattern": "^[a-f0-9]{64}$",
-            "title": "Operation Digest",
-            "type": "string"
-          },
-          "reasons": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Reasons",
-            "type": "array"
-          }
-        },
-        "required": [
-          "operation_digest",
-          "operation",
-          "reasons"
-        ],
-        "title": "ConfirmationRequest",
         "type": "object"
       },
       "Conversation": {
@@ -447,7 +370,6 @@
             "items": {
               "discriminator": {
                 "mapping": {
-                  "confirmation": "#/components/schemas/ConfirmationEvent",
                   "error": "#/components/schemas/ErrorEvent",
                   "image": "#/components/schemas/ImageEvent",
                   "job_progress": "#/components/schemas/JobProgressEvent",
@@ -470,9 +392,6 @@
                 },
                 {
                   "$ref": "#/components/schemas/ToolProposedEvent"
-                },
-                {
-                  "$ref": "#/components/schemas/ConfirmationEvent"
                 },
                 {
                   "$ref": "#/components/schemas/ToolStartEvent"
@@ -579,22 +498,29 @@
             ]
           },
           "status": {
-            "enum": [
-              "preparing",
-              "running",
-              "awaiting_confirmation",
-              "stopping",
-              "completed",
-              "stopped",
-              "failed",
-              "uncertain",
-              "limit_reached",
-              "rejected",
-              "halted",
-              "interrupted"
+            "anyOf": [
+              {
+                "enum": [
+                  "preparing",
+                  "running",
+                  "stopping",
+                  "completed",
+                  "stopped",
+                  "failed",
+                  "uncertain",
+                  "limit_reached",
+                  "rejected",
+                  "halted",
+                  "interrupted"
+                ],
+                "type": "string"
+              },
+              {
+                "const": "awaiting_confirmation",
+                "type": "string"
+              }
             ],
-            "title": "Status",
-            "type": "string"
+            "title": "Status"
           },
           "stop_requested": {
             "title": "Stop Requested",
@@ -608,22 +534,6 @@
           "monitoring_state"
         ],
         "title": "EventState",
-        "type": "object"
-      },
-      "FileRegister": {
-        "additionalProperties": false,
-        "properties": {
-          "path": {
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ],
-        "title": "FileRegister",
         "type": "object"
       },
       "Health": {
@@ -666,6 +576,17 @@
           "mcp_connected": {
             "title": "Mcp Connected",
             "type": "boolean"
+          },
+          "readiness_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness Reason"
           },
           "safety_barrier": {
             "anyOf": [
@@ -1119,10 +1040,6 @@
       "MetricSummary": {
         "additionalProperties": false,
         "properties": {
-          "approvals": {
-            "title": "Approvals",
-            "type": "integer"
-          },
           "busy": {
             "default": 0,
             "title": "Busy",
@@ -1196,7 +1113,6 @@
           "runs",
           "llm_turns",
           "corel_operations",
-          "approvals",
           "outcomes",
           "slow_subscribers"
         ],
@@ -1378,27 +1294,6 @@
         "title": "OperationView",
         "type": "object"
       },
-      "OutputRoot": {
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-            "title": "Id",
-            "type": "string"
-          },
-          "path": {
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ],
-        "title": "OutputRoot",
-        "type": "object"
-      },
       "PreparedOperation": {
         "additionalProperties": false,
         "properties": {
@@ -1453,7 +1348,7 @@
             "type": "string"
           },
           "policy_version": {
-            "default": 1,
+            "default": 2,
             "title": "Policy Version",
             "type": "integer"
           },
@@ -1523,11 +1418,6 @@
             "title": "Base Url",
             "type": "string"
           },
-          "context_approved": {
-            "default": false,
-            "title": "Context Approved",
-            "type": "boolean"
-          },
           "credential_revision": {
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "title": "Credential Revision",
@@ -1555,19 +1445,9 @@
             "title": "Name",
             "type": "string"
           },
-          "send_preview": {
-            "default": false,
-            "title": "Send Preview",
-            "type": "boolean"
-          },
           "stream_responses": {
             "default": true,
             "title": "Stream Responses",
-            "type": "boolean"
-          },
-          "vision": {
-            "default": false,
-            "title": "Vision",
             "type": "boolean"
           }
         },
@@ -1583,8 +1463,14 @@
       "ProfileTestResult": {
         "additionalProperties": false,
         "properties": {
+          "images": {
+            "const": true,
+            "default": true,
+            "title": "Images",
+            "type": "boolean"
+          },
           "message": {
-            "default": "Модель вернула валидированный native tool call; CorelDRAW не вызывался.",
+            "default": "Модель обработала тестовый PNG и вернула валидированный native tool call; CorelDRAW не вызывался.",
             "title": "Message",
             "type": "string"
           },
@@ -1624,26 +1510,6 @@
         "title": "ProfileUpdate",
         "type": "object"
       },
-      "PublicFileRef": {
-        "additionalProperties": false,
-        "properties": {
-          "display_name": {
-            "title": "Display Name",
-            "type": "string"
-          },
-          "file_ref": {
-            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-            "title": "File Ref",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file_ref",
-          "display_name"
-        ],
-        "title": "PublicFileRef",
-        "type": "object"
-      },
       "ReconcileResult": {
         "additionalProperties": false,
         "properties": {
@@ -1662,67 +1528,12 @@
         "title": "ReconcileResult",
         "type": "object"
       },
-      "RecoveryReview": {
-        "additionalProperties": false,
-        "properties": {
-          "at": {
-            "title": "At",
-            "type": "string"
-          },
-          "barrier_id": {
-            "anyOf": [
-              {
-                "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Barrier Id"
-          },
-          "document_id": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Document Id"
-          },
-          "manual_corel_checked": {
-            "default": false,
-            "title": "Manual Corel Checked",
-            "type": "boolean"
-          },
-          "note": {
-            "maxLength": 4000,
-            "minLength": 1,
-            "title": "Note",
-            "type": "string"
-          },
-          "release_for_new_context": {
-            "default": false,
-            "title": "Release For New Context",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "note"
-        ],
-        "title": "RecoveryReview",
-        "type": "object"
-      },
       "RecoveryReviewPage": {
         "additionalProperties": false,
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/RecoveryReview"
+              "$ref": "#/components/schemas/AuditReview"
             },
             "title": "Items",
             "type": "array"
@@ -1840,17 +1651,18 @@
             "title": "New Document",
             "type": "boolean"
           },
-          "output_root_id": {
+          "output_directory": {
             "anyOf": [
               {
-                "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+                "maxLength": 1024,
+                "minLength": 1,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Output Root Id"
+            "title": "Output Directory"
           },
           "profile_id": {
             "anyOf": [
@@ -1863,11 +1675,6 @@
               }
             ],
             "title": "Profile Id"
-          },
-          "read_only": {
-            "default": true,
-            "title": "Read Only",
-            "type": "boolean"
           },
           "tool": {
             "anyOf": [
@@ -2004,27 +1811,18 @@
             "title": "Monitoring State",
             "type": "string"
           },
-          "output_root_id": {
+          "output_directory": {
             "anyOf": [
               {
-                "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+                "maxLength": 1024,
+                "minLength": 1,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Output Root Id"
-          },
-          "pending_confirmation": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ConfirmationRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "title": "Output Directory"
           },
           "profile": {
             "anyOf": [
@@ -2035,11 +1833,6 @@
                 "type": "null"
               }
             ]
-          },
-          "read_only": {
-            "default": true,
-            "title": "Read Only",
-            "type": "boolean"
           },
           "safety_barrier": {
             "anyOf": [
@@ -2056,7 +1849,6 @@
             "enum": [
               "preparing",
               "running",
-              "awaiting_confirmation",
               "stopping",
               "completed",
               "stopped",
@@ -2175,7 +1967,6 @@
             "enum": [
               "preparing",
               "running",
-              "awaiting_confirmation",
               "stopping",
               "completed",
               "stopped",
@@ -2570,13 +2361,18 @@
       "Workspace": {
         "additionalProperties": false,
         "properties": {
-          "output_roots": {
-            "items": {
-              "$ref": "#/components/schemas/OutputRoot"
-            },
-            "maxItems": 8,
-            "title": "Output Roots",
-            "type": "array"
+          "output_directory": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Directory"
           }
         },
         "title": "Workspace",
@@ -3579,104 +3375,6 @@
         "summary": "Refresh Documents"
       }
     },
-    "/api/v1/files/register": {
-      "post": {
-        "operationId": "register_file_api_v1_files_register_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FileRegister"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicFileRef"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Request Entity Too Large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          }
-        },
-        "summary": "Register File"
-      }
-    },
     "/api/v1/health": {
       "get": {
         "operationId": "health_api_v1_health_get",
@@ -4542,104 +4240,6 @@
         "summary": "Recovery Reconcile"
       }
     },
-    "/api/v1/recovery/review": {
-      "post": {
-        "operationId": "recovery_review_api_v1_recovery_review_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecoveryReview"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecoveryReview"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Request Entity Too Large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          }
-        },
-        "summary": "Recovery Review"
-      }
-    },
     "/api/v1/recovery/reviews": {
       "get": {
         "operationId": "recovery_reviews_api_v1_recovery_reviews_get",
@@ -5287,116 +4887,6 @@
           }
         },
         "summary": "Snapshot"
-      }
-    },
-    "/api/v1/runs/{run_id}/confirm": {
-      "post": {
-        "operationId": "confirm_api_v1_runs__run_id__confirm_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "run_id",
-            "required": true,
-            "schema": {
-              "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-              "title": "Run Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfirmCommand"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RunSnapshot"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Request Entity Too Large"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          }
-        },
-        "summary": "Confirm"
       }
     },
     "/api/v1/runs/{run_id}/event-log": {

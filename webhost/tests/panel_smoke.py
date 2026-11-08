@@ -7,7 +7,7 @@ import json
 import os
 import shutil
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 if __name__ == '__main__':
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -117,6 +117,8 @@ def load_fixture(path):
             data[key] = value
         return data
     try:
+        if len(PureWindowsPath(str(path)).drive) != 2:
+            raise ValueError('Fixture must use a local drive path')
         path = PathGuard().path(str(path))
         assert_no_links(path)
         with path.open('rb') as source:
@@ -202,9 +204,14 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
 
     async def action(tool, document_id=None, arguments=None, *, expected='completed'):
         proof['stage'] = 'tool:' + tool
+        if tool in {'corel_execute_vba', 'corel_close_document'}:
+            assert document_id in created
+            if tool == 'corel_execute_vba':
+                assert (arguments or {}).get('code') in CODES.values()
+            else:
+                assert (arguments or {}).get('discard_changes') is True
         command = RunCommand(client_request_id=new_id(), conversation_id=new_id(), kind='manual',
-            tool=tool, document_id=document_id, arguments=arguments or {}, read_only=tool in {
-                'corel_status', 'corel_inspect_document', 'corel_preview'})
+            tool=tool, document_id=document_id, arguments=arguments or {})
         creation = None
         if tool == 'corel_create_document':
             creation = {'client_request_id': command.client_request_id, 'run_id': None,
@@ -220,18 +227,6 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
         async with asyncio.timeout(660):
             while True:
                 snapshot = await get('/runs/' + run_id)
-                pending = snapshot['pending_confirmation']
-                if pending:
-                    op = pending['operation']
-                    assert document_id in created and op['document_id'] == document_id
-                    assert op['tool'] == tool and snapshot['job_id'] is None
-                    if tool == 'corel_execute_vba':
-                        assert op['arguments']['code'] in CODES.values()
-                    else:
-                        assert tool == 'corel_close_document' and op['arguments']['discard_changes'] is True
-                    response = await client.post('/api/v1/runs/' + run_id + '/confirm', json={
-                        'confirmation_id': pending['confirmation_id'], 'operation_digest': pending['operation_digest'], 'approved': True})
-                    assert response.status_code == 200
                 if snapshot['status'] in TERMINAL_STATUSES:
                     break
                 await asyncio.sleep(0.02)

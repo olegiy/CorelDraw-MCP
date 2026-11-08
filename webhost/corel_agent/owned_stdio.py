@@ -74,7 +74,7 @@ def identity_alive(identity: ProcessIdentity) -> bool | None:
 def restricted_environment(extra=None):
     env = {key: value for key, value in os.environ.items() if key.upper() in SAFE_ENV}
     for key, value in (extra or {}).items():
-        if key not in {"CORELDRAW_MCP_RUNS", "CORELDRAW_MCP_CONFIG_ROOT"}:
+        if key != "CORELDRAW_MCP_RUNS":
             raise LifecycleError("CHILD_ENV_DENIED", "Недопустимая переменная окружения MCP.", 403)
         env[key] = value
     return env

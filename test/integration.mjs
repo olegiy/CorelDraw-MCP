@@ -83,15 +83,14 @@ End Function`;
       if (format === 'svg') assert.match(bytes.toString(), /<svg\b/);
     }
   });
-  await check('Overwrite protections', async () => {
+  await check('Automatic Save/export replacement without overwrite input', async () => {
     const output = join(root, 'existing.png'); await writeFile(output, 'sentinel');
-    const denied = await operation(session, 'corel_export', { ...request('deny-export'), ...doc, format: 'png', path: output });
-    assert.equal(denied.error.code, 'FILE_EXISTS'); assert.equal(await readFile(output, 'utf8'), 'sentinel');
-    await ok('corel_export', { ...request('replace-export'), ...doc, format: 'png', path: output, overwrite: true });
+    await ok('corel_export', { ...request('replace-export'), ...doc, format: 'png', path: output });
     assert.equal((await readFile(output)).subarray(1, 4).toString(), 'PNG');
     const otherCdr = join(root, 'existing.cdr'); await writeFile(otherCdr, 'sentinel');
-    const saveDenied = await operation(session, 'corel_save_document', { ...request('deny-save'), ...doc, path: otherCdr });
-    assert.equal(saveDenied.error.code, 'FILE_EXISTS'); assert.equal(await readFile(otherCdr, 'utf8'), 'sentinel');
+    await ok('corel_save_document', { ...request('replace-save'), ...doc, path: otherCdr });
+    assert.notEqual((await readFile(otherCdr)).toString(), 'sentinel');
+    await ok('corel_save_document', { ...request('restore-save-path'), ...doc, path: cdr });
   });
   await check('PNG/SVG selection and whole-document PDF', async () => {
     for (const format of ['png', 'svg']) await ok('corel_export', { ...request(`selection-${format}`), ...doc, range: 'selection', format, path: join(root, `selection.${format}`) });

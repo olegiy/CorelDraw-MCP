@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('readonly documents and exact selection preview', async ({ page }) => {
+test('documents and exact selection preview require no read-only mode', async ({ page }) => {
   let target = 'page';
   await page.route('**/api/v1/**', async route => {
     const path = new URL(route.request().url()).pathname;
@@ -25,6 +25,7 @@ test('readonly documents and exact selection preview', async ({ page }) => {
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'CorelDRAW Agent' })).toBeVisible();
+  await expect(page.getByLabel('Только чтение')).toHaveCount(0);
   await page.getByRole('button', { name: 'Обновить документы' }).click();
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
   await page.getByRole('button', { name: 'Превью выделения' }).click();

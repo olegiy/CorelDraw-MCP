@@ -117,18 +117,12 @@ async def test_global_telemetry_cannot_observe_protected_requests(monkeypatch):
     assert response.status_code == 401 and "CANARY-PRIVATE" not in response.text
 
 
-async def test_confirmation_endpoint_accepts_no_new_parameters(authenticated, runtime, store):
-    from test_approvals import calls, pending_confirmation, prime
+async def test_confirmation_endpoint_is_removed_but_access_controls_remain(authenticated, runtime, store):
+    from test_persisted import legacy_confirmation
     _, client, _, _ = authenticated
-    await prime(runtime, store)
-    response = await client.post("/api/v1/actions", json=command(tool="corel_execute_vba",
-        document_id="fixture-b", read_only=False, arguments={"code": "fixture code"}).model_dump())
-    assert response.status_code == 202
-    run_id = response.json()["id"]
-    pending = await pending_confirmation(store, run_id)
-    payload = {"confirmation_id": pending.confirmation_id, "operation_digest": pending.operation_digest,
-               "approved": True}
-    response = await client.post(f"/api/v1/runs/{run_id}/confirm", json={**payload, "code": "changed code"})
-    assert response.status_code == 422 and calls(store, "corel_execute_vba") == []
-    assert (await client.post(f"/api/v1/runs/{run_id}/confirm", json=payload)).status_code == 200
-    assert (await client.post(f"/api/v1/runs/{run_id}/confirm", json=payload)).status_code == 409
+    old = await legacy_confirmation(store)
+    url = f"/api/v1/runs/{old['id']}/confirm"
+    payload = {'confirmation_id': old['confirmation']['confirmation_id'], 'operation_digest': '0' * 64, 'approved': True}
+    assert (await client.post(url, json=payload, headers={'X-Corel-CSRF': 'wrong'})).status_code == 403
+    assert '/api/v1/runs/{run_id}/confirm' not in implementation('app').create_app().openapi()['paths']
+    assert (await client.post(url, json=payload)).status_code == 404

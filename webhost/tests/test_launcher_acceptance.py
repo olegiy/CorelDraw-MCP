@@ -237,7 +237,7 @@ async def test_launcher_after_dead_host_recovers_dispatch_without_mcp_replay(tmp
     store = Store(directory)
     await store.open()
     try:
-        run = (await store.accept_run(command(read_only=False), None)).snapshot
+        run = (await store.accept_run(command(), None)).snapshot
         op = operation(run)
         await store.record_operation(op)
         await store.mark_dispatching(op.operation_id)
@@ -273,7 +273,7 @@ async def test_launcher_after_dead_host_recovers_dispatch_without_mcp_replay(tmp
             snapshot = (await client.get(f'/api/v1/runs/{run.id}')).json()
             assert snapshot['status'] == 'uncertain' and snapshot['safety_barrier']
             assert snapshot['job_id'] is None
-            assert (await client.post('/api/v1/actions', json=command(read_only=False).model_dump())).status_code == 503
+            assert (await client.post('/api/v1/actions', json=command().model_dump())).status_code == 503
             operations = (await client.get(f'/api/v1/runs/{run.id}/operations')).json()['items']
             assert len(operations) == 1 and operations[0]['id'] == op.operation_id
         assert not (directory / 'runs').exists()

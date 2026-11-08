@@ -26,32 +26,20 @@ powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 
 Все COM-вызовы возвращают `job_id`. Используйте `corel_get_job` с `wait_seconds` до 20; polling не вызывает COM. Схемы и ограничения доступны через MCP `tools/list` и [справочник инструментов](skills/coreldraw-automation/references/tools.md).
 
-## Локальная конфигурация
+## Исполнение
 
-При запуске читается `%LOCALAPPDATA%\CorelDrawMcp\config.json` (для отдельного
-окружения можно задать `CORELDRAW_MCP_CONFIG_ROOT`). Без файла включены все
-инструменты. Единственный ключ конфигурации: `disabled_tools`, массив уникальных
-известных имён, например `{"disabled_tools":["corel_execute_vba","corel_export"]}`.
-Изменение применяется после перезапуска сервера; отключённые tools скрыты из
-`tools/list`, вызов не принимается и не создаёт задание.
+Сервер публикует все 18 инструментов без разрешительного config и подтверждений.
+Старый `%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается, не изменяется и не
+удаляется; исторический `tool_policy` в прежних отчётах остаётся данными.
+`readOnlyHint`/`destructiveHint` описывают действия, а не предоставляют разрешение.
+Внешний MCP-клиент может использовать собственные подтверждения.
 
-`corel_status`, `corel_get_job`, `corel_guide` и `corel_list_artifacts` всегда
-доступны для диагностики и восстановления. Остальные инспекции и preview можно
-отключать явно. Некорректный JSON, неизвестные ключи/имена, повторы, размер более
-64 КиБ, недоступный путь, ссылка или junction дают `source=invalid`: остаются
-только read-only инструменты, включая preview. Сводка `tool_policy` в отчёте
-`corel_status` содержит effective/registered/total/disabled counts и сохраняется
-при опросе задания.
-
-Для атомарного обновления без записи рядом с установленным кодом:
-
-```powershell
-node --input-type=module -e "import {writeToolPolicy} from './dist/config.js'; import {join} from 'node:path'; writeToolPolicy(join(process.env.LOCALAPPDATA,'CorelDrawMcp'),{disabled_tools:['corel_export']});"
-```
-
-Это только сокращение поверхности MCP, не аутентификация и не sandbox.
-Read-only не означает отсутствие временных файлов или обращения к COM;
-разрешённый VBA по-прежнему имеет полный доступ к системе.
+Пользовательские абсолютные Windows-пути не требуют регистрации или включения
+в разрешённый каталог. Проверки схем, точной цели, внутренних служебных путей,
+идемпотентности и cleanup сохраняются. VBA имеет полный доступ к системе и
+не является sandbox. [Панель агента](docs/agent-panel.md) исполняет команды
+сразу; контекст и доступный проверенный PNG передаются выбранному provider
+автоматически, без permission-checkbox. Защита API-ключей остаётся обязательной.
 
 ## Повтор, cleanup и unknown
 
@@ -63,7 +51,7 @@ Read-only не означает отсутствие временных файл
 
 `corel_measure_shapes` измеряет векторные фигуры в изолированной копии: per-object и aggregate minimum-area rectangle в мм. `boundary_error_mm=tolerance_mm`, `dimension_error_mm≤2*tolerance_mm`; лимит 200000 точек. PowerClip, bitmap, lens, transparency и live effects возвращают явную ошибку. Группы считаются одним объектом, occlusion не учитывается.
 
-`corel_export` поддерживает девять форматов, страницы/выделение и PDF-документ. JPG/TIFF принимают RGB/CMYK, DPI и профиль; JPG compression, TIFF LZW/none и transparency. AI/EPS сохраняют текст или используют кривые. PNG ограничен 40 МП; экспорт идёт через staging и требует `overwrite=true` для существующего пути.
+`corel_export` поддерживает девять форматов, страницы/выделение и PDF-документ. JPG/TIFF принимают RGB/CMYK, DPI и профиль; JPG compression, TIFF LZW/none и transparency. AI/EPS сохраняют текст или используют кривые. PNG ограничен 40 МП. Save As и экспорт автоматически заменяют существующий файл; параметра `overwrite` у этих tools нет. Экспорт публикуется через staging после успешного Finish. Атомарность нативного SaveAs не обещается; путь, открытый в другом документе, отклоняется.
 
 ## VBA и документация
 

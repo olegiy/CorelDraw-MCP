@@ -36,11 +36,26 @@ class MemoryVault:
 
 
 class FixtureProvider:
-    def __init__(self):
+    def __init__(self, export_path):
         self.turn = 0
+        self.export_path = export_path
     async def complete(self, history, tools):
         await asyncio.sleep(1)
         self.turn += 1
+        key_only = any(item.get('role') == 'user' and item.get('content') == 'fixture:key-only' for item in history)
+        if key_only:
+            if self.turn == 1:
+                assert self.export_path.read_bytes() == b'sentinel'
+                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_execute_vba',
+                    arguments={'code': 'key-only fixture'}),))
+            images = [part['image_url']['url'] for item in history if isinstance(item.get('content'), list)
+                      for part in item['content'] if part.get('type') == 'image_url']
+            assert images and all(url.startswith('data:image/png;base64,') for url in images)
+            if self.turn == 2:
+                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_export',
+                    arguments={'path': str(self.export_path), 'format': 'png'}),))
+            assert self.export_path.read_bytes()[:8] == b'\x89PNG\r\n\x1a\n'
+            return Completion(content='Проверенный PNG передан модели; файл заменён.')
         if self.turn == 1:
             if any(item.get('role') == 'user' and item.get('content') == 'fixture:cleanup-failure' for item in history):
                 return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_execute_vba', arguments={'code': 'cleanup fail'}),))
@@ -53,7 +68,11 @@ class FixtureProvider:
 async def main():
     root = Path(__file__).resolve().parents[2]
     temporary = tempfile.TemporaryDirectory(prefix='corel-agent-browser-')
-    directory = Path(temporary.name)
+    directory = Path(temporary.name) / 'host'
+    output = Path(temporary.name) / 'output'
+    output.mkdir()
+    export_path = output / 'result.png'
+    export_path.write_bytes(b'sentinel')
     loop = asyncio.get_running_loop()
     previous_handler = loop.get_exception_handler()
     def exception_handler(loop, context):
@@ -75,9 +94,9 @@ async def main():
     await mcp.start()
     settings = Settings(directory, vault=MemoryVault())
     await settings.save(ProfileSnapshot(id=new_id(), name='Фиктивная модель', model='fixture',
-        base_url='http://127.0.0.1:1/v1', local=True, context_approved=True), SecretStr('fixture-not-real'))
+        base_url='http://127.0.0.1:1/v1', local=True), SecretStr('fixture-not-real'))
     runtime = Runtime(store, mcp, Assets(directory, store), settings=settings,
-                      provider_factory=lambda frozen: FixtureProvider())
+                       provider_factory=lambda frozen: FixtureProvider(export_path))
     access = Access('127.0.0.1:18880')
     @asynccontextmanager
     async def lifespan(app):

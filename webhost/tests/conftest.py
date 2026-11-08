@@ -32,7 +32,7 @@ def transport_factory(tmp_path):
 def command(**updates):
     from corel_agent.contracts import RunCommand
     values = dict(client_request_id=str(uuid4()), conversation_id=str(uuid4()),
-                  kind="manual", tool="corel_status", read_only=True)
+                  kind="manual", tool="corel_status")
     return RunCommand(**{**values, **updates})
 
 

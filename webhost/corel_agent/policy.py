@@ -7,24 +7,23 @@ import os
 import re
 import stat
 from copy import deepcopy
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from .assets import assert_no_links
-from .contracts import AgentError, FileRef, PreparedOperation, RiskDecision, ToolDefinition, new_id
+from .contracts import AgentError, PreparedOperation, RiskDecision, ToolDefinition, new_id
 from .privacy import Privacy
 from .store import canonical, fingerprint
 
-POLICY_VERSION = 1
+POLICY_VERSION = 2
 READ_ONLY = frozenset({"corel_status", "corel_inspect_document", "corel_preview"})
 NEW_DOCUMENT = frozenset({"corel_create_document", "corel_open_document"})
 MVP_TOOLS = READ_ONLY | NEW_DOCUMENT | frozenset({
     "corel_execute_vba", "corel_save_document", "corel_export", "corel_close_document",
 })
 SYSTEM_FIELDS = frozenset({
-    "request_id", "document_id", "deadline_seconds", "read_only", "base_url", "profile_id",
-    "credential_revision", "output_root_id", "policy_version", "operation_id", "run_id",
+    "request_id", "document_id", "deadline_seconds", "base_url", "profile_id", 'new_document', 'output_directory',
+    "credential_revision", "policy_version", "operation_id", "run_id",
 })
 EXPORT_ONLY = frozenset({"color_mode", "jpeg_compression", "tiff_compression", "use_document_profile", "transparent", "text_mode"})
 POSTCHECKS = {
@@ -41,6 +40,9 @@ RESERVED = frozenset({"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}) | frozen
 
 
 class PathGuard:
+    def __init__(self, protected_paths=()):
+        self.protected_paths = tuple(Path(path).resolve() for path in protected_paths)
+
     @staticmethod
     def filename(name):
         if (not name or len(name) > 240 or name in {".", ".."} or name.endswith((".", " "))
@@ -51,23 +53,22 @@ class PathGuard:
 
     def path(self, value):
         if (not isinstance(value, str) or not value or len(value) > 1024
-                or not re.match(r"^[A-Za-z]:[/\\]", value) or not PureWindowsPath(value).is_absolute()
+                or not ntpath.isabs(value)
                 or any(ord(char) < 32 for char in value)):
-            raise AgentError("PATH_DENIED", "Разрешены только явные локальные пути Windows, без UNC/device/NUL.", 403)
-        parts = re.split(r"[/\\]", value)[1:]
+            raise AgentError("PATH_DENIED", "Нужен абсолютный путь Windows без NUL и управляющих символов.", 403)
+        parts = re.split(r"[/\\]", ntpath.splitdrive(value)[1])
         for part in parts:
-            if part:
+            if part and part not in {'.', '..'}:
                 self.filename(part)
-        path = Path(value)
-        assert_no_links(path)
-        path = path.resolve()
-        assert_no_links(path)
+        path = Path(value).resolve()
+        if any(path == protected or protected in path.parents for protected in self.protected_paths):
+            raise AgentError('PATH_PROTECTED', 'Служебные history/assets/reports/marker пути не являются пользовательским назначением.', 403)
         return path
 
     def directory(self, value):
         path = self.path(value)
         if not path.is_dir():
-            raise AgentError("ROOT_UNAVAILABLE", "Операторский каталог должен уже существовать.", 403)
+            raise AgentError("ROOT_UNAVAILABLE", "Каталог назначения должен уже существовать.", 403)
         return path
 
     def file_fingerprint(self, value):
@@ -78,13 +79,12 @@ class PathGuard:
             return None
         with path.open("rb") as stream:
             before = os.fstat(stream.fileno())
-            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
-                raise AgentError("PATH_DENIED", "Нужен обычный файл без hard links.", 403)
+            if not stat.S_ISREG(before.st_mode) or before.st_size > 256 * 1024**2:
+                raise AgentError("FILE_UNAVAILABLE", "Нужен обычный файл не более 256 МиБ.", 403)
             digest = hashlib.sha256()
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(chunk)
             after = os.fstat(stream.fileno())
-        assert_no_links(path)
         current = path.stat()
         def identity(info):
             return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
@@ -92,36 +92,31 @@ class PathGuard:
             raise AgentError("FILE_CHANGED", "Файл изменился при проверке.")
         return fingerprint({"identity": identity(after), "sha256": digest.hexdigest()})
 
-    async def register_file(self, value):
-        def register():
-            path = self.path(value)
-            if path.suffix.lower() != ".cdr" or not path.is_file():
-                raise AgentError("FILE_DENIED", "Можно зарегистрировать только существующий обычный CDR.", 403)
-            return FileRef(display_name=path.name, path=str(path), fingerprint=self.file_fingerprint(str(path)))
-        try:
-            return await asyncio.to_thread(register)
-        except OSError:
-            raise AgentError("FILE_UNAVAILABLE", "Локальный CDR недоступен.", 403) from None
-
-    def output(self, token, root, extension):
-        if not root:
-            raise AgentError("OUTPUT_ROOT_REQUIRED", "Сначала выберите операторский output root.", 403)
-        if not isinstance(token, str) or not token.startswith("@output/"):
-            raise AgentError("PATH_DENIED", "Назначение задаётся только как @output/имя.", 403)
-        name = self.filename(token[len("@output/"):])
-        if Path(name).suffix.lower() != f".{extension}":
+    def output(self, value, extension):
+        path = self.path(value)
+        if path.suffix.lower() != f".{extension}":
             raise AgentError("EXTENSION_INVALID", "Расширение должно соответствовать выбранному формату.", 422)
-        root_path = self.directory(root.path)
-        path = self.path(str(root_path / name))
-        if path.parent != root_path:
-            raise AgentError("PATH_DENIED", "Назначение вне выбранного output root.", 403)
+        if not path.parent.is_dir():
+            raise AgentError('ROOT_UNAVAILABLE', 'Родительский каталог назначения недоступен.', 403)
+        if path.exists() and not path.is_file():
+            raise AgentError('FILE_UNAVAILABLE', 'Назначение должно быть обычным файлом.', 403)
         return str(path)
+
+    def manual_arguments(self, tool, arguments, output_directory):
+        args = deepcopy(arguments)
+        value = args.get('path')
+        if tool in {'corel_save_document', 'corel_export'} and isinstance(value, str) and not ntpath.isabs(value):
+            name = self.filename(value)
+            if not output_directory:
+                raise AgentError('SAVE_PATH_REQUIRED', 'Относительному имени нужен каталог результатов либо абсолютный путь.', 422)
+            args['path'] = str(self.directory(output_directory) / name)
+        return args
 
 
 class Policy:
-    def __init__(self, catalog, *, privacy=None):
+    def __init__(self, catalog, *, privacy=None, protected_paths=()):
         self.registry = {tool.name: tool for tool in catalog if tool.name in MVP_TOOLS}
-        self.paths, self.privacy = PathGuard(), privacy or Privacy()
+        self.paths, self.privacy = PathGuard(protected_paths), privacy or Privacy()
 
     @staticmethod
     def scope_digest(context):
@@ -145,12 +140,6 @@ class Policy:
             properties["format"] = {"type": "string", "enum": ["png", "svg", "pdf"]}
             for key in EXPORT_ONLY:
                 properties.pop(key, None)
-        if name in {"corel_save_document", "corel_export"}:
-            properties["path"] = {"type": "string", "pattern": r"^@output/[^/\\]{1,240}$",
-                                  "description": "Имя файла внутри выбранного оператором output root."}
-        if name == "corel_open_document":
-            properties["path"] = {"type": "string", "enum": [item.file_ref for item in context.files],
-                                  "description": "Только file_ref ранее выбранного оператором CDR, не абсолютный путь."}
         if "static_ids" in properties:
             properties["static_ids"]["uniqueItems"] = True
         schema["required"] = [key for key in schema.get("required", []) if key not in SYSTEM_FIELDS]
@@ -160,18 +149,12 @@ class Policy:
     def catalog(self, context):
         result = []
         for name, tool in self.registry.items():
-            if name == "corel_close_document" or (context.read_only and name not in READ_ONLY):
-                continue
             if name in NEW_DOCUMENT:
-                if context.document_id or not context.allow_new_document:
-                    continue
-                if name == "corel_open_document" and not context.files:
+                if context.document_id or not context.new_document:
                     continue
             elif name != "corel_status" and not context.document_id:
                 continue
-            if name == "corel_export" and context.output_root is None:
-                continue
-            description = tool.description if name != "corel_export" else "Экспорт MVP: PNG/SVG/PDF в выбранный output root; перезапись требует approval."
+            description = tool.description if name != "corel_export" else "Экспорт PNG/SVG/PDF по абсолютному пути; существующий файл заменяется автоматически."
             result.append(ToolDefinition(name=name, description=description,
                 input_schema=self.input_schema(name, context), annotations=tool.annotations))
         return result
@@ -181,7 +164,7 @@ class Policy:
             if not isinstance(arguments, dict):
                 raise AgentError("ARGUMENTS_INVALID", "Нужен объект аргументов.", 422)
             if SYSTEM_FIELDS & arguments.keys():
-                raise AgentError("BINDING_OVERRIDE", "Привязку, request_id, deadline и permissions задаёт только host.", 403)
+                raise AgentError("BINDING_OVERRIDE", "Привязку, request_id и deadline задаёт только host.", 403)
             if self.privacy.contains_secret(arguments):
                 raise AgentError("SECRET_IN_OPERATION", "Credential value не отправляется в Corel MCP.", 403)
             try:
@@ -192,7 +175,7 @@ class Policy:
             if list(Draft202012Validator(schema).iter_errors(arguments)):
                 raise AgentError("ARGUMENTS_INVALID", "Аргументы не соответствуют MVP-схеме.", 422)
             if tool in NEW_DOCUMENT:
-                if context.document_id or not context.allow_new_document:
+                if context.document_id or not context.new_document:
                     raise AgentError("DOCUMENT_INTENT_REQUIRED", "Новый документ должен быть явно запрошен без другой привязки.")
             elif tool != "corel_status" and not context.document_id:
                 raise AgentError("DOCUMENT_REQUIRED", "Выберите точный документ для этого Run.")
@@ -202,28 +185,18 @@ class Policy:
                     args[key] = deepcopy(property_schema["default"])
             file_digest = None
             if tool == "corel_open_document":
-                reference = next((item for item in context.files if item.file_ref == args["path"]), None)
-                if reference is None:
-                    raise AgentError("FILE_REF_DENIED", "Нет операторской ссылки на CDR.", 403)
-                args["path"] = str(self.paths.path(reference.path))
+                path = self.paths.path(args['path'])
+                if path.suffix.lower() != '.cdr' or not path.is_file():
+                    raise AgentError('FILE_UNAVAILABLE', 'Открытие требует существующего обычного CDR.', 403)
+                args["path"] = str(path)
                 file_digest = self.paths.file_fingerprint(args["path"])
-                if file_digest != reference.fingerprint:
-                    raise AgentError("FILE_CHANGED", "Зарегистрированный CDR изменился; выберите его снова.")
             if tool in {"corel_save_document", "corel_export"}:
                 if tool == "corel_save_document" and "path" not in args:
                     if not context.current_document_path:
-                        raise AgentError("SAVE_PATH_REQUIRED", "Несохранённому CDR нужен явный @output/имя.cdr.")
-                    args["path"] = str(self.paths.path(context.current_document_path))
-                    if Path(args["path"]).suffix.lower() != ".cdr":
-                        raise AgentError("PATH_DENIED", "Текущий файл должен быть локальным CDR.", 403)
-                else:
-                    extension = "cdr" if tool == "corel_save_document" else args["format"]
-                    args["path"] = self.paths.output(args["path"], context.output_root, extension)
-                file_digest = self.paths.file_fingerprint(args["path"])
-                selected_save = (tool == "corel_save_document" and context.current_document_path
-                                 and ntpath.normcase(args["path"]) == ntpath.normcase(context.current_document_path))
-                if file_digest is not None and not selected_save and not args.get("overwrite", False):
-                    raise AgentError("FILE_EXISTS", "Файл существует; требуется явный overwrite и approval.")
+                        raise AgentError("SAVE_PATH_REQUIRED", "Несохранённому CDR нужен абсолютный путь назначения.")
+                    args["path"] = context.current_document_path
+                extension = "cdr" if tool == "corel_save_document" else args["format"]
+                args["path"] = self.paths.output(args["path"], extension)
                 if tool == "corel_export":
                     if ((args.get("range", "page") == "document" and args["format"] != "pdf")
                             or (args.get("range") == "selection" and args["format"] == "pdf")):
@@ -237,6 +210,8 @@ class Policy:
             args["deadline_seconds"] = 600
             if tool not in NEW_DOCUMENT and tool != "corel_status":
                 args["document_id"] = context.document_id
+            if self.privacy.contains_secret(args):
+                raise AgentError('SECRET_IN_OPERATION', 'Credential value не отправляется в Corel MCP.', 403)
             if list(Draft202012Validator(self.registry[tool].input_schema).iter_errors(args)):
                 raise AgentError("ARGUMENTS_INVALID", "Подготовленные аргументы нарушают MCP-схему.", 422)
             operation = PreparedOperation(operation_id=operation_id, run_id=context.run_id, tool=tool,
@@ -253,29 +228,19 @@ class Policy:
         def classify():
             def decision(kind, *reasons):
                 return RiskDecision(decision=kind, reasons=reasons, operation_digest=operation.digest)
+            if self.privacy.contains_secret(operation.arguments):
+                return decision('deny', 'SECRET_IN_OPERATION: credential value не отправляется в Corel MCP.')
             if (operation.tool not in self.registry or operation.policy_version != POLICY_VERSION
                     or operation.digest != self.operation_digest(operation)):
                 return decision("deny", "OPERATION_CHANGED: параметры изменились или политика несовместима.")
             if operation.scope_digest != self.scope_digest(current_state):
-                return decision("deny", "SCOPE_CHANGED: документ или разрешения изменились.")
-            if current_state.read_only and operation.tool not in READ_ONLY:
-                return decision("deny", "READ_ONLY: изменение запрещено режимом Run.")
-            if "path" in operation.arguments:
+                return decision("deny", "SCOPE_CHANGED: зафиксированный контекст изменился.")
+            if operation.tool == 'corel_open_document':
                 actual = self.paths.file_fingerprint(operation.arguments["path"])
                 if actual != operation.file_fingerprint:
                     return decision("deny", "FILE_CHANGED: файл изменился после подготовки операции.")
             if operation.tool == "corel_execute_vba":
                 self.privacy.validate_vba(operation.arguments["code"])
-                return decision("confirm", "VBA имеет полный доступ к CorelDRAW и ОС; document_id не является sandbox.")
-            if operation.tool == "corel_close_document":
-                return decision("confirm", "Закрытие точного документа может привести к потере несохранённых изменений.")
-            if operation.tool in {"corel_save_document", "corel_export"} and operation.file_fingerprint:
-                if operation.arguments.get("overwrite") is True:
-                    return decision("confirm", "Явная перезапись существующего файла требует согласия; кэш текущего пути CDR не подтверждает его актуальную роль.")
-                selected_save = (operation.tool == "corel_save_document" and current_state.current_document_path
-                    and ntpath.normcase(operation.arguments["path"]) == ntpath.normcase(current_state.current_document_path))
-                if not selected_save:
-                    return decision("confirm", "Перезапись конкретного существующего файла. Проверка fingerprint не является атомарной блокировкой нативного Save/Finish.")
             return decision("allow")
         try:
             return await asyncio.to_thread(classify)

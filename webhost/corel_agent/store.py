@@ -12,14 +12,18 @@ from threading import RLock
 
 from pydantic import ValidationError
 
+from . import persisted
 from .contracts import (
     EVENT_ADAPTER,
+    OBSERVATION_TOOLS,
     TERMINAL_STATUSES,
     AcceptedRun,
     AgentError,
     EventState,
+    PreparedOperation,
     RunSnapshot,
     SafetyBarrier,
+    command_is_observation,
     new_id,
     utc_now,
 )
@@ -154,7 +158,7 @@ class Store:
                         with self._transaction(self._connection):
                             return action(self._connection)
                     return action(self._connection)
-                except (sqlite3.Error, OSError, ValidationError, json.JSONDecodeError):
+                except (sqlite3.Error, OSError, ValidationError, ValueError, TypeError):
                     self.failed = True
                     raise AgentError("STORE_UNAVAILABLE", "Не удалось прочитать или сохранить durable state.", 503) from None
         return await asyncio.to_thread(execute)
@@ -163,7 +167,15 @@ class Store:
         row = db.execute("SELECT snapshot FROM runs WHERE id=?", (run_id,)).fetchone()
         if row is None:
             raise AgentError("RUN_NOT_FOUND", "Запуск не найден.", 404, retryable=True)
-        return RunSnapshot.model_validate_json(row[0])
+        return persisted.snapshot(json.loads(row[0]), self._workspace(db))
+
+    @staticmethod
+    def _workspace(db):
+        row = db.execute("SELECT value FROM meta WHERE key='workspace'").fetchone()
+        return json.loads(row[0]) if row else {}
+
+    async def get_workspace(self):
+        return await self._db(lambda db: persisted.workspace(self._workspace(db)))
 
     def _save_snapshot(self, db, snapshot):
         db.execute("UPDATE runs SET snapshot=?, unfinished=? WHERE id=?", (
@@ -212,7 +224,7 @@ class Store:
         row = db.execute("SELECT value FROM meta WHERE key='safety_barrier'").fetchone()
         return SafetyBarrier.model_validate_json(row[0]) if row else None
 
-    async def accept_run(self, command, profile_snapshot):
+    async def accept_run(self, command, profile_snapshot, *, output_directory=None):
         def accept(db):
             duplicate = self._duplicate(db, command)
             if duplicate:
@@ -223,14 +235,15 @@ class Store:
             if not early_stop:
                 if db.execute("SELECT id FROM runs WHERE unfinished=1").fetchone():
                     raise AgentError("BUSY", "Другой запуск ещё не завершён.")
-                if not command.read_only and self._barrier(db):
-                    raise AgentError("SAFETY_BARRIER", "Неизвестный исход требует операторского рассмотрения.", 503)
-                if not command.read_only and self._storage()["full"]:
+                if not command_is_observation(command) and self._barrier(db):
+                    raise AgentError("SAFETY_BARRIER", "Прежний исход или состояние исполнителя не подтверждены; изменения недоступны.")
+                if not command_is_observation(command) and self._storage()["full"]:
                     raise AgentError("STORAGE_FULL", "Лимит хранилища исчерпан; новый изменяющий запуск запрещён.", 503)
             snapshot = RunSnapshot(id=new_id(), client_request_id=command.client_request_id,
                 conversation_id=command.conversation_id, kind=command.kind,
-                profile=profile_snapshot, document_id=command.document_id, read_only=command.read_only,
-                output_root_id=command.output_root_id, max_calls=command.max_calls,
+                profile=profile_snapshot, document_id=command.document_id, safety_barrier=self._barrier(db),
+                output_directory=output_directory if output_directory is not None else command.output_directory,
+                max_calls=command.max_calls,
                 stop_requested=early_stop, status="stopped" if early_stop else "preparing")
             db.execute("INSERT OR IGNORE INTO conversations VALUES(?,?,?)", (
                 command.conversation_id, command.message[:80] or "Новая переписка", snapshot.created_at,
@@ -252,9 +265,8 @@ class Store:
         return await self._db(lambda db: self._snapshot(db, run_id))
 
     async def get_command(self, run_id):
-        from .contracts import RunCommand
-        return await self._db(lambda db: RunCommand.model_validate_json(
-            db.execute("SELECT command FROM runs WHERE id=?", (run_id,)).fetchone()[0]))
+        return await self._db(lambda db: persisted.command(json.loads(
+            db.execute("SELECT command FROM runs WHERE id=?", (run_id,)).fetchone()[0]), self._workspace(db)))
 
     @staticmethod
     def page(offset, limit):
@@ -266,7 +278,7 @@ class Store:
         def query(db):
             rows = db.execute("SELECT snapshot FROM runs WHERE (? IS NULL OR conversation_id=?) ORDER BY rowid DESC LIMIT ? OFFSET ?",
                               (conversation_id, conversation_id, limit, offset)).fetchall()
-            return [RunSnapshot.model_validate_json(row[0]) for row in rows]
+            return [persisted.snapshot(json.loads(row[0]), self._workspace(db)) for row in rows]
         return await self._db(query)
 
     async def get_request(self, request_id):
@@ -291,7 +303,7 @@ class Store:
             status = snapshot.status if snapshot.status in TERMINAL_STATUSES else "stopping"
             db.execute("UPDATE approvals SET state='invalidated' WHERE run_id=? AND state='pending'", (snapshot.id,))
             _, snapshot = self._event(db, snapshot, "status", {"status": status}, {
-                "stop_requested": True, "status": status, "pending_confirmation": None,
+                "stop_requested": True, "status": status,
             })
             return snapshot
         return await self._db(stop, write=True)
@@ -310,7 +322,7 @@ class Store:
             self._snapshot(db, run_id)
             rows = db.execute("SELECT payload FROM events WHERE run_id=? AND seq>? ORDER BY seq LIMIT ?",
                               (run_id, after, limit)).fetchall()
-            return [EVENT_ADAPTER.validate_json(row[0]) for row in rows]
+            return [persisted.event(json.loads(row[0])) for row in rows]
         return await self._db(query)
 
     def _message(self, db, snapshot, role, text, model_message=None):
@@ -367,66 +379,34 @@ class Store:
                                {"active_operation_id": operation.operation_id, "job_id": None})[0]
         return await self._db(record, write=True)
 
-    async def mark_dispatching(self, operation_id):
+    async def mark_dispatching(self, operation_id, *, expected=None):
         def dispatch(db):
+            from .policy import POLICY_VERSION, Policy
             row = db.execute("SELECT * FROM operations WHERE id=?", (operation_id,)).fetchone()
+            if not row:
+                raise AgentError('OPERATION_NOT_FOUND', 'Подготовленная операция не найдена.', 404)
             snapshot = self._snapshot(db, row["run_id"])
-            if row["state"] != "prepared" or snapshot.stop_requested or snapshot.pending_confirmation:
-                raise AgentError("DISPATCH_BLOCKED", "Операция не разрешена для отправки.")
-            if snapshot.counters.calls >= snapshot.max_calls:
+            if row["state"] != "prepared" or snapshot.stop_requested or snapshot.status in TERMINAL_STATUSES:
+                raise AgentError("DISPATCH_BLOCKED", "Операция остановлена либо Run завершён.")
+            prepared = PreparedOperation.model_validate_json(row['prepared'])
+            if (prepared.operation_id != operation_id or prepared.run_id != snapshot.id
+                    or prepared.policy_version != POLICY_VERSION or prepared.digest != Policy.operation_digest(prepared)
+                    or (expected is not None and prepared != expected)):
+                raise AgentError('OPERATION_CHANGED', 'Сохранённая операция изменилась или относится к старой версии; отправка запрещена.')
+            if expected is not None:
+                context = db.execute('SELECT value FROM meta WHERE key=?', (f'context:{snapshot.id}',)).fetchone()
+                if not context or prepared.scope_digest != fingerprint(persisted.context(json.loads(context[0]), self._workspace(db))):
+                    raise AgentError('SCOPE_CHANGED', 'Зафиксированный контекст изменился до отправки.')
+            if prepared.tool not in OBSERVATION_TOOLS and self._barrier(db):
+                raise AgentError('SAFETY_BARRIER', 'Состояние исполнения не подтверждено; новая мутация не отправлена.')
+            if snapshot.counters.calls + 1 + snapshot.counters.reserved_postchecks > snapshot.max_calls:
                 raise AgentError("CALL_LIMIT", "Исчерпан бюджет вызовов.")
             db.execute("UPDATE operations SET state='dispatching' WHERE id=?", (operation_id,))
-            prepared = json.loads(row["prepared"])
             counters = snapshot.counters.model_copy(update={"calls": snapshot.counters.calls + 1})
             return self._event(db, snapshot, "tool_start", {
-                "operation_id": operation_id, "tool": prepared["tool"],
+                "operation_id": operation_id, "tool": prepared.tool,
             }, {"counters": counters})[0]
         return await self._db(dispatch, write=True)
-
-    async def await_confirmation(self, run_id, pending):
-        def record(db):
-            snapshot = self._snapshot(db, run_id)
-            row = db.execute("SELECT prepared,state FROM operations WHERE id=? AND run_id=?",
-                             (pending.operation.operation_id, run_id)).fetchone()
-            if (snapshot.stop_requested or snapshot.status in TERMINAL_STATUSES
-                    or snapshot.pending_confirmation or not row or row["state"] != "prepared"
-                    or json.loads(row["prepared"]) != pending.operation.model_dump(mode="json")):
-                raise AgentError("APPROVAL_STALE", "Операция изменилась или остановлена.")
-            db.execute("INSERT INTO approvals VALUES(?,?,?,'pending')",
-                       (pending.confirmation_id, run_id, pending.operation_digest))
-            return self._event(db, snapshot, "confirmation", pending, {
-                "status": "awaiting_confirmation", "pending_confirmation": pending,
-            })[0]
-        return await self._db(record, write=True)
-
-    async def confirm(self, run_id, command):
-        def confirm(db):
-            snapshot = self._snapshot(db, run_id)
-            pending = snapshot.pending_confirmation
-            if (snapshot.stop_requested or snapshot.status != "awaiting_confirmation" or not pending
-                    or pending.confirmation_id != command.confirmation_id
-                    or pending.operation_digest != command.operation_digest):
-                raise AgentError("APPROVAL_STALE", "Подтверждение устарело, изменено или уже использовано.")
-            changed = db.execute("UPDATE approvals SET state=? WHERE id=? AND run_id=? AND digest=? AND state='pending'", (
-                "approved" if command.approved else "rejected", command.confirmation_id, run_id,
-                command.operation_digest,
-            )).rowcount
-            if changed != 1:
-                raise AgentError("APPROVAL_STALE", "Подтверждение уже использовано.")
-            status = "running" if command.approved else "rejected"
-            return self._event(db, snapshot, "status", {"status": status}, {
-                "status": status, "pending_confirmation": None,
-            })[1]
-        return await self._db(confirm, write=True)
-
-    async def invalidate_confirmation(self, run_id, reason):
-        def invalidate(db):
-            db.execute("UPDATE approvals SET state='invalidated' WHERE run_id=? AND state='pending'", (run_id,))
-            snapshot = self._snapshot(db, run_id)
-            return self._event(db, snapshot, "error", {
-                "code": "APPROVAL_STALE", "message": reason,
-            }, {"status": "rejected", "pending_confirmation": None})[1]
-        return await self._db(invalidate, write=True)
 
     async def record_job(self, update):
         self.known_jobs[update.operation_id] = update.job_id
@@ -529,7 +509,7 @@ class Store:
             if barrier.run_id:
                 snapshot = self._snapshot(db, barrier.run_id)
                 return self._event(db, snapshot, "status", {"status": status},
-                                   {"status": status, "safety_barrier": barrier, "pending_confirmation": None})[1]
+                                   {"status": status, "safety_barrier": barrier})[1]
         return await self._db(record, write=True)
 
     async def recover(self):
@@ -564,9 +544,9 @@ class Store:
             db.execute("UPDATE approvals SET state='invalidated' WHERE state='pending'")
             pending = []
             for row in db.execute("SELECT snapshot FROM runs WHERE unfinished=1").fetchall():
-                snapshot = RunSnapshot.model_validate_json(row[0])
+                snapshot = persisted.snapshot(json.loads(row[0]), self._workspace(db))
                 operation = db.execute("SELECT * FROM operations WHERE run_id=? ORDER BY rowid DESC LIMIT 1", (snapshot.id,)).fetchone()
-                changes = {"stop_requested": True, "pending_confirmation": None}
+                changes = {"stop_requested": True}
                 status = "interrupted"
                 if operation and operation["job_id"] and operation["state"] != "terminal":
                     pending.append({"job_id": operation["job_id"], "operation": json.loads(operation["prepared"])})
@@ -604,24 +584,83 @@ class Store:
     async def list_assets(self):
         return await self._db(lambda db: [dict(row) for row in db.execute("SELECT id,kind FROM assets ORDER BY rowid LIMIT 500")])
 
-    async def add_review(self, review):
-        await self._db(lambda db: db.execute("INSERT INTO reviews VALUES(?,?,?)",
-                       (new_id(), canonical(review), utc_now())), write=True)
+    def _readiness_proof(self, db):
+        from .policy import Policy
+        barrier = self._barrier(db)
+        metadata = {row['key']: row['value'] for row in db.execute(
+            "SELECT key,value FROM meta WHERE key IN ('documents','recovery_pending','recovery_only')")}
+        unfinished = [row[0] for row in db.execute('SELECT id FROM runs WHERE unfinished=1 ORDER BY id')]
+        # Project terminal evidence, not image bodies or raw reports, into the commitment.
+        rows = [dict(row) for row in db.execute("""SELECT id,run_id,state,job_id,prepared,
+            json_extract(result,'$.operation_id') result_id,
+            json_extract(result,'$.job_id') result_job,
+            json_extract(result,'$.outcome') outcome,
+            json_type(result,'$.applied') applied,
+            json_type(result,'$.cleanup.completed') cleaned,
+            json_type(result,'$.cleanup.project_retained') retained,
+            json_extract(result,'$.report.job_id') report_job,
+            json_extract(result,'$.report.tool') report_tool,
+            json_extract(result,'$.report.request_id') report_request,
+            json_extract(result,'$.report.status') report_status
+            FROM operations ORDER BY id LIMIT 100001""")]
+        reason = None
+        if json.loads(metadata.get('recovery_pending', '[]')) != [] or json.loads(metadata.get('recovery_only', 'false')):
+            reason = 'RECOVERY_PENDING'
+        elif unfinished:
+            reason = 'ACTIVE_RUN'
+        elif len(rows) > 100000:
+            reason = 'EVIDENCE_LIMIT'
+        elif barrier and ((barrier.operation_id and barrier.operation_id not in {row['id'] for row in rows})
+                          or (barrier.job_id and barrier.job_id not in {row['job_id'] for row in rows})):
+            reason = 'REPORT_UNCONFIRMED'
+        for row in rows if reason is None else ():
+            try:
+                prepared = PreparedOperation.model_validate_json(row['prepared'])
+                if (prepared.operation_id != row['id'] or prepared.run_id != row['run_id']
+                        or prepared.policy_version not in {1, 2}):
+                    raise ValueError
+                if row['state'] == 'prepared' and row['job_id'] is None:
+                    sent = db.execute("SELECT 1 FROM events WHERE json_extract(payload,'$.type') "
+                        "IN ('tool_start','job_progress','tool_result') "
+                        "AND json_extract(payload,'$.data.operation_id')=? LIMIT 1", (row['id'],)).fetchone()
+                    if not sent:
+                        continue
+                if row['state'] != 'terminal':
+                    reason = 'PENDING_JOB' if row['job_id'] else 'DISPATCH_OUTCOME_UNKNOWN'
+                elif row['outcome'] not in {'succeeded', 'failed'}:
+                    reason = 'OUTCOME_UNKNOWN'
+                elif row['cleaned'] != 'true' or row['retained'] == 'true':
+                    reason = 'CLEANUP_NOT_PROVEN'
+                elif row['result_id'] != row['id'] or row['result_job'] != row['job_id']:
+                    reason = 'REPORT_UNCONFIRMED'
+                elif row['job_id'] is None:
+                    if row['outcome'] != 'failed' or row['applied'] != 'false':
+                        reason = 'REPORT_UNCONFIRMED'
+                elif (prepared.digest != Policy.operation_digest(prepared)
+                      or row['report_job'] != row['job_id'] or row['report_status'] != row['outcome']
+                      or row['report_tool'] != prepared.tool or row['report_request'] != prepared.corel_request_id):
+                    reason = 'REPORT_UNCONFIRMED'
+            except ValueError:
+                reason = 'EVIDENCE_INVALID'
+            if reason:
+                break
+        return {'barrier': barrier, 'reason': reason, 'documents': json.loads(metadata.get('documents', '{}')),
+                'digest': fingerprint({'barrier': barrier.model_dump(mode='json') if barrier else None,
+                    'metadata': metadata, 'unfinished': unfinished, 'operations': rows})}
 
-    async def release_barrier(self, review):
-        def release(db):
-            barrier = self._barrier(db)
-            if not barrier or barrier.id != review.barrier_id:
-                raise AgentError('REVIEW_STALE', 'Барьер изменился или уже рассмотрен.')
-            if db.execute("SELECT 1 FROM runs WHERE unfinished=1 LIMIT 1").fetchone():
-                raise AgentError('REVIEW_JOB_PENDING', 'Незавершённый Run блокирует снятие барьера.')
-            if db.execute("SELECT 1 FROM operations WHERE state IN ('dispatching','known_job') LIMIT 1").fetchone():
-                raise AgentError('REVIEW_JOB_PENDING', 'Исход отправленной операции ещё не подтверждён.')
-            db.execute('INSERT INTO reviews VALUES(?,?,?)', (new_id(), canonical(review), utc_now()))
+    async def readiness_proof(self):
+        return await self._db(self._readiness_proof)
+
+    async def clear_barrier(self, barrier_id, proof_digest, verify_owner):
+        def clear(db):
+            proof = self._readiness_proof(db)
+            if (proof['reason'] or not proof['barrier'] or proof['barrier'].id != barrier_id
+                    or proof['digest'] != proof_digest or not verify_owner()):
+                raise AgentError('READINESS_CHANGED', 'Состояние изменилось во время проверки readiness.')
             db.execute("DELETE FROM meta WHERE key='safety_barrier'")
-        await self._db(release, write=True)
+        await self._db(clear, write=True)
 
     async def list_reviews(self, *, offset=0, limit=100):
         self.page(offset, limit)
-        return await self._db(lambda db: [json.loads(row[0]) for row in db.execute(
-            "SELECT payload FROM reviews ORDER BY rowid DESC LIMIT ? OFFSET ?", (limit, offset))])
+        return await self._db(lambda db: [{'id': row['id'], 'at': row['at'], 'data': json.loads(row['payload'])}
+            for row in db.execute("SELECT id,payload,at FROM reviews ORDER BY rowid DESC LIMIT ? OFFSET ?", (limit, offset))])

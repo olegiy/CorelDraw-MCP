@@ -8,18 +8,11 @@ Codex общается по stdio с TypeScript MCP-сервером. `src/tools
 
 `document_id` включает UUID сессии worker и UUID документа. Worker сопоставляет IUnknown identity с открытыми документами; закрытые документы удаляются из registry, reconnect меняет сессию. Для объектов используется `Shape.StaticID`, а не порядковый индекс.
 
-Перед регистрацией инструментов сервер читает необязательный
-`%LOCALAPPDATA%\CorelDrawMcp\config.json`. Массив `disabled_tools` сокращает
-поверхность интерфейса; это не sandbox и не аутентификация. Ошибка разбора
-конфигурации отключает изменяющие инструменты и сохраняет read-only
-диагностику, включая preview. Неизвестные поля/имена, повторы, не-regular файл,
-ссылки/junction, ошибки доступа и размер более 64 КиБ также fail-closed.
-При валидном списке инспекции отключаются явно; обязательны только
-`corel_status`, `corel_get_job`, `corel_guide`, `corel_list_artifacts`.
-Политика фиксируется на запуск, проверяется перед submit и сокращает регистрацию;
-статус сохраняет `tool_policy` с effective/registered/total/disabled counts в
-durable report, не изменяя fingerprint аргументов. `writeToolPolicy` проверяет
-тот же контракт и публикует config через атомарную замену в user storage.
+Регистрация всегда публикует полный набор инструментов. Старый
+`%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается и не меняется.
+Новые reports не содержат разрешительного `tool_policy`; исторические payload
+с этим полем сохраняются при чтении и компактизации. Подсказки MCP описывают
+побочные действия, но не требуют подтверждения внутри сервера.
 
 ## VBA и экспорт
 
@@ -36,7 +29,16 @@ Snapshot `.bas` читается как UTF-8, `Attribute VB_*` удаляетс
 
 Cleanup независимо восстанавливает настройки документа, выделение, Undo, оптимизацию, события, страницу и активный документ. Primary error сохраняется отдельно от `cleanup.errors`. `succeeded` плюс `cleanup.completed=false` даёт MCP `isError=true`, сохраняя outcome; это не повод повторять мутацию.
 
-Экспорт использует staging-файл рядом с назначением; публикация происходит после успешного Finish. PDF использует PublishToPDF с восстановлением PublishRange/PageRange. Прочие форматы используют типизированный VBA bridge из-за late-bound COM optional parameters. Для AI/EPS text curves и DXF/PLT создаётся собственный временный документ, копии проверяются на geometry invariant. Внешние CDR/экспорты не являются служебными артефактами для prune.
+Экспорт использует staging-файл рядом с назначением; публикация с заменой существующего файла происходит после успешного Finish. Нативный SaveAs использует `StructSaveAsOptions.Overwrite=true`, без обещания атомарности. PDF использует PublishToPDF с восстановлением PublishRange/PageRange. Прочие форматы используют типизированный VBA bridge из-за late-bound COM optional parameters. Для AI/EPS text curves и DXF/PLT создаётся собственный временный документ, копии проверяются на geometry invariant. Внешние CDR/экспорты не являются служебными артефактами для prune.
+
+Панель принимает прямые абсолютные пути и хранит `output_directory` только как
+назначение по умолчанию. Run фиксирует профиль, credential revision, документ,
+аргументы и operation/scope digests; перед dispatch повторно проверяются их
+идентичность, Stop, текущий барьер и бюджет с postchecks. Нет пользовательского
+read-only/consent/approval. Legacy schema-1 декодируется только для чтения;
+неотправленное ожидание старого подтверждения становится `interrupted`.
+Readiness снимает только текущий глобальный барьер по неизменённым ID/evidence
+и проверенному владельцу, не переписывая исход старого Run и не replay-ая его.
 
 ## Чтение API и измерение
 

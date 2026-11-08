@@ -193,7 +193,6 @@ function Save-Document($Document, [hashtable] $Parameters) {
     if ([string]::IsNullOrWhiteSpace($destination) -or -not [IO.Path]::IsPathRooted($destination)) { Throw-CorelError 'SAVE_PATH_REQUIRED' 'Для несохранённого документа требуется абсолютный путь к файлу .cdr.' }
     $destination = Get-OutputPath $destination 'cdr'
     $samePath = [string]::Equals($current, $destination, [StringComparison]::OrdinalIgnoreCase)
-    if ([IO.File]::Exists($destination) -and -not $samePath -and -not $Parameters.overwrite) { Throw-CorelError 'FILE_EXISTS' 'Файл назначения уже существует. Для замены укажите overwrite=true.' }
     Sync-Documents
     foreach ($entry in $script:Documents.Values) {
         if ((Get-ComIdentity $entry.document) -ne (Get-ComIdentity $Document) -and [string]::Equals([string]$entry.document.FullFileName, $destination, [StringComparison]::OrdinalIgnoreCase)) { Throw-CorelError 'DOCUMENT_ALREADY_OPEN' 'Файл назначения открыт в другом документе.' }
@@ -201,7 +200,7 @@ function Save-Document($Document, [hashtable] $Parameters) {
     if ($samePath) { $Document.Save() }
     else {
         $options = $script:Corel.CreateStructSaveAsOptions()
-        $options.Overwrite = [bool]$Parameters.overwrite
+        $options.Overwrite = $true
         $options.Filter = 1795 # cdrCDR, API 27
         $Document.SaveAs($destination, $options)
     }
@@ -245,8 +244,6 @@ function Export-Document($Document, [hashtable] $Parameters, [string] $RunDirect
     $range = $(if ($Preview -and $Parameters.ContainsKey('target') -and ([string]$Parameters.target).ToLowerInvariant() -eq 'selection') { 'selection' } elseif ($Parameters.ContainsKey('range')) { ([string]$Parameters.range).ToLowerInvariant() } elseif ($Preview -and $Parameters.ContainsKey('target')) { ([string]$Parameters.target).ToLowerInvariant() } else { 'page' })
     if (($format -eq 'pdf' -and $range -eq 'selection') -or ($format -ne 'pdf' -and $range -eq 'document')) { Throw-CorelError 'UNSUPPORTED_EXPORT_RANGE' 'Для этого формата доступны только страница или выделение; PDF поддерживает страницу или документ.' }
     $destination = $(if ($Preview) { Join-Path $RunDirectory 'preview.png' } else { Get-OutputPath $Parameters.path $format })
-    $overwrite = -not $Preview -and [bool]$Parameters.overwrite
-    if ([IO.File]::Exists($destination) -and -not $overwrite) { Throw-CorelError 'FILE_EXISTS' 'Файл экспорта уже существует; для замены укажите overwrite=true.' }
     $temporary = Join-Path ([IO.Path]::GetDirectoryName($destination)) ('.corelmcp-' + [guid]::NewGuid().ToString('N') + '.' + $format)
     $previousDocument = $script:Corel.ActiveDocument
     $previousPage = $Document.ActivePage
@@ -350,7 +347,6 @@ function Export-Document($Document, [hashtable] $Parameters, [string] $RunDirect
         if (-not [IO.File]::Exists($temporary) -or (Get-Item -LiteralPath $temporary).Length -eq 0) { Throw-CorelError 'EXPORT_NOT_CREATED' 'CorelDRAW не создал непустой файл экспорта.' }
         Set-Stage 'committing_export'
         if ([IO.File]::Exists($destination)) {
-            if (-not $overwrite) { Throw-CorelError 'FILE_EXISTS' 'Файл назначения появился во время экспорта; замена не выполнена.' }
             [IO.File]::Replace($temporary, $destination, [System.Management.Automation.Language.NullString]::Value)
         }
         else { [IO.File]::Move($temporary, $destination) }

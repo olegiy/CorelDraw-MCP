@@ -158,23 +158,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/files/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Register File */
-        post: operations["register_file_api_v1_files_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -328,23 +311,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/recovery/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Recovery Review */
-        post: operations["recovery_review_api_v1_recovery_review_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/recovery/reviews": {
         parameters: {
             query?: never;
@@ -425,23 +391,6 @@ export interface paths {
         get: operations["snapshot_api_v1_runs__run_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Confirm */
-        post: operations["confirm_api_v1_runs__run_id__confirm_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -538,6 +487,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuditReview */
+        AuditReview: {
+            /** At */
+            at: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+        };
         /** BackupResult */
         BackupResult: {
             /**
@@ -551,47 +511,6 @@ export interface components {
              * @default Согласованная резервная копия сохранена в каталоге истории панели.
              */
             message: string;
-        };
-        /** ConfirmCommand */
-        ConfirmCommand: {
-            /** Approved */
-            approved: boolean;
-            /** Confirmation Id */
-            confirmation_id: string;
-            /** Operation Digest */
-            operation_digest: string;
-        };
-        /** ConfirmationEvent */
-        ConfirmationEvent: {
-            /** At */
-            at?: string;
-            data: components["schemas"]["ConfirmationRequest"];
-            /** Run Id */
-            run_id: string;
-            /**
-             * Schema Version
-             * @default 1
-             * @constant
-             */
-            schema_version: 1;
-            /** Seq */
-            seq: number;
-            state: components["schemas"]["EventState"];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "confirmation";
-        };
-        /** ConfirmationRequest */
-        ConfirmationRequest: {
-            /** Confirmation Id */
-            confirmation_id?: string;
-            operation: components["schemas"]["PreparedOperation"];
-            /** Operation Digest */
-            operation_digest: string;
-            /** Reasons */
-            reasons: string[];
         };
         /** Conversation */
         Conversation: {
@@ -740,7 +659,7 @@ export interface components {
         /** EventPage */
         EventPage: {
             /** Items */
-            items: (components["schemas"]["MessageDeltaEvent"] | components["schemas"]["MessageEvent"] | components["schemas"]["ToolProposedEvent"] | components["schemas"]["ConfirmationEvent"] | components["schemas"]["ToolStartEvent"] | components["schemas"]["JobProgressEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["ImageEvent"] | components["schemas"]["StatusEvent"] | components["schemas"]["WarningEvent"] | components["schemas"]["ErrorEvent"])[];
+            items: (components["schemas"]["MessageDeltaEvent"] | components["schemas"]["MessageEvent"] | components["schemas"]["ToolProposedEvent"] | components["schemas"]["ToolStartEvent"] | components["schemas"]["JobProgressEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["ImageEvent"] | components["schemas"]["StatusEvent"] | components["schemas"]["WarningEvent"] | components["schemas"]["ErrorEvent"])[];
             /** Next After */
             next_after?: number | null;
         };
@@ -759,18 +678,10 @@ export interface components {
              */
             monitoring_state: "healthy" | "degraded";
             safety_barrier?: components["schemas"]["SafetyBarrier"] | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "preparing" | "running" | "awaiting_confirmation" | "stopping" | "completed" | "stopped" | "failed" | "uncertain" | "limit_reached" | "rejected" | "halted" | "interrupted";
+            /** Status */
+            status: ("preparing" | "running" | "stopping" | "completed" | "stopped" | "failed" | "uncertain" | "limit_reached" | "rejected" | "halted" | "interrupted") | "awaiting_confirmation";
             /** Stop Requested */
             stop_requested: boolean;
-        };
-        /** FileRegister */
-        FileRegister: {
-            /** Path */
-            path: string;
         };
         /** Health */
         Health: {
@@ -782,6 +693,8 @@ export interface components {
             cached_corel_at?: string | null;
             /** Mcp Connected */
             mcp_connected: boolean;
+            /** Readiness Reason */
+            readiness_reason?: string | null;
             safety_barrier?: components["schemas"]["SafetyBarrier"] | null;
             /**
              * Schema Version
@@ -964,8 +877,6 @@ export interface components {
         };
         /** MetricSummary */
         MetricSummary: {
-            /** Approvals */
-            approvals: number;
             /**
              * Busy
              * @default 0
@@ -1083,13 +994,6 @@ export interface components {
              */
             state: "prepared" | "dispatching" | "known_job" | "terminal";
         };
-        /** OutputRoot */
-        OutputRoot: {
-            /** Id */
-            id?: string;
-            /** Path */
-            path: string;
-        };
         /** PreparedOperation */
         PreparedOperation: {
             /** Arguments */
@@ -1108,7 +1012,7 @@ export interface components {
             operation_id: string;
             /**
              * Policy Version
-             * @default 1
+             * @default 2
              */
             policy_version: number;
             /**
@@ -1132,11 +1036,6 @@ export interface components {
         ProfileSnapshot: {
             /** Base Url */
             base_url: string;
-            /**
-             * Context Approved
-             * @default false
-             */
-            context_approved: boolean;
             /** Credential Revision */
             credential_revision?: string;
             /** Id */
@@ -1151,26 +1050,22 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Send Preview
-             * @default false
-             */
-            send_preview: boolean;
-            /**
              * Stream Responses
              * @default true
              */
             stream_responses: boolean;
-            /**
-             * Vision
-             * @default false
-             */
-            vision: boolean;
         };
         /** ProfileTestResult */
         ProfileTestResult: {
             /**
+             * Images
+             * @default true
+             * @constant
+             */
+            images: true;
+            /**
              * Message
-             * @default Модель вернула валидированный native tool call; CorelDRAW не вызывался.
+             * @default Модель обработала тестовый PNG и вернула валидированный native tool call; CorelDRAW не вызывался.
              */
             message: string;
             /**
@@ -1186,13 +1081,6 @@ export interface components {
             api_key?: string | null;
             profile: components["schemas"]["ProfileSnapshot"];
         };
-        /** PublicFileRef */
-        PublicFileRef: {
-            /** Display Name */
-            display_name: string;
-            /** File Ref */
-            file_ref: string;
-        };
         /** ReconcileResult */
         ReconcileResult: {
             /**
@@ -1207,31 +1095,10 @@ export interface components {
              */
             reconciled: true;
         };
-        /** RecoveryReview */
-        RecoveryReview: {
-            /** At */
-            at?: string;
-            /** Barrier Id */
-            barrier_id?: string | null;
-            /** Document Id */
-            document_id?: string | null;
-            /**
-             * Manual Corel Checked
-             * @default false
-             */
-            manual_corel_checked: boolean;
-            /** Note */
-            note: string;
-            /**
-             * Release For New Context
-             * @default false
-             */
-            release_for_new_context: boolean;
-        };
         /** RecoveryReviewPage */
         RecoveryReviewPage: {
             /** Items */
-            items: components["schemas"]["RecoveryReview"][];
+            items: components["schemas"]["AuditReview"][];
             /** Next Offset */
             next_offset?: number | null;
         };
@@ -1278,15 +1145,10 @@ export interface components {
              * @default false
              */
             new_document: boolean;
-            /** Output Root Id */
-            output_root_id?: string | null;
+            /** Output Directory */
+            output_directory?: string | null;
             /** Profile Id */
             profile_id?: string | null;
-            /**
-             * Read Only
-             * @default true
-             */
-            read_only: boolean;
             /** Tool */
             tool?: string | null;
         };
@@ -1335,22 +1197,16 @@ export interface components {
              * @enum {string}
              */
             monitoring_state: "healthy" | "degraded";
-            /** Output Root Id */
-            output_root_id?: string | null;
-            pending_confirmation?: components["schemas"]["ConfirmationRequest"] | null;
+            /** Output Directory */
+            output_directory?: string | null;
             profile?: components["schemas"]["ProfileSnapshot"] | null;
-            /**
-             * Read Only
-             * @default true
-             */
-            read_only: boolean;
             safety_barrier?: components["schemas"]["SafetyBarrier"] | null;
             /**
              * Status
              * @default preparing
              * @enum {string}
              */
-            status: "preparing" | "running" | "awaiting_confirmation" | "stopping" | "completed" | "stopped" | "failed" | "uncertain" | "limit_reached" | "rejected" | "halted" | "interrupted";
+            status: "preparing" | "running" | "stopping" | "completed" | "stopped" | "failed" | "uncertain" | "limit_reached" | "rejected" | "halted" | "interrupted";
             /**
              * Stop Requested
              * @default false
@@ -1391,7 +1247,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "preparing" | "running" | "awaiting_confirmation" | "stopping" | "completed" | "stopped" | "failed" | "uncertain" | "limit_reached" | "rejected" | "halted" | "interrupted";
+            status: "preparing" | "running" | "stopping" | "completed" | "stopped" | "failed" | "uncertain" | "limit_reached" | "rejected" | "halted" | "interrupted";
         };
         /** StatusEvent */
         StatusEvent: {
@@ -1556,8 +1412,8 @@ export interface components {
         };
         /** Workspace */
         Workspace: {
-            /** Output Roots */
-            output_roots?: components["schemas"]["OutputRoot"][];
+            /** Output Directory */
+            output_directory?: string | null;
         };
     };
     responses: never;
@@ -2424,93 +2280,6 @@ export interface operations {
             };
         };
     };
-    register_file_api_v1_files_register_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FileRegister"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicFileRef"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Request Entity Too Large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     health_api_v1_health_get: {
         parameters: {
             query?: never;
@@ -3278,93 +3047,6 @@ export interface operations {
             };
         };
     };
-    recovery_review_api_v1_recovery_review_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecoveryReview"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecoveryReview"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Request Entity Too Large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     recovery_reviews_api_v1_recovery_reviews_get: {
         parameters: {
             query?: {
@@ -3805,95 +3487,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunSnapshot"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Request Entity Too Large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    confirm_api_v1_runs__run_id__confirm_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConfirmCommand"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             200: {

@@ -4,6 +4,7 @@ import httpx
 import pytest
 from conftest import implementation
 from pydantic import SecretStr
+from test_assets import png
 from test_settings import profile
 
 from corel_agent.contracts import AgentError, ToolDefinition
@@ -41,7 +42,20 @@ async def test_native_call_uses_frozen_model_and_validated_arguments():
         await provider.aclose()
 
 
-async def test_provider_refuses_image_content_without_frozen_consent():
+async def test_key_masking_cannot_turn_verified_png_into_an_unverified_request():
+    requests = []
+    provider = implementation('provider').Provider(profile(stream_responses=False), SecretStr('iVBORw0KGgo'),
+        transport=httpx.MockTransport(lambda request: requests.append(request) or httpx.Response(200, json=response())))
+    try:
+        with pytest.raises(AgentError) as caught:
+            await provider.complete([{'role': 'user', 'content': [{'type': 'image_url',
+                'image_url': {'url': 'data:image/png;base64,' + png()}}]}], [])
+        assert caught.value.code == 'PREVIEW_INVALID' and requests == []
+    finally:
+        await provider.aclose()
+
+
+async def test_provider_sends_validated_image_without_consent_flags():
     requests = []
     def handler(request):
         requests.append(request)
@@ -49,10 +63,27 @@ async def test_provider_refuses_image_content_without_frozen_consent():
     provider = implementation('provider').Provider(profile(stream_responses=False), SecretStr('fake'),
                                                     transport=httpx.MockTransport(handler))
     try:
+        result = await provider.complete([{'role': 'user', 'content': [{'type': 'image_url',
+            'image_url': {'url': 'data:image/png;base64,' + png()}}]}], [])
+        assert result.content == 'Ответ'
+        assert len(requests) == 1
+        assert json.loads(requests[0].content)['messages'][0]['content'][0]['image_url']['url'] == 'data:image/png;base64,' + png()
+    finally:
+        await provider.aclose()
+
+
+@pytest.mark.parametrize('url', ['https://example.test/image.png',
+                                'data:image/png;base64,iVBORw0KGgo=',
+                                'data:image/png;base64,AAAA'])
+async def test_provider_rejects_non_png_image_without_retry(url):
+    requests = []
+    provider = implementation('provider').Provider(profile(stream_responses=False), SecretStr('fake'),
+                                                    transport=httpx.MockTransport(lambda request: requests.append(request)))
+    try:
         with pytest.raises(AgentError) as caught:
             await provider.complete([{'role': 'user', 'content': [{'type': 'image_url',
-                'image_url': {'url': 'data:image/png;base64,AAAA'}}]}], [])
-        assert caught.value.code == 'PREVIEW_CONSENT_REQUIRED'
+                'image_url': {'url': url}}]}], [])
+        assert caught.value.code == 'PREVIEW_INVALID'
         assert requests == []
     finally:
         await provider.aclose()

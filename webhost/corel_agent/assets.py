@@ -60,8 +60,9 @@ def write_bytes(path: Path, data: bytes):
         temporary.unlink(missing_ok=True)
 
 
-def read_verified(path: Path, digest: str, limit=MAX_PREVIEW_BYTES):
-    assert_no_links(path)
+def read_verified(path: Path, digest: str, limit=MAX_PREVIEW_BYTES, *, internal=True):
+    if internal:
+        assert_no_links(path)
     with path.open("rb") as stream:
         before = os.fstat(stream.fileno())
         if not stat.S_ISREG(before.st_mode) or not 0 < before.st_size <= limit:
@@ -70,7 +71,8 @@ def read_verified(path: Path, digest: str, limit=MAX_PREVIEW_BYTES):
         after = os.fstat(stream.fileno())
         if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino):
             raise AgentError("ASSET_CHANGED", "Артефакт изменился при чтении.")
-    assert_no_links(path)
+    if internal:
+        assert_no_links(path)
     if len(data) != before.st_size or hashlib.sha256(data).hexdigest() != digest:
         raise AgentError("ASSET_CHANGED", "Содержимое артефакта изменилось.")
     return data
@@ -103,13 +105,11 @@ class Assets:
                                        metadata["sha256"])
         return data, metadata
 
-    async def register_export(self, path, root, format):
+    async def register_export(self, path, format):
         from .policy import PathGuard
         guard = PathGuard()
         def inspect():
             file = guard.path(path)
-            if guard.directory(root.path) != file.parent:
-                raise AgentError("PATH_DENIED", "Артефакт вне явно выбранного output root.", 403)
             media = {"png": "image/png", "svg": "image/svg+xml", "pdf": "application/pdf", "cdr": "application/octet-stream"}
             if format not in media or file.suffix.lower() != f".{format}" or not file.is_file():
                 raise AgentError("ARTIFACT_INVALID", "Результат экспорта отсутствует или имеет неверный формат.")
@@ -121,7 +121,7 @@ class Assets:
             if identity != guard.file_fingerprint(str(file)):
                 raise AgentError("FILE_CHANGED", "Артефакт изменился при регистрации.")
             artifact = Artifact(artifact_id=new_id(), display_name=file.name, media_type=media[format], bytes=size)
-            return artifact, {**artifact.model_dump(), "path": str(file), "root": root.path,
+            return artifact, {**artifact.model_dump(), "path": str(file),
                                "fingerprint": identity, "sha256": digest}
         artifact, metadata = await asyncio.to_thread(inspect)
         await self.store.register_asset(artifact.artifact_id, "export", metadata)
@@ -155,11 +155,12 @@ class Assets:
             def verify():
                 guard = PathGuard()
                 path = guard.path(metadata["path"])
-                if path.parent != guard.directory(metadata["root"]) or guard.file_fingerprint(str(path)) != metadata["fingerprint"]:
+                if guard.file_fingerprint(str(path)) != metadata["fingerprint"]:
                     raise AgentError("ASSET_CHANGED", "Файл изменился с момента регистрации.")
                 return path
             path = await asyncio.to_thread(verify)
         else:
             raise AgentError("ASSET_NOT_FOUND", "Артефакт не разрешён для download.", 404)
-        data = await asyncio.to_thread(read_verified, path, metadata["sha256"], 256 * 1024**2)
+        data = await asyncio.to_thread(read_verified, path, metadata["sha256"], 256 * 1024**2,
+                                       internal=metadata['kind'] != 'export')
         return data, metadata

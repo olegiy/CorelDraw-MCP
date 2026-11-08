@@ -2,7 +2,7 @@
 
 import asyncio
 import ipaddress
-import json
+import os
 from pathlib import Path
 from threading import RLock
 from urllib.parse import urlsplit
@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 from .assets import assert_no_links
 from .contracts import AgentError, ProfileSnapshot, new_id
 from .owned_stdio import atomic_json
+from .streaming import strict_json
 
 VAULT_SERVICE = "coreldraw_agent"
 
@@ -47,6 +48,7 @@ class Settings:
         self.path = Path(directory) / "profiles.json"
         self._vault = vault
         self._lock = RLock()
+        self._legacy_metadata = None
 
     def _credentials(self):
         try:
@@ -58,17 +60,31 @@ class Settings:
 
     def _read(self):
         try:
+            self._legacy_metadata = None
             assert_no_links(self.path)
             if not self.path.exists():
                 return []
             if not self.path.is_file() or self.path.stat().st_size > 65536:
                 raise ValueError
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            if set(data) != {"schema_version", "profiles"} or data["schema_version"] != 1:
+            original = self.path.read_bytes()
+            data = strict_json(original)
+            if (not isinstance(data, dict) or set(data) != {"schema_version", "profiles"}
+                    or type(data["schema_version"]) is not int or data["schema_version"] not in {1, 2}):
                 raise ValueError
             if not isinstance(data["profiles"], list) or len(data["profiles"]) > 1:
                 raise ValueError
-            return [ProfileSnapshot.model_validate(item) for item in data["profiles"]]
+            profiles = []
+            for item in data["profiles"]:
+                if data["schema_version"] == 1:
+                    item = dict(item)
+                    for field in ("context_approved", "vision", "send_preview"):
+                        if field in item and type(item[field]) is not bool:
+                            raise ValueError
+                        item.pop(field, None)
+                profiles.append(ProfileSnapshot.model_validate(item))
+            if data["schema_version"] == 1:
+                self._legacy_metadata = original
+            return profiles
         except (ValueError, OSError, ValidationError, TypeError):
             raise AgentError("SETTINGS_UNAVAILABLE", "Профиль повреждён или несовместим; файл сохранён без изменений.", 503) from None
 
@@ -87,8 +103,6 @@ class Settings:
                     raise AgentError("PROFILE_LIMIT", "MVP поддерживает один профиль; измените существующий.")
                 if profile.local and not local_endpoint(profile.base_url):
                     raise AgentError("LOCAL_PROVIDER_INVALID", "Локальным может быть только loopback API.", 422)
-                if profile.send_preview and not profile.vision:
-                    raise AgentError("VISION_REQUIRED", "Передача превью требует включённого Vision.", 422)
                 revision = old.credential_revision if old else new_id()
                 try:
                     vault = self._credentials()
@@ -111,14 +125,39 @@ class Settings:
                 saved = profile.model_copy(update={"credential_revision": revision})
                 assert_no_links(self.path.parent)
                 self.path.parent.mkdir(parents=True, exist_ok=True)
-                atomic_json(self.path, {"schema_version": 1, "profiles": [saved.model_dump(mode="json")]})
+                if self._legacy_metadata is not None:
+                    backup = self.path.with_name("profiles.schema-1.backup.json")
+                    assert_no_links(backup)
+                    if backup.exists():
+                        if (not backup.is_file() or backup.stat().st_size != len(self._legacy_metadata)
+                                or backup.read_bytes() != self._legacy_metadata):
+                            raise OSError('Existing legacy backup does not match the original metadata')
+                    else:
+                        created = None
+                        try:
+                            with backup.open("xb") as stream:
+                                info = os.fstat(stream.fileno())
+                                created = (info.st_dev, info.st_ino)
+                                stream.write(self._legacy_metadata)
+                                stream.flush()
+                                os.fsync(stream.fileno())
+                        except OSError:
+                            # Never remove a replacement created by another writer.
+                            try:
+                                info = backup.stat()
+                                if created is not None and (info.st_dev, info.st_ino) == created:
+                                    backup.unlink()
+                            except OSError:
+                                pass
+                            raise
+                atomic_json(self.path, {"schema_version": 2, "profiles": [saved.model_dump(mode="json")]})
                 return saved
         try:
             return await asyncio.to_thread(save)
         except OSError:
             raise AgentError("SETTINGS_UNAVAILABLE", "Не удалось сохранить метаданные профиля.", 503) from None
 
-    async def freeze(self, profile_id, *, require_consent=True):
+    async def freeze(self, profile_id):
         def freeze():
             with self._lock:
                 profile = next((item for item in self._read() if item.id == profile_id), None)
@@ -126,8 +165,6 @@ class Settings:
                     raise AgentError("PROFILE_NOT_FOUND", "Выбранный профиль отсутствует.", 404)
                 if profile.local and not local_endpoint(profile.base_url):
                     raise AgentError("LOCAL_PROVIDER_INVALID", "Loopback профиль имеет внешний адрес.", 422)
-                if require_consent and not profile.context_approved:
-                    raise AgentError("CONTEXT_CONSENT_REQUIRED", "Разрешите передачу текстового контекста и кода выбранной модели.", 403)
                 try:
                     secret = self._credentials().get(profile.credential_revision)
                 except Exception:

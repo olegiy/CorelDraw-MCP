@@ -137,7 +137,7 @@ export class JobManager {
       this.unpersisted.set(job.job_id, job);
     }
   }
-  submit(tool: string, args: Arguments, toolPolicy?: Job['tool_policy']): Job {
+  submit(tool: string, args: Arguments): Job {
     assertNoLinks(this.root);
     if (this.closing) throw new AutomationFailure('SHUTTING_DOWN', 'Сервер завершает работу.');
     const requestId = typeof args.request_id === 'string' ? args.request_id : undefined;
@@ -200,7 +200,6 @@ export class JobManager {
       warnings: [],
       ...(requestId ? { request_id: requestId } : {}),
       versions: { server: VERSION, node: process.versions.node },
-      ...(toolPolicy ? { tool_policy: structuredClone(toolPolicy) } : {}),
     };
     try {
       writeFileSync(join(directory, 'request.json'), JSON.stringify({ tool, args }, null, 2), 'utf8');

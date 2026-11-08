@@ -20,7 +20,7 @@ Id = Annotated[str, Field(pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 DocumentId = Annotated[str, Field(min_length=1, max_length=100)]
 RunStatus = Literal[
-    "preparing", "running", "awaiting_confirmation", "stopping", "completed", "stopped",
+    "preparing", "running", "stopping", "completed", "stopped",
     "failed", "uncertain", "limit_reached", "rejected", "halted", "interrupted",
 ]
 TERMINAL_STATUSES = frozenset({
@@ -61,9 +61,6 @@ class ProfileSnapshot(DTO):
     base_url: str = Field(min_length=1, max_length=1024)
     model: str = Field(min_length=1, max_length=200)
     local: StrictBool = False
-    context_approved: StrictBool = False
-    vision: StrictBool = False
-    send_preview: StrictBool = False
     stream_responses: StrictBool = True
     credential_revision: Id = Field(default_factory=new_id)
 
@@ -106,9 +103,8 @@ class RunCommand(DTO):
     kind: Literal["agent", "manual"] = "agent"
     tool: str | None = None
     arguments: dict[str, Any] = Field(default_factory=dict)
-    read_only: StrictBool = True
     new_document: StrictBool = False
-    output_root_id: Id | None = None
+    output_directory: str | None = Field(default=None, min_length=1, max_length=1024)
     max_calls: int = Field(default=20, ge=1, le=100, strict=True)
 
     @field_validator("message")
@@ -126,53 +122,26 @@ class PreparedOperation(DTO):
     arguments: dict[str, Any]
     document_id: DocumentId | None = None
     corel_request_id: str | None = None
-    policy_version: int = 1
+    policy_version: int = 2
     digest: Digest
     required_postchecks: tuple[str, ...] = ()
     file_fingerprint: str | None = None
     scope_digest: Digest | None = None
 
 
-class OutputRoot(DTO):
-    id: Id = Field(default_factory=new_id)
-    path: str = Field(min_length=1, max_length=1024)
-
-
-class FileRef(DTO):
-    file_ref: Id = Field(default_factory=new_id)
-    display_name: str
-    path: str
-    fingerprint: str
-
-
 class OperationContext(DTO):
     run_id: Id
     document_id: DocumentId | None = None
-    read_only: bool = True
-    output_root: OutputRoot | None = None
-    files: tuple[FileRef, ...] = ()
+    output_directory: str | None = Field(default=None, min_length=1, max_length=1024)
     current_document_path: str | None = None
     profile: ProfileSnapshot | None = None
-    allow_new_document: bool = False
+    new_document: StrictBool = False
 
 
 class RiskDecision(DTO):
-    decision: Literal["allow", "confirm", "deny"]
+    decision: Literal["allow", "deny"]
     reasons: tuple[str, ...] = ()
     operation_digest: Digest
-
-
-class ConfirmationRequest(DTO):
-    confirmation_id: Id = Field(default_factory=new_id)
-    operation_digest: Digest
-    operation: PreparedOperation
-    reasons: tuple[str, ...]
-
-
-class ConfirmCommand(DTO):
-    confirmation_id: Id
-    operation_digest: Digest
-    approved: StrictBool
 
 
 class Counters(DTO):
@@ -198,12 +167,10 @@ class RunSnapshot(DTO):
     status: RunStatus = "preparing"
     profile: ProfileSnapshot | None = None
     document_id: DocumentId | None = None
-    read_only: bool = True
-    output_root_id: Id | None = None
+    output_directory: str | None = Field(default=None, min_length=1, max_length=1024)
     max_calls: int = 20
     last_seq: int = 0
     stop_requested: bool = False
-    pending_confirmation: ConfirmationRequest | None = None
     active_operation_id: Id | None = None
     job_id: str | None = None
     counters: Counters = Field(default_factory=Counters)
@@ -219,7 +186,7 @@ class AcceptedRun(DTO):
 
 
 class EventState(DTO):
-    status: RunStatus
+    status: RunStatus | Literal['awaiting_confirmation']
     document_id: DocumentId | None = None
     stop_requested: bool
     active_operation_id: Id | None = None
@@ -305,11 +272,6 @@ class ToolProposedEvent(EventBase):
     data: ToolProposedData
 
 
-class ConfirmationEvent(EventBase):
-    type: Literal["confirmation"]
-    data: ConfirmationRequest
-
-
 class ToolStartEvent(EventBase):
     type: Literal["tool_start"]
     data: ToolStartData
@@ -346,11 +308,17 @@ class ErrorEvent(EventBase):
 
 
 RunEvent = Annotated[
-    MessageDeltaEvent | MessageEvent | ToolProposedEvent | ConfirmationEvent | ToolStartEvent
+    MessageDeltaEvent | MessageEvent | ToolProposedEvent | ToolStartEvent
     | JobProgressEvent | ToolResultEvent | ImageEvent | StatusEvent | WarningEvent | ErrorEvent,
     Field(discriminator="type"),
 ]
 EVENT_ADAPTER = TypeAdapter(RunEvent)
+
+OBSERVATION_TOOLS = frozenset({'corel_status', 'corel_inspect_document', 'corel_preview', 'host_diagnostics'})
+
+
+def command_is_observation(command):
+    return command.kind == 'manual' and command.tool in OBSERVATION_TOOLS
 
 
 class ImageBlock(DTO):
@@ -446,6 +414,7 @@ class Health(DTO):
     active_job_id: str | None = None
     safety_barrier: SafetyBarrier | None = None
     cached_corel_at: str | None = None
+    readiness_reason: str | None = None
     storage: 'StorageState | None' = None
 
 
@@ -483,16 +452,7 @@ class MessagePage(DTO):
 
 
 class Workspace(DTO):
-    output_roots: list[OutputRoot] = Field(default_factory=list, max_length=8)
-
-
-class FileRegister(DTO):
-    path: str = Field(min_length=1, max_length=1024)
-
-
-class PublicFileRef(DTO):
-    file_ref: Id
-    display_name: str
+    output_directory: str | None = Field(default=None, min_length=1, max_length=1024)
 
 
 class ProfileUpdate(DTO):
@@ -512,7 +472,8 @@ class ReportView(DTO):
 
 class ProfileTestResult(DTO):
     native_tools: Literal[True] = True
-    message: str = "Модель вернула валидированный native tool call; CorelDRAW не вызывался."
+    images: Literal[True] = True
+    message: str = "Модель обработала тестовый PNG и вернула валидированный native tool call; CorelDRAW не вызывался."
 
 
 class Artifact(DTO):
@@ -534,7 +495,6 @@ class MetricSummary(DTO):
     runs: int
     llm_turns: int
     corel_operations: int
-    approvals: int
     outcomes: dict[str, int]
     slow_subscribers: int
     timed_out: int = 0
@@ -558,17 +518,14 @@ class DiagnosticsSummary(DTO):
     safety_barrier_present: bool
 
 
-class RecoveryReview(DTO):
-    note: str = Field(min_length=1, max_length=4000)
-    document_id: DocumentId | None = None
-    barrier_id: Id | None = None
-    release_for_new_context: StrictBool = False
-    manual_corel_checked: StrictBool = False
-    at: str = Field(default_factory=utc_now)
+class AuditReview(DTO):
+    id: Id
+    at: str
+    data: dict[str, Any]
 
 
 class RecoveryReviewPage(DTO):
-    items: list[RecoveryReview]
+    items: list[AuditReview]
     next_offset: int | None = None
 
 

@@ -4,7 +4,7 @@ from copy import deepcopy
 import pytest
 from conftest import command, implementation, wait_run
 from pydantic import SecretStr
-from test_approvals import calls, pending_confirmation, prime
+from test_approvals import calls, prime
 from test_settings import FakeVault, profile
 
 from corel_agent.contracts import AgentError, Completion, NativeToolCall
@@ -57,20 +57,16 @@ async def test_agent_serializes_terminal_tool_results_before_next_turn(runtime, 
     assert provider.closed
 
 
-@pytest.mark.parametrize('allowed', [False, True])
-async def test_preview_to_model_requires_both_frozen_consents(runtime, store, allowed):
+async def test_verified_preview_to_model_is_automatic(runtime, store):
     provider, cmd = await configure(runtime, store, [completion('corel_preview'), completion()])
-    original = (await runtime.settings.list_profiles())[0]
-    await runtime.settings.save(original.model_copy(update={'vision': allowed, 'send_preview': allowed}))
     run = await runtime.start(cmd)
     assert (await wait_run(store, run.id)).status == 'completed'
     image_messages = [message for message in provider.histories[1]
                       if isinstance(message.get('content'), list)]
-    assert bool(image_messages) is allowed
-    if allowed:
-        image = image_messages[0]['content'][1]
-        assert image['type'] == 'image_url'
-        assert image['image_url']['url'].startswith('data:image/png;base64,')
+    assert len(image_messages) == 1
+    image = image_messages[0]['content'][1]
+    assert image['type'] == 'image_url'
+    assert image['image_url']['url'].startswith('data:image/png;base64,')
     messages = await store.get_messages(cmd.conversation_id)
     assert not any('data:image/png;base64,' in item['text'] for item in messages)
 
@@ -100,22 +96,19 @@ async def test_next_run_in_same_conversation_receives_previous_finished_dialog(r
     assert history[-1]['content'] == 'Продолжи прежний ответ'
 
 
-async def test_dangerous_background_step_waits_for_confirmation(runtime, store):
+async def test_background_vba_executes_and_postchecks_without_confirmation(runtime, store):
     provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fixture"), completion()])
-    run = await runtime.start(cmd.model_copy(update={"read_only": False}))
-    pending = await pending_confirmation(store, run.id)
-    assert calls(store, "corel_execute_vba") == [] and len(provider.histories) == 1
-    await runtime.confirm(run.id, pending.confirmation_id, pending.operation_digest, True)
+    run = await runtime.start(cmd)
     snapshot = await wait_run(store, run.id)
     assert snapshot.status == "completed" and snapshot.counters.calls == 3
     assert len(provider.histories) == 2
+    assert len(calls(store, 'corel_execute_vba')) == 1
+    assert not any(event.type == 'confirmation' for event in await store.get_events(run.id))
 
 
 async def test_failed_vba_is_not_repaired_or_retried(runtime, store):
     provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fail"), completion()])
-    run = await runtime.start(cmd.model_copy(update={"read_only": False}))
-    pending = await pending_confirmation(store, run.id)
-    await runtime.confirm(run.id, pending.confirmation_id, pending.operation_digest, True)
+    run = await runtime.start(cmd)
     assert (await wait_run(store, run.id)).status == "failed"
     assert len(provider.histories) == 1 and len(calls(store, "corel_execute_vba")) == 1
     operations = await store.get_operations(run.id)
@@ -134,9 +127,7 @@ async def test_stop_during_model_wait_cancels_only_model_not_com(runtime, store)
 
 async def test_explicit_stop_drains_job_and_persists_applied_outcome(runtime, store):
     provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fixture"), completion()])
-    run = await runtime.start(cmd.model_copy(update={"read_only": False}))
-    pending = await pending_confirmation(store, run.id)
-    await runtime.confirm(run.id, pending.confirmation_id, pending.operation_digest, True)
+    run = await runtime.start(cmd)
     async def job_started():
         while not calls(store, "corel_execute_vba"):
             await asyncio.sleep(0.01)
@@ -150,7 +141,7 @@ async def test_explicit_stop_drains_job_and_persists_applied_outcome(runtime, st
 
 async def test_call_budget_is_reserved_before_mutation_even_with_model_tools(runtime, store):
     provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fixture")])
-    run = await runtime.start(cmd.model_copy(update={"read_only": False, "max_calls": 1}))
+    run = await runtime.start(cmd.model_copy(update={"max_calls": 1}))
     assert (await wait_run(store, run.id)).status == "limit_reached"
     assert calls(store, "corel_execute_vba") == []
 
@@ -171,7 +162,7 @@ async def test_unbound_agent_does_not_guess_active_document(runtime, store):
 
 async def test_explicit_new_document_intent_binds_actual_created_id(runtime, store):
     provider, cmd = await configure(runtime, store, [completion('corel_create_document'), completion('corel_preview'), completion()])
-    cmd = cmd.model_copy(update={'document_id': None, 'read_only': False, 'new_document': True})
+    cmd = cmd.model_copy(update={'document_id': None, 'new_document': True})
     run = await runtime.start(cmd)
     final = await wait_run(store, run.id)
     assert final.status == 'completed'
@@ -184,6 +175,6 @@ async def test_explicit_new_document_intent_binds_actual_created_id(runtime, sto
 async def test_new_document_intent_cannot_detach_selected_document(runtime, store):
     provider, cmd = await configure(runtime, store, [completion()])
     with pytest.raises(AgentError) as caught:
-        await runtime.start(cmd.model_copy(update={'new_document': True, 'read_only': False}))
+        await runtime.start(cmd.model_copy(update={'new_document': True}))
     assert caught.value.code == 'DOCUMENT_INTENT_CONFLICT'
     assert provider.histories == []

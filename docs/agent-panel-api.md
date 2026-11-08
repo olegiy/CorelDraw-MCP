@@ -22,14 +22,17 @@
 `POST /runs` создаёт агентный Run, `POST /actions` manual Run без модели.
 Ответ 202 выдаётся после durable acceptance. Команда включает UUID
 `client_request_id`, `conversation_id`, выбранные `profile_id`, `document_id`,
-`read_only`, `output_root_id`, `max_calls` 1..100 (default 20).
+`new_document` как выбор новой цели, необязательный `output_directory` и
+`max_calls` 1..100 (default 20). Существующий документ и `new_document=true`
+одновременно не допускаются. Без явно переданного каталога используется
+настройка workspace; эффективное назначение фиксируется в Run.
 Повтор одинакового тела с тем же ID возвращает прежний Run и frozen профиль;
 другое тело даёт 409. До получения ответа исход выясняется через
 `GET /requests/{client_request_id}`. Ранний
 `POST /requests/{client_request_id}/stop` создаёт durable tombstone.
 
-`POST /runs/{id}/confirm` принимает только `confirmation_id`,
-`operation_digest`, `approved`. Новый код/путь не является частью approval.
+Команды исполняются сразу после проверки. Confirm/register/review endpoints
+удалены (404), удалённые поля новых DTO отклоняются (422), а не игнорируются.
 `POST /runs/{id}/stop` не отменяет уже отправленный COM.
 
 ## Чтение
@@ -45,35 +48,40 @@ SSE `/runs/{id}/events` использует `event:update`, `id:seq`, heartbeat
 ## Операторские Настройки
 
 `GET/PUT /profiles/{id}` и `GET /profiles` передают метаданные без credentials;
-ключ PUT принимается как секрет и сохраняется в vault. Native-tools test
-`POST /profiles/{id}/test` не обращается к CorelDRAW.
-`GET/PUT /workspace` задают существующие output roots.
-`POST /files/register` регистрирует обычный локальный CDR и возвращает
-`file_ref/display_name`, не произвольный file-read URL.
+ключ PUT принимается как секрет и сохраняется в vault. Профиль не содержит
+consent/capability flags; проверенный PNG автоматически включается в запрос
+вместе с контекстом. `POST /profiles/{id}/test` использует синтетический PNG и
+native tool probe без CorelDRAW, документов и текстового fallback.
+`GET/PUT /workspace` задают `output_directory: str | None`, не allowlist.
+CDR открывается по прямому абсолютному Windows-пути; Save As/export заменяют
+существующий файл без `overwrite` input. Download остаётся доступным только
+по зарегистрированному artifact ID с проверкой digest/типа/размера.
 
 ## Диагностика И Артефакты
 
 `GET /health` и `/metrics` возвращают cached/aggregate state без COM.
+Health включает `readiness_reason`; проверка ledger/owner может атомарно снять
+доказанно устранённый текущий глобальный барьер, но не вызывает модель/MCP tools.
 `POST /diagnostics` создаёт manual Run с allowlist JSON.
 `GET /artifacts/{artifact_id}` выдаёт только зарегистрированный проверенный
 экспорт/JSON как attachment. `GET /images/{image_id}` выдаёт зарегистрированный
 PNG до 10 МиБ/2400 px. Query `path` запрещён.
 
-`POST /recovery/review` записывает операторское наблюдение отдельно от исхода
-старой операции; `/recovery/reviews` читает журнал. Обычная запись review не
-снимает safety barrier. Для явного нового контекста нужны `barrier_id`,
-`release_for_new_context=true`, `manual_corel_checked=true` и точный свежий
-`document_id`. Сервер проверяет текущего MCP-владельца и отсутствие незавершённых
-dispatch/Job; запись review и снятие глобального барьера атомарны. Старые
-outcome и barrier в snapshot прежнего Run не меняются. Повторный release
-устаревшего ID даёт 409. Ручное подтверждение не выдаётся за автоматическую
-проверку содержимого рисунка.
+`GET /recovery/reviews` читает только исторический аудит: `id`, `at`, opaque
+`data` исходной записи. Новые reviews не записываются и не являются допуском.
+Готовность определяется сервером при приёме новой изменяющей команды и после
+refresh: связанные эффекты должны иметь terminal result `succeeded|failed`
+и `cleanup.completed=true`, либо ledger должен доказать отсутствие dispatch.
+Текущий владелец и свежий кэш документов проверяются; снятие глобального
+барьера атомарно по его ID и неизменённому evidence. Старый snapshot/outcome
+не переписывается. Unknown, неполный cleanup, pending Job и непроверенный owner
+не обходятся пользовательским boolean или комментарием.
 
 `POST /recovery/reconcile` принимает пустой объект и доступен только при
 отключённом MCP и сохранённых pending bindings. Host читает исходные отчёты
 из фиксированного Corel runs root после доказанного завершения прежнего
-владельца. Старый модельный план не возобновляется; safety barrier не снимается
-одной записью review. Пути отчётов от клиента не принимаются.
+владельца. Старый модельный план не возобновляется и новый MCP не запускается;
+сверка не подменяет readiness. Пути отчётов от клиента не принимаются.
 
 `POST /history/backup` принимает пустой объект и создаёт согласованную копию
 SQLite через native backup API внутри каталога `backups` панели. Ответ не

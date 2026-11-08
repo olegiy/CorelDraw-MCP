@@ -35,4 +35,6 @@
 
 ## Экспорт
 
-`corel_export` принимает `png`, `svg`, `pdf`, `jpg`, `tiff`, `ai`, `eps`, `dxf`, `plt`. Диапазон `document` доступен только PDF; PDF не экспортирует selection. JPG/TIFF используют DPI 1–1200, цвет RGB/CMYK и документный профиль; JPG сжатие 0–100, TIFF `lzw|none`, `transparent=false` по умолчанию. AI/EPS сохраняют текст по умолчанию или переводят его в кривые; DXF/PLT используют кривые текста и сохраняют масштаб/координаты. PNG ограничен 40 МП. Экспорт создаёт staging-файл, затем атомарно публикует его; существующий файл требует `overwrite=true`.
+`corel_export` принимает `png`, `svg`, `pdf`, `jpg`, `tiff`, `ai`, `eps`, `dxf`, `plt`. Диапазон `document` доступен только PDF; PDF не экспортирует selection. JPG/TIFF используют DPI 1–1200, цвет RGB/CMYK и документный профиль; JPG сжатие 0–100, TIFF `lzw|none`, `transparent=false` по умолчанию. AI/EPS сохраняют текст по умолчанию или переводят его в кривые; DXF/PLT используют кривые текста и сохраняют масштаб/координаты. PNG ограничен 40 МП. Экспорт создаёт staging-файл, затем атомарно публикует его с заменой существующего назначения.
+
+SaveAs использует `StructSaveAsOptions.Overwrite = True`. В API 27 значение по умолчанию также True; False приводит к ошибке при существующем файле. Источники: https://community.coreldraw.com/sdk/api/draw/27/p/structsaveasoptions.overwrite и https://community.coreldraw.com/sdk/api/draw/27/m/document.saveas . Атомарность нативного SaveAs не гарантируется; назначение, открытое в другом документе, по-прежнему отклоняется.

@@ -11,21 +11,56 @@ public class ExportCollection : IEnumerable {
 '@
 & (Get-Module CorelAutomation) {
  $script:Cleanup=@{completed=$true;errors=@()};$script:Warnings=@();$script:Artifacts=@()
+ $script:FailExport=$false;$script:RaceDestination=$null
  $page=[pscustomobject]@{Index=1;SizeWidth=25.4;SizeHeight=12.7};$page|Add-Member ScriptMethod Activate {}
  $doc=[pscustomobject]@{ActivePage=$page;Unit=3};$doc|Add-Member ScriptMethod Activate {}
  $script:Corel=[pscustomobject]@{ActiveDocument=$doc};$script:Corel|Add-Member ScriptMethod ConvertUnits {param($n,$from,$to) if($to -eq 1){return $n/25.4};return $n}
- function Invoke-Vba($Parameters,$RunDirectory,$Execute,$Document,$ReadOnly) {
+  function Invoke-Vba($Parameters,$RunDirectory,$Execute,$Document,$ReadOnly) {
   if(-not $ReadOnly){throw 'Export must bypass source Undo/settings mutations'}
   $code=[string]$Parameters.code
   $syntaxErrors=$null;$tokens=$null
   if($code -match 'ExportBitmap\("([^"]+)"'){[IO.File]::WriteAllText($matches[1],'fixture');$script:LastExport=$code}
   elseif($code -match 'ExportEx\("([^"]+)"'){[IO.File]::WriteAllText($matches[1],'fixture');$script:LastExport=$code}
-  else{throw 'Missing native export invocation'}
+   else{throw 'Missing native export invocation'}
+   if ($script:FailExport) { throw 'Synthetic filter failure' }
+   if ($script:RaceDestination) { [IO.File]::WriteAllText($script:RaceDestination, 'appeared during export') }
  }
  $dir=Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($dir)|Out-Null
- try {
+  try {
+   $destination = Join-Path $dir "sentinel ' file.png"
+   [IO.File]::WriteAllText($destination, 'original sentinel')
+   $null = Export-Document $doc @{format='png';path=$destination;range='page'} $dir $false
+   if ([IO.File]::ReadAllText($destination) -ne 'fixture') { throw 'Automatic export replacement failed' }
+   [IO.File]::Delete($destination)
+   $script:RaceDestination = $destination
+   $null = Export-Document $doc @{format='png';path=$destination;range='page'} $dir $false
+   if ([IO.File]::ReadAllText($destination) -ne 'fixture') { throw 'Destination race was not replaced' }
+   $script:RaceDestination = $null
+   [IO.File]::WriteAllText($destination, 'preserve sentinel')
+   $script:FailExport = $true
+   try { $null = Export-Document $doc @{format='png';path=$destination;range='page'} $dir $false; throw 'Expected filter failure' }
+   catch { if ($_.Exception.Message -notmatch 'Synthetic filter failure') { throw } }
+   $script:FailExport = $false
+   if ([IO.File]::ReadAllText($destination) -ne 'preserve sentinel') { throw 'Filter failure replaced destination' }
+   $savePath = Join-Path $dir 'sentinel.cdr'
+   [IO.File]::WriteAllText($savePath, 'original CDR')
+   function Sync-Documents {}
+   function Get-ComIdentity($Value) { return $Value.identity }
+   function Get-DocumentInfo($Value) { return @{path=$Value.FullFileName} }
+   $script:Documents = @{}
+   $doc | Add-Member NoteProperty FullFileName ''
+   $doc | Add-Member NoteProperty identity 1
+   $doc | Add-Member ScriptMethod SaveAs {param($path,$options) if (-not $options.Overwrite) { throw 'SaveAs Overwrite must be true' }; [IO.File]::WriteAllText($path,'saved CDR'); $this.FullFileName=$path }
+   $script:Corel | Add-Member ScriptMethod CreateStructSaveAsOptions { return [pscustomobject]@{Overwrite=$false;Filter=0} }
+   $null = Save-Document $doc @{path=$savePath}
+   if ([IO.File]::ReadAllText($savePath) -ne 'saved CDR') { throw 'Automatic SaveAs replacement failed' }
+   $other = [pscustomobject]@{identity=2;FullFileName=$savePath}
+   $script:Documents.other = @{document=$other}
+   try { $null = Save-Document $doc @{path=$savePath}; throw 'Expected DOCUMENT_ALREADY_OPEN' }
+   catch { if ($_.Exception.Data['code'] -ne 'DOCUMENT_ALREADY_OPEN') { throw } }
+   $script:Documents = @{}
   foreach($spec in @(@('jpeg','jpeg','cdrJPEG'),@('tif','tif','cdrTIFF'),@('ai','ai','cdrAI'),@('eps','eps','cdrEPS'),@('svg','svg','cdrSVG'))){
-   $p=@{format=$spec[0];range='page';path=(Join-Path $dir ('out.'+$spec[1]));overwrite=$false;dpi=150;color_mode='cmyk';jpeg_compression=67;tiff_compression='none';use_document_profile=$true;text_mode='preserve'}
+    $p=@{format=$spec[0];range='page';path=(Join-Path $dir ('out.'+$spec[1]));dpi=150;color_mode='cmyk';jpeg_compression=67;tiff_compression='none';use_document_profile=$true;text_mode='preserve'}
    $r=Export-Document $doc $p $dir $false
    if($script:LastExport -notmatch $spec[2]){throw ('Wrong filter '+$spec[0])}
    if(-not [IO.File]::Exists($r.path)){throw 'Missing committed export'}

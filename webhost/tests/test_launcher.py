@@ -106,7 +106,7 @@ async def test_startup_known_job_creates_recovery_only_runtime_without_second_mc
 
     from corel_agent.contracts import JobUpdate
     module = implementation('__main__')
-    run = (await store.accept_run(command(read_only=False), None)).snapshot
+    run = (await store.accept_run(command(), None)).snapshot
     op = operation(run)
     await store.record_operation(op)
     await store.mark_dispatching(op.operation_id)
@@ -122,7 +122,7 @@ async def test_startup_known_job_creates_recovery_only_runtime_without_second_mc
     assert (await store.get_snapshot(run.id)).job_id == 'known-job'
     assert await store.get_meta('recovery_pending')
     with pytest.raises(AgentError):
-        await runtime.start(command(read_only=False))
+        await runtime.start(command())
 
 
 def test_dead_host_marker_is_released_only_after_exact_double_check(tmp_path, monkeypatch):

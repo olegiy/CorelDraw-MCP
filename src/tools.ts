@@ -94,12 +94,11 @@ export const toolDefinitions: Record<string, Definition> = {
       ...request,
       ...document,
       path: absolutePath.optional(),
-      overwrite: z.boolean().default(false),
       ...deadline,
     }),
     readOnly: false,
     destructive: true,
-    description: 'Явно сохранить CDR; замена другого файла требует overwrite=true. Возвращает job_id.',
+    description: 'Сохранить точный CDR; существующий файл назначения заменяется автоматически. Возвращает job_id.',
   },
   corel_close_document: {
     schema: z.strictObject({
@@ -121,7 +120,6 @@ export const toolDefinitions: Record<string, Definition> = {
         format: z.enum(['png', 'pdf', 'svg', 'jpg', 'jpeg', 'tiff', 'tif', 'ai', 'eps', 'dxf', 'plt']),
         range: z.enum(['page', 'selection', 'document']).default('page'),
         page_index: pageIndex.optional(),
-        overwrite: z.boolean().default(false),
         dpi: z.number().int().min(1).max(1200).default(150),
         color_mode: z.enum(['rgb', 'cmyk']).optional(),
         jpeg_compression: z.number().int().min(0).max(100).optional(),
@@ -186,7 +184,7 @@ export const toolDefinitions: Record<string, Definition> = {
       }),
     readOnly: false,
     destructive: true,
-    description: 'Экспорт PNG/PDF/SVG/JPEG/TIFF/AI/EPS/DXF/PLT через промежуточный файл. Возвращает job_id.',
+    description: 'Экспорт PNG/PDF/SVG/JPEG/TIFF/AI/EPS/DXF/PLT через промежуточный файл с автоматической заменой назначения. Возвращает job_id.',
   },
   corel_preview: {
     schema: z.strictObject({

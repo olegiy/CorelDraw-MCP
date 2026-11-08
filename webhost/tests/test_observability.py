@@ -50,6 +50,8 @@ async def test_metrics_count_unsafe_jobs_without_payload_labels(store):
     run = (await store.accept_run(command(), None)).snapshot
     operation = PreparedOperation(operation_id=new_id(), run_id=run.id, tool='corel_status',
                                   arguments={}, digest='a' * 64)
+    from corel_agent.policy import Policy
+    operation = operation.model_copy(update={'digest': Policy.operation_digest(operation)})
     await store.record_operation(operation)
     await store.mark_dispatching(operation.operation_id)
     import asyncio

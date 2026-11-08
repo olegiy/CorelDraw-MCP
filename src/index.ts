@@ -5,7 +5,6 @@ import { PowerShellExecutor } from './executor.js';
 import { JobManager } from './jobs.js';
 import { createServer } from './server.js';
 import { VERSION } from './version.js';
-import { loadToolPolicy } from './config.js';
 
 const root =
   process.env.CORELDRAW_MCP_RUNS ??
@@ -14,8 +13,7 @@ const jobs = new JobManager(
   root,
   new PowerShellExecutor(process.env.CORELDRAW_MCP_PROGID ?? 'CorelDRAW.Application.27'),
 );
-const policyRoot = process.env.CORELDRAW_MCP_CONFIG_ROOT ?? join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'CorelDrawMcp');
-const handle = serveStdio(() => createServer(jobs, loadToolPolicy(policyRoot)));
+const handle = serveStdio(() => createServer(jobs));
 process.on('SIGINT', () => {
   jobs.close();
   void handle.close();

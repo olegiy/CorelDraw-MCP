@@ -72,7 +72,12 @@ corel_export(request_id="export-001", document_id="полученный-id",
 corel_save_document(request_id="save-001", document_id="полученный-id")
 ```
 
-Все пути должны быть абсолютными Windows-путями. Для существующего файла требуется `overwrite=true`. Закрытие изменённого документа требует предварительного сохранения либо `discard_changes=true`.
+Все пути должны быть абсолютными Windows-путями и не требуют регистрации.
+Save As и экспорт автоматически заменяют существующий файл, без `overwrite`
+в запросе. Экспорт использует staging; атомарность нативного SaveAs не обещается.
+Назначение, открытое в другом документе, отклоняется. Закрытие изменённого
+документа требует предварительного сохранения либо `discard_changes=true`;
+это семантика закрытия, не подтверждение разрешения.
 
 ## Задания, повторы и ошибки
 
@@ -84,15 +89,14 @@ corel_save_document(request_id="save-001", document_id="полученный-id"
 
 `corel_measure_shapes` измеряет поддерживаемые векторные объекты в миллиметрах. `corel_build_vba` проверяет исходники `.bas`, а `corel_execute_vba` выполняет модуль с `Public Function Main() As String` и JSON-результатом. VBA имеет полный доступ к CorelDRAW и операционной системе; запускайте только доверенный код и не используйте `Application.Quit`, shell или диалоги.
 
-## Конфигурация и обслуживание
+## Обслуживание
 
-Параметры политики находятся в `%LOCALAPPDATA%\CorelDrawMcp\config.json`. Единственный ключ — массив `disabled_tools`, например:
-
-```json
-{"disabled_tools":["corel_execute_vba","corel_export"]}
-```
-
-Настройка применяется после перезапуска сервера. `corel_status`, `corel_get_job`, `corel_guide` и `corel_list_artifacts` доступны всегда. Некорректная конфигурация переводит сервер в безопасный режим только для чтения.
+Все инструменты доступны без разрешительного config. Старый
+`%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается, не меняется и не удаляется.
+В сервере нет диалогов разрешения; внешний MCP-клиент может иметь свои правила.
+Панель агента также выполняет команды сразу и автоматически передаёт выбранной
+модели контекст/проверенные PNG. Подробности защиты ключей и recovery описаны
+в [руководстве панели](agent-panel.md).
 
 Справка: `corel_guide(topic="tools")`, `corel_guide(topic="vba")`, `corel_guide(topic="install")`. Служебные файлы перечисляет `corel_list_artifacts`; удаление выполняется только выбранными токенами через `corel_prune_artifacts`. Диагностику можно выгрузить через `corel_export_diagnostics`.
 
@@ -108,4 +112,3 @@ npm run check:contracts
 ```powershell
 npm run test:integration
 ```
-

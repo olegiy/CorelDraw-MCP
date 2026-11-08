@@ -60,6 +60,27 @@ async def test_full_store_blocks_new_mutation_but_keeps_report_reads(store):
     await store.set_status(run.id, "completed")
     store.quota_bytes = 1
     with pytest.raises(AgentError) as caught:
-        await store.accept_run(command(read_only=False, tool="corel_create_document"), None)
+        await store.accept_run(command(tool="corel_create_document"), None)
     assert caught.value.code == "STORAGE_FULL"
     assert (await store.get_snapshot(run.id)).status == "completed"
+
+
+@pytest.mark.parametrize('cmd', [dict(tool='corel_execute_vba', document_id='fixture'),
+                               dict(kind='agent', profile_id=new_id()), dict(tool='corel_open_document'),
+                               dict(tool='corel_close_document', document_id='fixture')])
+async def test_barrier_admission_is_based_on_actual_command_not_a_read_only_flag(store, cmd):
+    from corel_agent.contracts import SafetyBarrier
+    await store.set_barrier(SafetyBarrier(reason='FIXTURE_UNKNOWN'))
+    with pytest.raises(AgentError) as caught:
+        await store.accept_run(command(**cmd), None)
+    assert caught.value.code == 'SAFETY_BARRIER'
+    assert await store.list_runs() == []
+
+
+@pytest.mark.parametrize('tool', ['corel_status', 'corel_inspect_document', 'corel_preview', 'host_diagnostics'])
+async def test_observation_admission_remains_available_under_barrier_and_full_storage(store, tool):
+    from corel_agent.contracts import SafetyBarrier
+    await store.set_barrier(SafetyBarrier(reason='FIXTURE_UNKNOWN'))
+    store.quota_bytes = 1
+    run = await store.accept_run(command(tool=tool), None)
+    assert run.is_new and run.snapshot.safety_barrier

@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { JobManager } from '../dist/jobs.js';
 import { createServer } from '../dist/server.js';
-import { loadToolPolicy } from '../dist/config.js';
 
 const fixture = {
   async run(job, args, progress) {
@@ -23,4 +22,4 @@ const fixture = {
   close() {},
 };
 const jobs = new JobManager(process.env.CORELDRAW_MCP_RUNS, fixture);
-serveStdio(() => createServer(jobs, process.env.CORELDRAW_MCP_CONFIG_ROOT ? loadToolPolicy(process.env.CORELDRAW_MCP_CONFIG_ROOT) : undefined));
+serveStdio(() => createServer(jobs));

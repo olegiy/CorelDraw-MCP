@@ -10,7 +10,7 @@ from conftest import ROOT
 
 @pytest.mark.parametrize('shell', ['powershell', 'pwsh'])
 def test_panel_powershell_scripts_parse_without_execution(shell):
-    for name in ('Install', 'Start', 'Stop', 'Verify', 'Uninstall'):
+    for name in ('Install', 'Start', 'Stop', 'Restart', 'Verify', 'Uninstall'):
         path = ROOT / 'scripts' / f'{name}-CorelAgent.ps1'
         assert path.is_file()
         literal = str(path).replace("'", "''")
@@ -105,6 +105,9 @@ def test_install_stops_at_first_package_or_build_failure(tmp_path, fail_call):
     ('Start', (), ['-m', 'corel_agent']),
     ('Start', ('-NoBrowser',), ['-m', 'corel_agent', '--no-browser']),
     ('Stop', (), ['-m', 'corel_agent', '--stop']),
+    ('Restart', (), ['-m', 'corel_agent', '--restart', '--restart-timeout', '15']),
+    ('Restart', ('-NoBrowser', '-TimeoutSeconds', '2'),
+     ['-m', 'corel_agent', '--restart', '--restart-timeout', '2', '--no-browser']),
 ])
 @pytest.mark.parametrize('fail_call', [0, 1])
 def test_control_scripts_forward_only_explicit_flags_and_fail_closed(tmp_path, name, arguments, expected, fail_call):

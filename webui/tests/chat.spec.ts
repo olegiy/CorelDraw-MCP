@@ -6,7 +6,7 @@ test('chat submits selected profile document and CSRF with native agent command'
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/access/session')) return route.fulfill({ json: { csrf_token: 'b'.repeat(43), authenticated: true } });
     if (path.endsWith('/documents')) return route.fulfill({ json: { items: [{ document_id: 'fixture-b', name: 'Рисунок B', active_page: 1 }], stale: false } });
-    if (path.endsWith('/profiles')) return route.fulfill({ json: { items: [{ id: '00000000-0000-0000-0000-000000000003', name: 'Модель', model: 'fake', base_url: 'http://127.0.0.1:1234/v1', context_approved: true }] } });
+    if (path.endsWith('/profiles')) return route.fulfill({ json: { items: [{ id: '00000000-0000-0000-0000-000000000003', name: 'Модель', model: 'fake', base_url: 'http://127.0.0.1:1234/v1' }] } });
     if (path.endsWith('/runs') && route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
       expect(body.message).toBe('Покажи рисунок');

@@ -34,3 +34,4 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export const terminal = (status: string) => ['completed', 'stopped', 'failed', 'uncertain', 'halted', 'interrupted', 'rejected', 'limit_reached'].includes(status);
+export const runStatus = (status: components['schemas']['EventState']['status']): Run['status'] => status === 'awaiting_confirmation' ? 'interrupted' : status;
