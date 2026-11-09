@@ -156,6 +156,35 @@ function Inspect-Document($Document, [hashtable] $Parameters) {
         visited_shapes=$context.visited; matched_shapes=$context.matched; depth_truncated=$context.depth_truncated; visited_truncated=$context.visited_truncated; shapes_truncated=$end -lt $context.matched; truncation_reasons=$reasons
         selection_bounds=$selectionBounds; selection_bounds_mm=$selectionBoundsMm; reference_point=[int]$Document.ReferencePoint }
 }
+function Get-TemporaryProjectInventory {
+    $inventory = @{ complete = $false; idle = $false; gms = @(); vbe_names = @() }
+    try {
+        $projects = $script:Corel.GMSManager.Projects
+        $editorProjects = $script:Corel.VBE.VBProjects
+        $gmsCount = [int]$projects.Count; $vbeCount = [int]$editorProjects.Count
+        if ($gmsCount -lt 0 -or $gmsCount -gt 10000 -or $vbeCount -lt 0 -or $vbeCount -gt 10000) { return $inventory }
+        $idle = $true
+        for ($i = 1; $i -le $gmsCount; $i++) {
+            $project = $projects.Item($i)
+            $name = [string]$project.Name; $path = [string]$project.FullFileName
+            if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($path)) { return $inventory }
+            if ($name -like 'CorelMcp_*' -or [IO.Path]::GetFileName($path) -like 'CorelMcp_*') {
+                $inventory.gms += @{ name = $name; path = $path }
+            }
+        }
+        for ($i = 1; $i -le $vbeCount; $i++) {
+            $project = $editorProjects.Item($i)
+            $name = [string]$project.Name
+            if ([string]::IsNullOrWhiteSpace($name)) { return $inventory }
+            if ([int]$project.Mode -ne 2) { $idle = $false }
+            if ($name -like 'CorelMcp_*') { $inventory.vbe_names += $name }
+        }
+        if ([int]$projects.Count -ne $gmsCount -or [int]$editorProjects.Count -ne $vbeCount) { return $inventory }
+        $inventory.complete = $true; $inventory.idle = $idle
+    }
+    catch { $script:Warnings += 'Не удалось полностью проверить временные VBA-проекты; подтверждение очистки недоступно.' }
+    return $inventory
+}
 function Get-CorelStatus {
     Sync-Documents
     $drawings = @()
@@ -168,6 +197,7 @@ function Get-CorelStatus {
         $vba.compile_available = $null -ne $editor.CommandBars.FindControl(1, 578)
     }
     catch { $script:Warnings += 'Не удалось получить доступ к редактору VBA: ' + $_.Exception.Message }
+    $vba.temporary_projects = Get-TemporaryProjectInventory
     $activeId = $null
     if ($script:Corel.Documents.Count -gt 0) { $activeId = (Get-DocumentInfo $script:Corel.ActiveDocument).document_id }
     return @{

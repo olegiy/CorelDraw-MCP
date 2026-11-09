@@ -199,6 +199,31 @@ class Runtime:
         operation = await self.store.get_operation(update.operation_id)
         self.hub.publish(operation["run_id"])
 
+    async def _confirm_retained_cleanup(self, observation_id):
+        transport = getattr(self.mcp, 'transport', None)
+        if transport is None or self._closing:
+            return
+        try:
+            await transport.verify_owner()
+            original = await asyncio.to_thread(transport.marker.path.read_bytes)
+            owner = transport.identity
+            if owner is None:
+                return
+            await transport.verify_owner()
+            def unchanged_owner():
+                from .assets import assert_no_links
+                from .owned_stdio import identity_alive
+                assert_no_links(transport.marker.path)
+                return (not self._closing and transport.marker.path.read_bytes() == original
+                        and transport.marker._owned().get('phase') == 'running'
+                        and transport.identity == owner and transport.returncode is None
+                        and identity_alive(owner) is True)
+            if await self.store.confirm_retained_cleanup(observation_id, owner, unchanged_owner):
+                operation = await self.store.get_operation(observation_id)
+                self.hub.publish(operation['run_id'])
+        except (AgentError, OSError, ValueError, TypeError):
+            return  # Keep the old cleanup barrier when fresh owner evidence is unavailable.
+
     async def _save_result(self, operation, result):
         await self.store.complete_operation(result)
         self.hub.publish(operation.run_id)
@@ -224,6 +249,7 @@ class Runtime:
             documents = result.report.get("result", {}).get("documents", [])
             await self.store.put_meta("documents", {"items": documents, "at": utc_now(), "stale": False,
                 "active_document_id": result.report.get("result", {}).get("active_document_id")})
+            await self._confirm_retained_cleanup(operation.operation_id)
         if operation.tool in NEW_DOCUMENT:
             document = result.report.get("result", {})
             document_id = document.get("document_id")

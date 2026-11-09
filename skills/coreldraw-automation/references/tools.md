@@ -15,7 +15,7 @@
 
 | Инструмент | Основные параметры и результат |
 | --- | --- |
-| `corel_status` | Состояние CorelDRAW 27, VBA, executor и точные `document_id`; `deadline_seconds` по умолчанию 600. |
+| `corel_status` | Состояние CorelDRAW 27, VBA, executor и точные `document_id`; `vba.temporary_projects` содержит `complete`, `idle`, `gms` (имя/путь временных проектов) и `vbe_names` для отдельного подтверждения выгрузки retained GMS в панели. Ничего не выгружает; `deadline_seconds` по умолчанию 600. |
 | `corel_inspect_document` | `document_id`; страница, `offset`/`limit` до 500, `recursive`, `max_depth` 1–32, `max_visited`, фильтры имени/типа/`static_ids`, `include_text`, `text_limit`. Возвращает DFS-объекты с `parent_static_id`, bounds в мм, rotation, appearance, reference point, выделение и причины усечения. |
 | `corel_create_document` | `request_id`, размеры `width_mm`/`height_mm` (по умолчанию 210×297), новый `document_id`. |
 | `corel_open_document` | `request_id`, абсолютный путь к `.cdr`; уже открытый файл возвращает его текущий ID. |

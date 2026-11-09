@@ -30,7 +30,7 @@ test('readiness is automatic after refresh without review controls or rewriting 
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/access/session')) return route.fulfill({ json: { authenticated: true, csrf_token: 'b'.repeat(43) } });
     if (path.endsWith('/recovery/review')) { reviews++; return route.fulfill({ status: 404, json: {} }); }
-    if (path.endsWith('/health')) return route.fulfill({ json: { mcp_connected: true, store_ready: true, safety_barrier: refreshed ? null : barrier, readiness_reason: refreshed ? null : 'DOCUMENT_CACHE_STALE' } });
+    if (path.endsWith('/health')) return route.fulfill({ json: { mcp_connected: true, store_ready: true, safety_barrier: refreshed ? null : barrier, readiness_reason: refreshed ? null : 'CLEANUP_NOT_PROVEN' } });
     if (path.endsWith('/documents')) return route.fulfill({ json: { items: [{ document_id: 'fixture-b', name: 'Рисунок B' }], stale: !refreshed } });
     if (path.endsWith('/actions')) { expect(route.request().postDataJSON().tool).toBe('corel_status'); refreshed = true; return route.fulfill({ json: refresh }); }
     if (path.endsWith('/runs')) return route.fulfill({ json: { items: [old] } });
@@ -41,6 +41,7 @@ test('readiness is automatic after refresh without review controls or rewriting 
   });
   await page.goto('/');
   await expect(page.getByTestId('global-barrier')).toBeVisible();
+  await expect(page.getByTestId('global-barrier')).toContainText('нажмите «Обновить документы»');
   await expect(page.getByLabel('Комментарий рассмотрения')).toHaveCount(0);
   await expect(page.getByText('Я вручную проверил CorelDRAW и исходную диагностику', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Разрешить новый контекст', exact: true })).toHaveCount(0);

@@ -584,11 +584,67 @@ class Store:
     async def list_assets(self):
         return await self._db(lambda db: [dict(row) for row in db.execute("SELECT id,kind FROM assets ORDER BY rowid LIMIT 500")])
 
+    @staticmethod
+    def _cleanup_confirmed(db, retained):
+        from .cleanup import absence, commitment
+        for item in db.execute("SELECT value FROM meta WHERE key LIKE ?",
+                               (f"cleanup:{retained['id']}:%",)):
+            try:
+                audit = json.loads(item['value'])
+                observed = db.execute("SELECT * FROM operations WHERE id=?",
+                                      (audit['observation_id'],)).fetchone()
+                if (audit['version'] == 1 and audit['operation_id'] == retained['id']
+                        and audit['operation_digest'] == commitment(retained)
+                        and observed is not None and audit['observation_digest'] == commitment(observed)
+                        and audit['project_name'] == absence(retained, observed)):
+                    return True
+            except (ValueError, TypeError, KeyError):
+                continue
+        return False
+
+    async def confirm_retained_cleanup(self, observation_id, owner, verify_owner):
+        """Append evidence only; historical operations/reports are never rewritten."""
+        from .cleanup import absence, commitment, observation
+        def confirm(db):
+            observed = db.execute("SELECT * FROM operations WHERE id=?", (observation_id,)).fetchone()
+            try:
+                observation(observed, owner_pid=owner.pid, fresh=True)
+            except (ValueError, TypeError, KeyError):
+                return 0
+            retained = db.execute("SELECT * FROM operations WHERE "
+                "json_extract(result,'$.cleanup.project_retained')=1 ORDER BY id LIMIT 100001").fetchall()
+            if len(retained) > 100000 or not verify_owner():
+                return 0
+            count = 0
+            for row in retained:
+                try:
+                    name = absence(row, observed)
+                    if self._cleanup_confirmed(db, row):
+                        continue
+                    audit = {'version': 1, 'operation_id': row['id'], 'operation_digest': commitment(row),
+                        'observation_id': observation_id, 'observation_digest': commitment(observed),
+                        'project_name': name, 'at': utc_now(), 'owner': owner.model_dump(mode='json')}
+                except (ValueError, TypeError, KeyError):
+                    continue
+                inserted = db.execute("INSERT OR IGNORE INTO meta(key,value) VALUES(?,?)",
+                                      (f"cleanup:{row['id']}:{observation_id}", canonical(audit)))
+                if inserted.rowcount != 1:
+                    continue
+                snapshot = self._snapshot(db, observed['run_id'])
+                self._event(db, snapshot, 'warning', {'code': 'RETAINED_GMS_ABSENT',
+                    'message': f'Подтверждена выгрузка {name}: проект отсутствует в GMS и VBE. '
+                               f'Операция {row["id"]}; проверка {observation_id}. Старый отчёт сохранён.'})
+                count += 1
+            if count and not verify_owner():
+                raise AgentError('READINESS_CHANGED', 'Владелец изменился во время подтверждения очистки.')
+            return count
+        return await self._db(confirm, write=True)
+
     def _readiness_proof(self, db):
         from .policy import Policy
         barrier = self._barrier(db)
         metadata = {row['key']: row['value'] for row in db.execute(
-            "SELECT key,value FROM meta WHERE key IN ('documents','recovery_pending','recovery_only')")}
+            "SELECT key,value FROM meta WHERE key IN ('documents','recovery_pending','recovery_only') OR key LIKE 'cleanup:%'")}
         unfinished = [row[0] for row in db.execute('SELECT id FROM runs WHERE unfinished=1 ORDER BY id')]
         # Project terminal evidence, not image bodies or raw reports, into the commitment.
         rows = [dict(row) for row in db.execute("""SELECT id,run_id,state,job_id,prepared,
@@ -629,7 +685,7 @@ class Store:
                     reason = 'PENDING_JOB' if row['job_id'] else 'DISPATCH_OUTCOME_UNKNOWN'
                 elif row['outcome'] not in {'succeeded', 'failed'}:
                     reason = 'OUTCOME_UNKNOWN'
-                elif row['cleaned'] != 'true' or row['retained'] == 'true':
+                elif row['cleaned'] != 'true':
                     reason = 'CLEANUP_NOT_PROVEN'
                 elif row['result_id'] != row['id'] or row['result_job'] != row['job_id']:
                     reason = 'REPORT_UNCONFIRMED'
@@ -640,6 +696,10 @@ class Store:
                       or row['report_job'] != row['job_id'] or row['report_status'] != row['outcome']
                       or row['report_tool'] != prepared.tool or row['report_request'] != prepared.corel_request_id):
                     reason = 'REPORT_UNCONFIRMED'
+                if reason is None and row['retained'] == 'true':
+                    retained = db.execute('SELECT * FROM operations WHERE id=?', (row['id'],)).fetchone()
+                    if not self._cleanup_confirmed(db, retained):
+                        reason = 'CLEANUP_NOT_PROVEN'
             except ValueError:
                 reason = 'EVIDENCE_INVALID'
             if reason:

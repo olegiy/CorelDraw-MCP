@@ -8,6 +8,14 @@ import { createServer } from '../../../dist/server.js';
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAFklEQVR4nGP8//8/A27AhEeOYeRKAwCl4wMRx3ocVQAAAABJRU5ErkJggg==', 'base64');
 const documents = ['a', 'b'].map(letter => ({ document_id: `fixture-${letter}`, name: `Рисунок ${letter.toUpperCase()}`, path: '', dirty: false, pages: 1, active_page: 1, unit: 3, preserve_selection: true }));
 const smoke = process.argv.includes('--panel-smoke');
+const temporaryProjects = { complete: !process.argv.includes('--inventory-incomplete'),
+  idle: !process.argv.includes('--inventory-busy'), gms: [], vbe_names: [] };
+const retainedName = 'CorelMcp_a1b2c3d4e5f6';
+if (process.argv.includes('--inventory-loaded')) temporaryProjects.gms.push({name: retainedName.toUpperCase(), path: 'C:\\other.gms'});
+if (process.argv.includes('--inventory-renamed')) temporaryProjects.gms.push({name: 'Renamed', path: `C:\\runs\\00000000-0000-4000-8000-000000000001\\${retainedName}.gms`});
+if (process.argv.includes('--inventory-path-alias')) temporaryProjects.gms.push({name: 'Renamed', path: `\\\\?\\C:\\runs\\00000000-0000-4000-8000-000000000001\\${retainedName}.gms`});
+if (process.argv.includes('--inventory-vbe')) temporaryProjects.vbe_names.push(retainedName);
+if (process.argv.includes('--inventory-malformed')) temporaryProjects.gms.push({name: 'Missing path'});
 const shapes = new Map(documents.map(doc => [doc.document_id, [{ static_id: 1001, name: 'Baseline', bounds_mm: { left: 0, bottom: 0, width: 20, height: 30 } }]]));
 const executor = {
   async run(job, args, progress) {
@@ -24,7 +32,8 @@ const executor = {
         result: { version: process.argv.includes('--smoke-wrong_version') ? 'Версия 26.0.0'
         : process.argv.includes('--smoke-localized_version') ? 'Версия 27.2.0.135' : '27.0',
         session_id: 'fixture', active_document_id: 'fixture-a', documents,
-        vba: { available: true, compile_available: true }, executor: { state: 'ready' },
+        vba: { available: true, compile_available: true,
+          ...(process.argv.includes('--inventory-omitted') ? {} : {temporary_projects: temporaryProjects}) }, executor: { state: 'ready' },
         application_state: { optimization: false, events_enabled: true } }, cleanup };
     if (job.tool === 'corel_inspect_document' && smoke) {
       const current = shapes.get(args.document_id) ?? [];
