@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { AutomationFailure, type Arguments, type Executor, type Job } from './types.js';
 import { assertNoLinks } from './artifacts.js';
 import { VERSION } from './version.js';
+import { mergeObserverSummary, safeObserverSummary } from './vba-observer.js';
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -229,6 +230,12 @@ export class JobManager {
         this.executor.run(job, args, (stage) => {
           job.stage = stage;
           this.record(job, stage);
+        }, (value) => {
+          if (job.finished_at) return;
+          const next = mergeObserverSummary(job.vba_observer, safeObserverSummary(value, job.run_directory));
+          if (!next || JSON.stringify(next) === JSON.stringify(job.vba_observer)) return;
+          job.vba_observer = next;
+          this.record(job, 'Обновлена безопасная сводка наблюдателя VBA.');
         }),
       )
       .then((result) => {
@@ -245,6 +252,8 @@ export class JobManager {
         if (result.versions) job.versions = { ...(job.versions ?? {}), ...result.versions };
         job.artifacts = result.artifacts ?? [];
         job.warnings.push(...(result.warnings ?? []));
+        const summary = mergeObserverSummary(job.vba_observer, safeObserverSummary(result.vba_observer, job.run_directory));
+        if (summary) job.vba_observer = summary;
       })
       .catch((error) => {
         job.status = 'unknown';

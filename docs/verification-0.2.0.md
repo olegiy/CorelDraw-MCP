@@ -66,3 +66,50 @@ CorelDRAW и остаются synthetic fixtures.
 Проверки выполнены последовательно, JSON-отчёты прочитаны. Расширенный
 экспортный прогон в этой проверке повторно не запускался; его предыдущие
 результаты и границы доказательства перечислены выше.
+
+## Наблюдатель VBA — 9 ноября 2026
+
+Реализован самостоятельный observe-этап плана
+`docs/superpowers/plans/2026-11-09-vba-dialog-observer.md`. По умолчанию
+независимый процесс читает только Win32-окна проверенного приложения.
+`compile-errors` пока отклоняется: профили и безопасная атрибуция реальных
+окон CorelDRAW не доказаны. Установка/перерегистрация и коммиты в этом
+прогоне не выполнялись; пользовательские рисунки и GMS не изменялись.
+
+Проверено в Windows с Node.js 24.18.1 и отдельными процессами PowerShell 5.1:
+
+- `npm test`: **99/99**, без пропусков. Включает read-only Win32 adapter и
+  реальный observer, baseline Save/MsgBox, Unicode/owner-chain, ручное закрытие,
+  зависший fixture UI, потерю процесса, ошибки журнала, протокольные лимиты,
+  merge/тайм-ауты/idempotency/prune/privacy. Fixture PS 5.1 проверяет поздний
+  ответ после timeout, сохранность JSON-validation и следующего job.
+  Остановка observer требует `stopped` и закрытия процесса/потоков;
+  отсутствующее подтверждение фиксируется как деградация.
+- `npm run check:contracts`: **contracts ok**.
+- `.venv\Scripts\python.exe -m pytest -q` из `webhost`: **347 passed,
+  3 skipped**, 197,91 с. Это автоматический fixture-прогон; штатные skips
+  не являются доказательством живых сценариев. Включает передачу host mode
+  через env allowlist и прозрачную передачу сводки через CorelMcp.
+- `python -m ruff check webhost/corel_agent webhost/tests`: **All checks passed!**,
+  выполнено интерпретатором `webhost/.venv/Scripts/python.exe` из корня.
+- Синтаксический разбор шести новых/изменённых `.ps1`: без ошибок;
+  production-модуль дополнительно импортировался в PowerShell fixtures.
+- `npm run test:integration:observer` с
+  `CORELDRAW_MCP_LIVE_OBSERVER=0`: **явный skip до COM**, проверка opt-in gate,
+  а не успешный live smoke.
+- `git diff --check`: без ошибок пробелов. SHA-256 существующего
+  `webhost/tests/launcher_browser.mjs` не изменился.
+
+Живой smoke не выполнялся: предварительный `agent-desktop status` вернул
+`PERM_DENIED` с причиной `private file DACL grants an untrusted principal`.
+Права доступа не менялись. Поэтому установленная typelib/CorelDRAW,
+реальные compile/runtime/MsgBox-профили, полная сохранность shape/selection/page,
+live cleanup retained GMS и автоматическое восстановление здесь **не проверены**.
+Это ограничение живого gate; оно не отменяет доказательства независимости
+наблюдения и отказа без вмешательства в COM на изолированных процессах.
+
+После восстановления desktop-доступа: сначала выполнить observe smoke на
+своём документе с `CORELDRAW_MCP_LIVE_OBSERVER=1`; обработанный Err.Raise
+требует отдельного `CORELDRAW_MCP_LIVE_OBSERVER_INTERACTIVE=1` и оператора.
+Для `compile-errors` остаётся отдельное исследование текущего проекта,
+локалей/builds и late delivery. Никакой replay timed_out/unknown не разрешён.

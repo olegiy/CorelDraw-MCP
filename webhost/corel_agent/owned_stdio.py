@@ -73,10 +73,16 @@ def identity_alive(identity: ProcessIdentity) -> bool | None:
 
 def restricted_environment(extra=None):
     env = {key: value for key, value in os.environ.items() if key.upper() in SAFE_ENV}
+    observer_mode = os.environ.get('CORELDRAW_MCP_VBA_OBSERVER')
+    if observer_mode is not None:
+        env['CORELDRAW_MCP_VBA_OBSERVER'] = observer_mode
     for key, value in (extra or {}).items():
-        if key != "CORELDRAW_MCP_RUNS":
+        if key not in {"CORELDRAW_MCP_RUNS", "CORELDRAW_MCP_VBA_OBSERVER"}:
             raise LifecycleError("CHILD_ENV_DENIED", "Недопустимая переменная окружения MCP.", 403)
         env[key] = value
+    if ('CORELDRAW_MCP_VBA_OBSERVER' in env
+            and env['CORELDRAW_MCP_VBA_OBSERVER'] not in {'off', 'observe'}):
+        raise LifecycleError("CHILD_ENV_DENIED", "Режим наблюдателя VBA не поддерживается: допустимы off/observe.", 403)
     return env
 
 

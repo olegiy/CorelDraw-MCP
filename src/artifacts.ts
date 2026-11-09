@@ -16,6 +16,7 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { AutomationFailure, type Job } from './types.js';
+import { publicObserverSummary } from './vba-observer.js';
 
 const validId = /^(?:[a-f0-9-]{36}|req-[a-f0-9]{64})$/;
 export function assertNoLinks(path: string): void {
@@ -111,6 +112,7 @@ const version = (value: unknown): string =>
   typeof value === 'string' && /^v?\d+(?:\.\d+){0,3}(?:-[a-z0-9.-]+)?$/i.test(value) ? value : 'нет данных';
 export function diagnosticSummary(job: Job): Record<string, any> {
   const errors = Array.isArray(job.cleanup?.errors) ? (job.cleanup.errors as Record<string, unknown>[]) : [];
+  const observer = publicObserverSummary(job.vba_observer);
   return {
     diagnostic_id: createHash('sha256').update(job.job_id).digest('hex'),
     tool: /^corel_[a-z_]+$/.test(job.tool) ? job.tool : 'нет данных',
@@ -140,6 +142,7 @@ export function diagnosticSummary(job: Job): Record<string, any> {
       errors: errors.map((e) => ({ code: code(e.code) ?? 'CLEANUP_FAILED' })),
     },
     details_pruned: job.details_pruned === true,
+    ...(observer ? { vba_observer: observer } : {}),
   };
 }
 function validTime(value: unknown): string | null {
@@ -205,6 +208,7 @@ export class ArtifactStore {
         if (files.token !== candidate.prune_token)
           return { job_id: id, pruned: false, code: 'ARTIFACTS_CHANGED' };
         const report = join(directory, 'report.json');
+        const observer = publicObserverSummary(job.vba_observer);
         const compact: Job = {
           job_id: job.job_id,
           owner_pid: job.owner_pid,
@@ -223,6 +227,7 @@ export class ArtifactStore {
           artifacts: [],
           warnings: [],
           details_pruned: true,
+          ...(observer ? { vba_observer: observer } : {}),
           ...(job.tool_policy ? { tool_policy: job.tool_policy } : {}),
           ...(job.request_id ? { request_id: job.request_id } : {}),
           ...(job.versions ? { versions: job.versions } : {}),

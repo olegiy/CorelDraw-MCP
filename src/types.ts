@@ -1,4 +1,16 @@
 export type Arguments = Record<string, unknown>;
+export interface VbaObserverSummary {
+  schema_version: 1;
+  mode: 'off' | 'observe' | 'compile-errors';
+  state: 'starting' | 'observing' | 'degraded' | 'stopped';
+  detected: number;
+  action_attempted: number;
+  dismissed: number;
+  requires_operator: number;
+  last_code?: import('./vba-observer.js').ObserverCode;
+  events_truncated: boolean;
+  artifact?: string;
+}
 export type JobStatus = 'running' | 'timed_out' | 'succeeded' | 'failed' | 'unknown';
 export interface AutomationError {
   code: string;
@@ -9,6 +21,7 @@ export interface AutomationError {
   applied?: boolean;
 }
 export interface WorkerResult {
+  vba_observer?: VbaObserverSummary;
   ok: boolean;
   result?: unknown;
   error?: AutomationError;
@@ -19,6 +32,7 @@ export interface WorkerResult {
   versions?: Record<string, string>;
 }
 export interface Job {
+  vba_observer?: VbaObserverSummary;
   job_id: string;
   owner_pid: number;
   owner_session: string;
@@ -47,7 +61,8 @@ export interface Job {
   tool_policy?: Record<string, unknown>;
 }
 export interface Executor {
-  run(job: Job, args: Arguments, progress: (stage: string) => void): Promise<WorkerResult>;
+  run(job: Job, args: Arguments, progress: (stage: string) => void,
+    observerUpdate?: (summary: VbaObserverSummary) => void): Promise<WorkerResult>;
   close(): void;
 }
 export class AutomationFailure extends Error {

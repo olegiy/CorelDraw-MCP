@@ -6,6 +6,26 @@ import pytest
 from conftest import implementation
 
 
+@pytest.mark.parametrize('mode', ['off', 'observe'])
+def test_observer_host_mode_is_forwarded_without_secrets(monkeypatch, mode):
+    owned = implementation('owned_stdio')
+    monkeypatch.setenv('CORELDRAW_MCP_VBA_OBSERVER', mode)
+    monkeypatch.setenv('OPENAI_API_KEY', 'PRIVATE_CANARY')
+    env = owned.restricted_environment()
+    assert env['CORELDRAW_MCP_VBA_OBSERVER'] == mode
+    assert 'OPENAI_API_KEY' not in env
+    assert owned.restricted_environment({'CORELDRAW_MCP_VBA_OBSERVER': mode})['CORELDRAW_MCP_VBA_OBSERVER'] == mode
+
+
+@pytest.mark.parametrize('mode', ['', 'typo', 'compile-errors'])
+def test_observer_invalid_or_unreleased_mode_fails_before_spawn(monkeypatch, mode):
+    owned = implementation('owned_stdio')
+    monkeypatch.setenv('CORELDRAW_MCP_VBA_OBSERVER', mode)
+    with pytest.raises(owned.LifecycleError) as error:
+        owned.restricted_environment()
+    assert error.value.code == 'CHILD_ENV_DENIED'
+
+
 async def test_long_child_is_not_killed_on_graceful_close(transport_factory, tmp_path):
     script = Path(__file__).parent / "fixtures/long-child.mjs"
     transport = await transport_factory(script)

@@ -9,6 +9,7 @@ $script:Stage = 'starting'
 $script:FailureStage = $null
 $script:Progress = $null
 $script:ValidateJson = $null
+$script:Observer = $null
 $script:Diagnostics = $null
 $script:Warnings = @()
 $script:Artifacts = @()
@@ -429,7 +430,27 @@ function Get-VbaSnapshot([hashtable] $Parameters, [string] $RunDirectory, [bool]
     }
     return ,$snapshots
 }
+function Get-ObserverWindow {
+    try {
+        # Reflect fixed API 27 names before invoking the getter; metadata does
+        # not invoke arbitrary COM properties and uses the existing typelib cache.
+        foreach ($query in @(@{ name = 'Application'; filter = 'AppWindow' }, @{ name = 'AppWindow'; filter = 'Handle' })) {
+            $members = Get-CorelApiMetadata $script:Corel @{ kind = 'members'; name = $query.name; filter = $query.filter; offset = 0; limit = 20 }
+            $matches = @($members.items | Where-Object { $_.name -ceq $query.filter -and $_.kind -eq 'INVOKE_PROPERTYGET' })
+            if ($matches.Count -ne 1) { return '' }
+        }
+        $handle = $script:Corel.AppWindow.Handle
+        if ($handle -isnot [int]) { return '' }
+        return $handle.ToString([Globalization.CultureInfo]::InvariantCulture)
+    } catch { return '' }
+}
+function Invoke-ObserverPhase([string] $Action, [string] $Phase, [string] $Project = '', [string] $Window = '') {
+    if ($null -eq $script:Observer) { return }
+    try { & $script:Observer $Action $Phase $Project $Window | Out-Null }
+    catch { $script:Warnings += 'Наблюдатель VBA недоступен; автоматические действия отключены.' }
+}
 function Invoke-Vba([hashtable] $Parameters, [string] $RunDirectory, [bool] $Execute, $Document, [bool] $ReadOnly = $false) {
+    Invoke-ObserverPhase 'prepare' 'preparing_vba'
     $snapshots = Get-VbaSnapshot $Parameters $RunDirectory $Execute
     $editor = $script:Corel.VBE
     $previousProject = $editor.ActiveVBProject
@@ -444,6 +465,7 @@ function Invoke-Vba([hashtable] $Parameters, [string] $RunDirectory, [bool] $Exe
     $previousOptimization = $null
     $previousEvents = $null
     $previousSelectionMode = $null
+    $compilePhase = $false
     try {
         Set-Stage 'creating_gms'
         $gms = $script:Corel.GMSManager.Projects.Create($projectName, $false, $gmsPath)
@@ -481,9 +503,13 @@ End Function
         $project.VBComponents.Item($snapshots[0].name).Activate()
         if ($editor.ActiveVBProject.Name -ne $projectName) { Throw-CorelError 'COMPILER_PROJECT_MISMATCH' 'Редактор VBE не активировал созданный проект VBA.' }
         Set-Stage 'compiling'
+        Invoke-ObserverPhase 'prepare' 'compiling' $projectName
+        $compilePhase = $true
         $compile = $editor.CommandBars.FindControl(1, 578)
         if ($null -eq $compile) { Throw-CorelError 'COMPILER_UNAVAILABLE' 'Команда компиляции VBE 578 недоступна.' }
         if ($compile.Enabled) { $compile.Execute() }
+        Invoke-ObserverPhase 'finish' 'compiling' $projectName
+        $compilePhase = $false
         if ($compile.Enabled) {
             for ($i = 1; $i -le $project.VBComponents.Count; $i++) {
                 $module = $project.VBComponents.Item($i).CodeModule
@@ -503,6 +529,7 @@ End Function
             return @{ compiled = $true; project = $projectName; modules = @($snapshots | ForEach-Object { $_.name }); gms_path = $gmsPath }
         }
         Set-Stage 'executing_vba'
+        Invoke-ObserverPhase 'prepare' 'executing_vba' $projectName
         $Document.Activate()
         $previousOptimization = [bool]$script:Corel.Optimization
         $previousEvents = [bool]$script:Corel.EventsEnabled
@@ -548,6 +575,8 @@ End Function
     }
     catch { $script:FailureStage = $script:Stage; throw }
     finally {
+        if ($compilePhase) { Invoke-ObserverPhase 'finish' 'compiling' $projectName }
+        Invoke-ObserverPhase 'prepare' 'cleanup' $projectName
         Set-Stage 'cleanup'
         if ($Execute -and $null -ne $Document) {
             # Attempt each restoration independently, including EndCommandGroup,
@@ -574,9 +603,10 @@ End Function
 }
 function Invoke-CorelOperation {
     [CmdletBinding()]
-    param([string] $Tool, [hashtable] $Parameters, [string] $RunDirectory, [string] $ProgId, [scriptblock] $Progress, [scriptblock] $ValidateJson)
+    param([string] $Tool, [hashtable] $Parameters, [string] $RunDirectory, [string] $ProgId, [scriptblock] $Progress, [scriptblock] $ValidateJson, [scriptblock] $Observer)
     $script:Progress = $Progress
     $script:ValidateJson = $ValidateJson
+    $script:Observer = $Observer
     $script:Stage = 'waiting_for_mutex'
     $script:FailureStage = $null
     $script:Diagnostics = $null
@@ -591,6 +621,10 @@ function Invoke-CorelOperation {
         catch [Threading.AbandonedMutexException] { $owned = $true; $script:Warnings += 'Предыдущий исполнитель оставил мьютекс без освобождения; проверьте более ранние задания со статусом unknown перед их повторением.' }
         if (-not $owned) { Throw-CorelError 'BUSY' 'Другой исполнитель Corel MCP удерживает мьютекс приложения.' }
         Connect-Corel $ProgId
+        if ($null -ne $script:Observer) {
+            $window = Get-ObserverWindow
+            Invoke-ObserverPhase 'prepare' 'preparing_vba' '' $window
+        }
         if ($Tool -ne 'corel_status') { Assert-VbaIdle }
         $drawing = $null
         if ($Parameters.ContainsKey('document_id')) { $drawing = Get-Document $Parameters.document_id }

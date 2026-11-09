@@ -55,6 +55,16 @@ powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
 
 ## VBA и документация
 
+Независимый наблюдатель VBA включён по умолчанию в режиме `observe`. Он
+публикует безопасную сводку `vba_observer` через `corel_get_job`, пока COM
+заблокирован, и не закрывает окна. Для отключения задайте
+`$env:CORELDRAW_MCP_VBA_OBSERVER='off'` перед запуском сервера/панели.
+Значение `compile-errors` пока отклоняется: подтверждённых профилей нет.
+Настройка применяется к новому процессу и не разрешает replay текущего job.
+При `requires_operator` осмотрите соответствующее окно вручную и продолжайте
+опрос того же задания. Сырой локальный `vba-observer.jsonl` автоматически
+модели не передаётся. Подробности — в [справке VBA](skills/coreldraw-automation/references/vba.md#наблюдение-блокирующих-окон).
+
 Адресные рецепты используют общий helper без Main; константы StaticID заменяются
 только на проверенные числа. `error.applied=false` у recipe validation означает
 отказ до изменяющего вызова, true означает возможное частичное действие.
@@ -85,8 +95,18 @@ npm ci --ignore-scripts
 npm test
 npm run test:integration
 node test/integration-extended.mjs
+npm run test:integration:observer
 ```
 
 `npm test` проверяет stdio, схемы, idempotency, mutex, отчёты и синтетический worker. `npm run test:integration` использует только временные документы и сохраняет диагностику. После живых тестов удаляйте только временные CorelDRAW GMS/проекты `CorelMcp_*`; установленные сторонние GMS и пользовательские документы не трогайте. Не утверждайте live-проверку CorelDRAW, пока не просмотрен фактический `verification.json`.
+
+`test:integration:observer` без `CORELDRAW_MCP_LIVE_OBSERVER=1` явно пропускает
+живой запуск до подключения к CorelDRAW. При включении создаёт только свой
+документ, проверяет метаданные HWND и успешные VBA-операции в observe.
+`CORELDRAW_MCP_LIVE_OBSERVER_INTERACTIVE=1` дополнительно включает Err.Raise
+с присутствующим оператором; Error Trapping не меняется. Неизвестный исход
+сохраняется в отчёте, транспорт не убивает COM-процесс. Модальные профили
+Compile/MsgBox и сохранность всех shape/selection/page пользовательских
+документов требуют отдельного исследования и этим smoke не подтверждаются.
 
 Результаты версии 0.2.0: [отчёт проверки](docs/verification-0.2.0.md). Векторный PLT использует 1000 единиц/дюйм для согласованного физического масштаба при повторном импорте; это не настройка оборудования.

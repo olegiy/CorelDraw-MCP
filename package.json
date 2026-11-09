@@ -11,6 +11,7 @@
     "test": "npm run build && node --test test/*.test.mjs",
     "check:contracts": "npm run build && node scripts/check-contracts.mjs",
     "test:integration": "npm run build && node test/integration.mjs && node test/integration-recipes.mjs",
+    "test:integration:observer": "npm run build && node test/integration-vba-observer.mjs",
     "install:codex": "node scripts/install-codex.mjs",
     "uninstall:codex": "node scripts/install-codex.mjs --uninstall"
   },

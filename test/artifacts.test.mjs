@@ -7,6 +7,29 @@ import { JobManager } from '../dist/jobs.js';
 import { spawn } from 'node:child_process';
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 20));
+
+test('observer summary survives prune and diagnostic export while raw journal and paths remain local', async () => {
+  const { ArtifactStore, diagnosticSummary } = await import('../dist/artifacts.js');
+  const root = mkdtempSync(join(tmpdir(), 'corelmcp-observer-prune-'));
+  const jobs = new JobManager(root, { async run(job) {
+    const artifact = join(job.run_directory, 'vba-observer.jsonl');
+    writeFileSync(artifact, 'PRIVATE_WINDOW_CANARY');
+    return { ok: true, cleanup: { completed: true }, vba_observer: { schema_version: 1, mode: 'observe', state: 'stopped',
+      detected: 3, requires_operator: 3, action_attempted: 0, dismissed: 0, events_truncated: false, artifact, raw: 'PRIVATE_WINDOW_CANARY' } };
+  }, close() {} });
+  const job = jobs.submit('fixture', { request_id: 'observer-prune' }); await tick();
+  const exported = diagnosticSummary(jobs.get(job.job_id));
+  assert.equal(exported.vba_observer.detected, 3);
+  assert(!JSON.stringify(exported).includes('artifact'));
+  assert(!JSON.stringify(exported).includes('PRIVATE_WINDOW_CANARY'));
+  const store = new ArtifactStore(root, id => jobs.get(id));
+  const listed = store.list().items[0];
+  assert.equal(store.prune([{ job_id: job.job_id, prune_token: listed.prune_token }]).items[0].pruned, true);
+  const compact = jobs.get(job.job_id);
+  assert.equal(compact.vba_observer.detected, 3);
+  assert.equal(compact.vba_observer.artifact, undefined);
+  assert.equal(existsSync(join(job.run_directory, 'vba-observer.jsonl')), false);
+});
 test('artifact pruning removes internal data, retains external files and prevents mutation replay after restart', async () => {
   const { ArtifactStore } = await import('../dist/artifacts.js');
   const root = mkdtempSync(join(tmpdir(), 'corelmcp-prune-'));

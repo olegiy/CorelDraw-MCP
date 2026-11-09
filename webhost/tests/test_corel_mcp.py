@@ -24,6 +24,25 @@ async def test_job_running_then_success():
     assert all(name == "corel_get_job" for name, _ in session.calls[1:])
 
 
+async def test_observer_summary_passes_through_without_changing_outcome_or_replaying():
+    session = ScriptedSession(('running', 'timed_out', 'succeeded'))
+    summary = {'schema_version': 1, 'mode': 'observe', 'state': 'observing',
+               'detected': 1, 'requires_operator': 1, 'action_attempted': 0,
+               'dismissed': 0, 'events_truncated': False}
+    session.base['vba_observer'] = summary
+    mcp = implementation('corel_mcp').CorelMcp(session=session, poll_interval=0.01)
+    updates = []
+
+    async def emit(update):
+        updates.append(update)
+
+    result = await mcp.call_job(operation(), emit)
+    assert result.outcome == 'succeeded'
+    assert result.report['vba_observer'] == summary
+    assert all(update.report['vba_observer'] == summary for update in updates)
+    assert sum(name == 'corel_execute_vba' for name, _ in session.calls) == 1
+
+
 async def test_timed_out_then_success():
     session = ScriptedSession(("running", "timed_out", "succeeded"))
     mcp = implementation("corel_mcp").CorelMcp(session=session, poll_interval=0.01)
