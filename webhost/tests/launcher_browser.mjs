@@ -17,7 +17,7 @@ try {
   await expect.poll(async () => (await context.request.get(`${origin}/api/v1/access/session`,
     { headers: { Connection: 'close' } })).status()).toBe(200);
   assert.equal(new URL(page.url()).hash, '');
-  await expect(page.getByLabel('Только чтение', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Агент создаёт новый документ', { exact: true })).not.toBeChecked();
   assert.deepEqual(await page.evaluate(() => [localStorage.length, sessionStorage.length]), [0, 0]);
   const cookies = await context.cookies();
   assert.equal(cookies.length, 1);
