@@ -24,7 +24,7 @@ test('unproven cleanup cannot be released by document selection or permission co
   await expect(barrier).toBeVisible();
   await expect(page.locator('.context-controls .file-disclosure')).not.toHaveAttribute('open');
   await expect(page.locator('.chat-surface .technical-disclosure')).not.toHaveAttribute('open');
-  expect(await page.locator('.primary-alerts').evaluate(element => element.previousElementSibling?.classList.contains('context-bar'))).toBe(true);
+  expect(await page.locator('.primary-alerts').evaluate(element => element.nextElementSibling?.classList.contains('context-controls'))).toBe(true);
   await expect(page.getByLabel('Комментарий рассмотрения')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Разрешить новый контекст' })).toHaveCount(0);
   await expect(page.getByTestId('global-barrier')).toContainText('CLEANUP_NOT_PROVEN');

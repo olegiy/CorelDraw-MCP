@@ -139,21 +139,19 @@ export default function App() {
     } catch (error) { throw error instanceof Error ? error : new Error('Профиль не сохранён.'); }
   }
 
-  const selectedDocument = (documents.items ?? []).find(item => item.document_id === documentId);
   return <div className="app-shell">
-    <aside className="app-sidebar"><div className="sidebar-brand"><span>CorelDRAW Agent</span><small>Локальная панель</small></div>
+    <aside className="app-sidebar"><div className="sidebar-brand"><h1>CorelDRAW Agent</h1><small>Локальная панель</small></div>
       <button disabled={busy} onClick={() => { setConversation(crypto.randomUUID()); setRun(null); setMessages([]); setOperations([]); setPreview(null); setHistoryWarnings([]); setDocumentId(''); }}>Новая переписка</button>
       <nav className="conversation-list" aria-label="История"><h2>История</h2>{runs.map(item => <button key={item.id} aria-current={item.id === run?.id ? 'page' : undefined} disabled={busy && item.id !== run?.id} onClick={() => { watermark.current = { id: item.id, seq: item.last_seq }; setConversation(item.conversation_id); setRun(item); setDocumentId(item.document_id ?? ''); setOutputDirectory(item.output_directory ?? null); }}>{item.kind} · {item.status}</button>)}</nav>
       <div className="sidebar-footer"><SettingsDialog save={saveProfile} profile={profile} /></div>
     </aside>
-    <main className="app-main"><header className="context-bar"><div><h1>CorelDRAW Agent</h1>
-      <p className="context-document" title={selectedDocument?.name || documentId || 'Документ не выбран'}>{selectedDocument?.name || documentId || 'Документ не выбран'}</p></div>
-      <div className="context-status"><p role="status">{run ? `Состояние: ${run.status}` : pending ? 'Состояние: ожидание принятия запроса' : 'Подключение к CorelDRAW выполняется только по явному запросу.'}</p>{pendingRequest.current || (run && !terminal(run.status)) ? <button className="danger" onClick={() => { const request = pendingRequest.current; const promise = request ? api<Run | null>(`/requests/${request}/stop`, { method: 'POST' }) : api<Run>(`/runs/${run!.id}/stop`, { method: 'POST' }); void promise.then(snapshot => { if (snapshot) { watermark.current = { id: snapshot.id, seq: snapshot.last_seq }; setRun(snapshot); } }).catch(error => setError(error.message)); }}>Стоп</button> : null}</div></header>
+    <main className="app-main">{busy && !(run && terminal(run.status)) ? <header className="context-bar"><div className="context-status"><p role="status">{run ? `Состояние: ${run.status}` : 'Состояние: ожидание принятия запроса'}</p><button className="danger" onClick={() => { const request = pendingRequest.current; const promise = request ? api<Run | null>(`/requests/${request}/stop`, { method: 'POST' }) : api<Run>(`/runs/${run!.id}/stop`, { method: 'POST' }); void promise.then(snapshot => { if (snapshot) { watermark.current = { id: snapshot.id, seq: snapshot.last_seq }; setRun(snapshot); } }).catch(error => setError(error.message)); }}>Стоп</button></div></header> : null}
       <div className="primary-alerts"><RecoveryPanel busy={busy} refreshKey={run?.status} /></div>
       <div className="context-controls"><div className="context-actions"><DocumentPanel documents={documents} documentId={documentId} busy={busy} setDocumentId={setDocumentId} refresh={() => void action('corel_status')} action={(tool, args) => void action(tool, args)} /><FileActions disabled={busy} hasDocument={!!documentId} outputDirectory={outputDirectory} setOutputDirectory={setOutputDirectory} action={(tool, args) => void action(tool, args)} fail={setError} /></div>
         <p className="selected-model" data-testid="selected-model" title={profile?.model || 'не выбрана'}>Модель: {profile?.model || 'не выбрана'}</p></div>
       <section className="chat-surface">
         <small>Локальная панель · операции выполняются без подтверждений; VBA имеет доступ к ОС</small>
+        {run && terminal(run.status) ? <p role="status" className="muted">Состояние: {run.status}</p> : null}
         <div className="run-context">
         <div data-testid={run ? 'safety-state' : undefined}><details className="technical-disclosure"><summary>Технические данные</summary><div className="technical-content"><p data-testid="provider-scope">Следующий запрос: {profile ? `${profile.model} · ${profile.base_url} · Контекст и проверенные PNG-превью передаются автоматически` : 'модель не выбрана'}</p>
         <p data-testid="save-destination">Save выбранного CDR: {(documents.items ?? []).find(item => item.document_id === documentId)?.path || 'текущий путь отсутствует; нужен явный Save As'}</p>

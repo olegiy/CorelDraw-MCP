@@ -51,7 +51,7 @@ for (const width of [390, 1280]) {
       expect(await page.evaluate(() => scrollY)).toBe(scrollBeforeFocus);
       await expect(stop).toBeFocused();
       await page.keyboard.press('Enter');
-      await expect(page.locator('.context-bar').getByRole('status')).toContainText('stopped');
+      await expect(page.getByRole('status')).toContainText('stopped');
       expect(stopId).toBe(requestId);
       expect(stopCount).toBe(1);
       await expect(document).toHaveAttribute('open', '');

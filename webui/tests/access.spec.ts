@@ -98,7 +98,7 @@ for (const width of [390, 1280]) {
     await expectFocusRing(conversation);
     await page.keyboard.press('Enter');
     await expect(conversation).toHaveAttribute('aria-current', 'page');
-    await expect(page.locator('.context-bar').getByRole('status')).toContainText('completed');
+    await expect(page.getByRole('status')).toContainText('completed');
     await page.keyboard.press('Tab');
     const settings = page.getByRole('button', { name: 'Настройки модели', exact: true });
     await expectFocusRing(settings);
@@ -253,8 +253,8 @@ test('stage 5 native surfaces keep one main heading and named icon-only controls
   await page.locator('.context-controls .document-disclosure > summary').click();
   await page.locator('.context-controls .file-disclosure > summary').click();
   await expect(page.locator('h1')).toHaveCount(1);
-  await expect(page.locator('main h1')).toHaveText('CorelDRAW Agent');
-  expect(await page.locator('main h1, main h2, main h3, main h4, main h5, main h6').evaluateAll(elements => elements.map(element => Number(element.tagName.slice(1))))).toEqual([1, 2, 2]);
+  await expect(page.locator('.sidebar-brand h1')).toHaveText('CorelDRAW Agent');
+  expect(await page.locator('main h1, main h2, main h3, main h4, main h5, main h6').evaluateAll(elements => elements.map(element => Number(element.tagName.slice(1))))).toEqual([2, 2]);
   await page.getByRole('button', { name: 'Настройки модели', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('heading', { level: 2, name: 'Профиль модели', exact: true })).toBeVisible();
   for (const button of await page.locator('button').all()) {

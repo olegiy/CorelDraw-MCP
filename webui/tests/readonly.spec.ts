@@ -59,7 +59,7 @@ for (const [name, tool, args] of [
     await document.getByLabel('Целевой документ', { exact: true }).selectOption('fixture-b');
     await expect(document.getByRole('button', { name, exact: true })).toHaveCount(1);
     await document.getByRole('button', { name, exact: true }).click();
-    await expect(page.locator('.context-bar').getByRole('status')).toContainText('completed');
+    await expect(page.getByRole('status')).toContainText('completed');
     expect(submitted).toHaveLength(1);
     expect(submitted[0]).toMatchObject({ tool, document_id: 'fixture-b', arguments: args });
     expect(submitted[0].arguments).toEqual(args);

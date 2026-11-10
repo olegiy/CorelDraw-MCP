@@ -13,6 +13,14 @@ async function mockApi(page: Page, runs: unknown[] = []) {
   });
 }
 
+test('does not display the duplicate top header while retaining document controls', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/');
+  await expect(page.locator('.context-bar')).not.toBeVisible();
+  await expect(page.locator('.sidebar-brand')).toContainText('CorelDRAW Agent');
+  await expect(page.locator('.document-disclosure > summary')).toBeVisible();
+});
+
 test('stage 5 named design tokens resolve to usable colors spacing and radii on the real shell', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
@@ -67,7 +75,7 @@ test('stage 5 long mobile values and focused fields fit scrollable context contr
     expect(bounds.left).toBeGreaterThanOrEqual(0);
     expect(bounds.right).toBeLessThanOrEqual(390);
   }
-  await expect(page.locator('.context-document')).toHaveAttribute('title', documentName);
+  await expect(page.locator('.document-disclosure > summary')).toContainText(documentName);
   await expect(page.getByTestId('selected-model')).toHaveAttribute('title', model);
   await expect(page.getByTestId('save-destination')).toContainText(path);
   const field = page.getByLabel('Имя результата', { exact: true });
@@ -85,7 +93,6 @@ test('stage 5 long mobile values and focused fields fit scrollable context contr
   expect(geometry.left).toBeGreaterThanOrEqual(geometry.parentLeft);
   expect(geometry.right).toBeLessThanOrEqual(geometry.parentRight);
   expect(geometry.hit).toBe(true);
-  expect(await page.locator('.context-bar').evaluate(element => getComputedStyle(element).position)).toBe('sticky');
   expect(await page.locator('.context-controls').evaluate(element => getComputedStyle(element).position)).toBe('static');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.evaluate(() => [document.documentElement, document.body, document.querySelector('.app-main')!].every(element => !['hidden', 'clip'].includes(getComputedStyle(element).overflowX)))).toBe(true);
@@ -94,8 +101,7 @@ test('stage 5 long mobile values and focused fields fit scrollable context contr
 test('stage 4 empty screen keeps document and file controls collapsed at context, not after chat', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
-  const context = page.locator('.context-bar');
-  await expect(context.getByText('Документ не выбран', { exact: false })).toBeVisible();
+  await expect(page.locator('.document-disclosure > summary')).toContainText('Документ не выбран');
   await expect(page.getByLabel('Целевой документ', { exact: true })).not.toBeVisible();
   await expect(page.getByLabel('Открыть локальный CDR', { exact: true })).not.toBeVisible();
   await expect(page.getByTestId('provider-scope')).not.toBeVisible();
@@ -147,7 +153,6 @@ for (const width of [390, 1280]) {
     await page.route('**/api/v1/**', route => { if (route.request().method() === 'POST') posts++; return route.fallback(); });
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
-    const context = page.locator('.context-bar');
     const disclosure = page.locator('.context-controls .document-disclosure');
     const trigger = disclosure.locator(':scope > summary');
     await expect(trigger).toHaveAccessibleName('Документ не выбран · Действия документа');
@@ -223,14 +228,12 @@ test('renders the chat-first shell and preserves current accessible labels', asy
   await expect(page.locator('.app-shell')).toBeVisible();
   await expect(page.locator('.app-sidebar')).toBeVisible();
   await expect(page.locator('.app-main')).toBeVisible();
-  await expect(page.locator('.context-bar')).toBeVisible();
+  await expect(page.locator('.context-bar')).toHaveCount(0);
   await expect(page.locator('.chat-surface')).toBeVisible();
-  await expect(page.locator('.app-sidebar').getByRole('heading', { name: 'CorelDRAW Agent', exact: true })).toHaveCount(0);
+  await expect(page.locator('.app-sidebar').getByRole('heading', { name: 'CorelDRAW Agent', exact: true })).toBeVisible();
   await expect(page.locator('.sidebar-brand')).toContainText('CorelDRAW Agent');
   await expect(page.locator('.app-main').getByText('Локальная панель · операции выполняются без подтверждений; VBA имеет доступ к ОС', { exact: true })).toBeVisible();
-  await expect(page.locator('.context-bar').getByRole('heading', { name: 'CorelDRAW Agent', exact: true })).toBeVisible();
-  await expect(page.locator('.context-bar')).toContainText('Документ не выбран');
-  await expect(page.locator('.context-bar').getByRole('status')).toContainText('Подключение к CorelDRAW выполняется только по явному запросу.');
+  await expect(page.locator('.document-disclosure > summary')).toContainText('Документ не выбран');
   await expect(page.getByRole('button', { name: 'Стоп', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Новая переписка', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Настройки модели', exact: true })).toBeVisible();
@@ -285,12 +288,12 @@ test('history selection restores document and output context without sending a n
   await page.locator('.chat-surface .technical-disclosure > summary').click();
   await expect(page.getByLabel('Целевой документ', { exact: true })).toHaveValue('fixture-history');
   await expect(page.getByLabel('Каталог результатов', { exact: true })).toHaveValue(outputDirectory);
-  await expect(page.locator('.context-bar')).toContainText(documentName);
-  await expect(page.locator('.context-bar').getByRole('status')).toContainText('completed');
+  await expect(page.locator('.document-disclosure > summary')).toContainText(documentName);
+  await expect(page.getByRole('status')).toContainText('completed');
   await expect(page.getByTestId('save-destination')).toContainText('C:\\drawings\\history.cdr');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Новая переписка', exact: true }).click();
-  await expect(page.locator('.context-bar')).toContainText('Документ не выбран');
+  await expect(page.locator('.document-disclosure > summary')).toContainText('Документ не выбран');
   await expect(page.getByLabel('Целевой документ', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('Каталог результатов', { exact: true })).toHaveValue(outputDirectory);
   expect(posts).toBe(0);
@@ -316,7 +319,6 @@ test('long mobile history stays bounded while navigation and the settings footer
   expect(geometry.height).toBeLessThan(844 / 4);
   expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
   expect(geometry.overflowY).toBe('auto');
-  expect(await page.locator('.context-bar').evaluate(element => element.getBoundingClientRect().top)).toBeLessThan(844 / 2);
   await expect(page.getByRole('button', { name: 'Новая переписка', exact: true })).toBeVisible();
   const settings = page.locator('.sidebar-footer').getByRole('button', { name: 'Настройки модели', exact: true });
   await expect(settings).toBeVisible();
@@ -330,8 +332,7 @@ test('long mobile history stays bounded while navigation and the settings footer
   await oldest.scrollIntoViewIfNeeded();
   expect(await history.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
   await oldest.click();
-  await expect(page.locator('.context-bar').getByRole('status')).toContainText('stopped');
-  expect(await page.locator('.context-bar').evaluate(element => element.getBoundingClientRect().top)).toBeLessThan(844 / 2);
+  await expect(page.getByRole('status')).toContainText('stopped');
 });
 
 for (const width of [390, 720]) {

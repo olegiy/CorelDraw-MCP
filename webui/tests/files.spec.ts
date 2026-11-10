@@ -103,7 +103,7 @@ test('file disclosure preserves Save As absolute destination without duplicate s
   await files.locator(':scope > summary').click();
   await files.locator(':scope > summary').click();
   await files.getByRole('button', { name: 'Сохранить как CDR', exact: true }).click();
-  await expect(page.locator('.context-bar').getByRole('status')).toContainText('completed');
+  await expect(page.getByRole('status')).toContainText('completed');
   expect(submitted).toHaveLength(1);
   expect(submitted[0]).toMatchObject({ tool: 'corel_save_document', document_id: 'fixture-b', output_directory: null });
   expect(submitted[0].arguments).toEqual({ path: 'C:\\exports\\copy.cdr' });

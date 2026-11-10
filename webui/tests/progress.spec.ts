@@ -48,7 +48,7 @@ for (const width of [390, 1280]) {
     await page.locator('.messages article').last().scrollIntoViewIfNeeded();
     const bounds = await expectStatusAndStopInViewport(page);
     await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-    await expect(page.locator('.context-bar').getByRole('status')).toContainText('stopped');
+    await expect(page.getByRole('status')).toContainText('stopped');
     expect(posts).toHaveLength(2);
     expect(posts[0]).toMatchObject({ path: '/api/v1/actions', body: { tool: 'corel_preview', document_id: 'fixture-b', arguments: { target: 'page' } } });
     expect(posts[1].path).toBe(`/api/v1/runs/${id}/stop`);
