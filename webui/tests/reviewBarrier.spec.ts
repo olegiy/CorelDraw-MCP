@@ -12,10 +12,25 @@ test('unproven cleanup cannot be released by document selection or permission co
   });
   await page.goto('/');
   await expect(page.getByTestId('global-barrier')).toContainText('CLEANUP_NOT_PROVEN');
+  const barrier = page.locator('.primary-alerts').getByTestId('global-barrier');
+  await expect(barrier).toHaveCount(1);
+  await expect(barrier).toHaveAttribute('role', 'alert');
+  await expect(barrier).toBeVisible();
+  await expect(page.locator('.context-controls .document-disclosure')).not.toHaveAttribute('open');
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
+  await page.locator('.context-controls .document-disclosure > summary').click();
+  await expect(page.getByLabel('Целевой документ')).not.toBeVisible();
+  await expect(barrier).toBeVisible();
+  await expect(page.locator('.context-controls .file-disclosure')).not.toHaveAttribute('open');
+  await expect(page.locator('.chat-surface .technical-disclosure')).not.toHaveAttribute('open');
+  expect(await page.locator('.primary-alerts').evaluate(element => element.previousElementSibling?.classList.contains('context-bar'))).toBe(true);
   await expect(page.getByLabel('Комментарий рассмотрения')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Разрешить новый контекст' })).toHaveCount(0);
   await expect(page.getByTestId('global-barrier')).toContainText('CLEANUP_NOT_PROVEN');
+  await page.getByRole('button', { name: 'Новая переписка', exact: true }).click();
+  await expect(barrier).toBeVisible();
+  await expect(barrier).toContainText('CLEANUP_NOT_PROVEN');
   expect(reviews).toBe(0);
 });
 
@@ -36,5 +51,9 @@ test('recovery-only UI requires reconcile and explicit host restart before autom
   await expect(page.getByTestId('global-barrier')).toContainText('Start-CorelAgent');
   await expect(page.getByRole('button', { name: 'Разрешить новый контекст' })).toHaveCount(0);
   await expect(page.getByTestId('global-barrier')).toContainText('Readiness проверяется автоматически');
+  await expect(page.getByTestId('global-barrier')).toBeVisible();
+  await expect(page.locator('.context-controls .document-disclosure')).not.toHaveAttribute('open');
+  await expect(page.locator('.context-controls .file-disclosure')).not.toHaveAttribute('open');
+  await expect(page.locator('.chat-surface .technical-disclosure')).not.toHaveAttribute('open');
   await page.goto('about:blank');
 });

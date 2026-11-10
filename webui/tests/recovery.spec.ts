@@ -45,6 +45,7 @@ test('readiness is automatic after refresh without review controls or rewriting 
   await expect(page.getByLabel('Комментарий рассмотрения')).toHaveCount(0);
   await expect(page.getByText('Я вручную проверил CorelDRAW и исходную диагностику', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Разрешить новый контекст', exact: true })).toHaveCount(0);
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByRole('button', { name: 'Обновить документы', exact: true }).click();
   await expect(page.getByTestId('global-barrier')).toHaveCount(0);
   expect(old.status).toBe('halted'); expect(reviews).toBe(0);

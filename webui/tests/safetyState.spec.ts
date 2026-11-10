@@ -13,6 +13,12 @@ test('restored run shows exact Job and historical cleanup fault without frozen p
   await expect(page.getByText('Обычная запись разрешена; VBA требует подтверждения')).toHaveCount(0);
   await expect(page.getByLabel('Только чтение')).toHaveCount(0);
   await expect(page.getByTestId('safety-state')).toContainText('CLEANUP_NOT_PROVEN');
+  await expect(page.getByTestId('safety-state').getByRole('alert')).toBeVisible();
+  await expect(page.locator('.technical-disclosure')).not.toHaveAttribute('open');
+  await expect(page.getByTestId('safety-state').getByText('Цель Run:', { exact: false })).not.toBeVisible();
+  await page.locator('.technical-disclosure > summary').click();
   await expect(page.getByTestId('safety-state')).toContainText('job-actual');
+  await page.locator('.technical-disclosure > summary').click();
+  await expect(page.getByTestId('safety-state').getByRole('alert')).toBeVisible();
   await page.goto('about:blank');
 });

@@ -9,8 +9,10 @@ test('saved external provider and exact Save destination are visible before disp
     return route.fulfill({ json: { items: [] } });
   });
   await page.goto('/');
+  await page.locator('.chat-surface .technical-disclosure > summary').click();
   await expect(page.getByTestId('provider-scope')).toContainText('https://chosen.example/v1');
   await expect(page.getByTestId('provider-scope')).toContainText('external-model');
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
   await expect(page.getByTestId('save-destination')).toContainText('C:\\drawings\\selected.cdr');
   await page.getByRole('button', { name: 'Настройки модели' }).click();

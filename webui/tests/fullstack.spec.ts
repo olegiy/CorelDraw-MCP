@@ -4,6 +4,7 @@ test('real host keeps accepted run after tab closes and rejects anonymous access
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto('http://127.0.0.1:18880/');
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByRole('button', { name: 'Обновить документы' }).click();
   await expect(page.getByRole('status')).toContainText('completed');
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
@@ -32,6 +33,7 @@ test('two tabs observe one accepted run and explicit Stop prevents next native s
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto('http://127.0.0.1:18880/');
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByRole('button', { name: 'Обновить документы' }).click();
   await expect(page.getByRole('status')).toContainText('completed');
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
@@ -65,6 +67,7 @@ test('minimal profile executes VBA, delivers PNG to model and replaces export wi
   const profile = (await saved).postDataJSON().profile;
   expect(profile.context_approved).toBeUndefined(); expect(profile.vision).toBeUndefined(); expect(profile.send_preview).toBeUndefined();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByRole('button', { name: 'Обновить документы', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('completed');
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
@@ -91,6 +94,7 @@ test('minimal profile executes VBA, delivers PNG to model and replaces export wi
 test('actual host preserves cleanup failure and never grants admission through review', async ({ browser }) => {
   const context = await browser.newContext(); const page = await context.newPage();
   await page.goto('http://127.0.0.1:18880/');
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByRole('button', { name: 'Обновить документы' }).click();
   await expect(page.getByRole('status')).toContainText('completed');
   await page.getByLabel('Целевой документ').selectOption('fixture-b');

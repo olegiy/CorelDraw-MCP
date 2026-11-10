@@ -28,7 +28,7 @@ export default function RecoveryPanel({ busy, refreshKey }: { busy: boolean; ref
     catch (error) { setError(error instanceof Error ? error.message : 'Отчёты не сверены.'); }
     finally { setSaving(false); }
   }
-  return <section className="panel" data-testid="global-barrier"><h2>Восстановление</h2><p role="alert">Исполнитель не готов: {reason ?? barrier?.reason ?? 'MCP не подключён'}.</p>
+  return <section className="panel recovery-panel" role="alert" data-testid="global-barrier"><h2>Восстановление</h2><p>Исполнитель не готов: {reason ?? barrier?.reason ?? 'MCP не подключён'}.</p>
     <p>Допуск проверяется автоматически по terminal results, cleanup, владельцу MCP и свежему кэшу документов. Неопределённый исход и незавершённые эффекты блокируют новые изменения. Исход старого Run не меняется.</p>
     {reason === 'CLEANUP_NOT_PROVEN' ? <p>Если временный проект CorelMcp уже выгружен, нажмите «Обновить документы». Панель проверит его отсутствие в GMS и VBE и сохранит отдельное подтверждение. Загруженный проект, неполная проверка или ошибки восстановления сохраняют блокировку.</p> : null}
     {!connected ? <><button disabled={busy || saving || restartRequired} onClick={() => void reconcile()}>Сверить прежние отчёты</button><p>{restartRequired ? 'Отчёты сверены. Штатно остановите host через Stop-CorelAgent, затем запустите Start-CorelAgent и обновите документы. Readiness проверяется автоматически; старый план не возобновляется.' : 'Для сверки прежний владелец должен быть доказанно завершён. Затем требуется штатный Stop/Start host, а не повтор старой команды.'}</p></> : null}

@@ -11,7 +11,9 @@ test('settings remains modal on vault failure and Escape clears credentials', as
     return route.fulfill({ json: { authenticated: true, csrf_token: 'b'.repeat(43), items: [], stale: true } });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Настройки модели' }).click();
+  const trigger = page.locator('.sidebar-footer').getByRole('button', { name: 'Настройки модели', exact: true });
+  await trigger.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await page.getByRole('dialog').evaluate(element => element.matches(':modal'))).toBe(true);
   await page.getByLabel('Модель', { exact: true }).fill('fixture');
@@ -25,6 +27,7 @@ test('settings remains modal on vault failure and Escape clears credentials', as
   expect(saved!.profile).not.toHaveProperty('send_preview');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(trigger).toBeFocused();
   await page.getByRole('button', { name: 'Настройки модели' }).click();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
 });

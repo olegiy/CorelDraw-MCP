@@ -139,26 +139,35 @@ export default function App() {
     } catch (error) { throw error instanceof Error ? error : new Error('Профиль не сохранён.'); }
   }
 
-  return <div className="shell">
-    <header className="app-header"><div><h1>CorelDRAW Agent</h1><small>Локальная панель · операции выполняются без подтверждений; VBA имеет доступ к ОС</small></div>
-      <div className="header-actions"><SettingsDialog save={saveProfile} profile={profile} />{pendingRequest.current || (run && !terminal(run.status)) ? <button className="danger" onClick={() => { const request = pendingRequest.current; const promise = request ? api<Run | null>(`/requests/${request}/stop`, { method: 'POST' }) : api<Run>(`/runs/${run!.id}/stop`, { method: 'POST' }); void promise.then(snapshot => { if (snapshot) { watermark.current = { id: snapshot.id, seq: snapshot.last_seq }; setRun(snapshot); } }).catch(error => setError(error.message)); }}>Стоп</button> : null}</div>
-    </header>
-    <main className="workspace">
-      <div><DocumentPanel documents={documents} documentId={documentId} busy={busy} setDocumentId={setDocumentId} refresh={() => void action('corel_status')} action={(tool, args) => void action(tool, args)} />
-       <FileActions disabled={busy} hasDocument={!!documentId} outputDirectory={outputDirectory} setOutputDirectory={setOutputDirectory} action={(tool, args) => void action(tool, args)} fail={setError} />
-       <RecoveryPanel busy={busy} refreshKey={run?.status} />
-      <section className="panel"><h2>История</h2><button disabled={busy} onClick={() => { setConversation(crypto.randomUUID()); setRun(null); setMessages([]); setOperations([]); setPreview(null); setHistoryWarnings([]); setDocumentId(''); }}>Новая переписка</button>{runs.map(item => <button key={item.id} disabled={busy && item.id !== run?.id} onClick={() => { watermark.current = { id: item.id, seq: item.last_seq }; setConversation(item.conversation_id); setRun(item); setDocumentId(item.document_id ?? ''); setOutputDirectory(item.output_directory ?? null); }}>{item.kind} · {item.status}</button>)}</section></div>
-      <section className="panel"><h2>Операции</h2><p role="status">{run ? `Состояние: ${run.status}` : 'Подключение к CorelDRAW выполняется только по явному запросу.'}</p>
-        <p data-testid="provider-scope">Следующий запрос: {profile ? `${profile.model} · ${profile.base_url} · Контекст и проверенные PNG-превью передаются автоматически` : 'модель не выбрана'}</p>
+  const selectedDocument = (documents.items ?? []).find(item => item.document_id === documentId);
+  return <div className="app-shell">
+    <aside className="app-sidebar"><div className="sidebar-brand"><span>CorelDRAW Agent</span><small>Локальная панель</small></div>
+      <button disabled={busy} onClick={() => { setConversation(crypto.randomUUID()); setRun(null); setMessages([]); setOperations([]); setPreview(null); setHistoryWarnings([]); setDocumentId(''); }}>Новая переписка</button>
+      <nav className="conversation-list" aria-label="История"><h2>История</h2>{runs.map(item => <button key={item.id} aria-current={item.id === run?.id ? 'page' : undefined} disabled={busy && item.id !== run?.id} onClick={() => { watermark.current = { id: item.id, seq: item.last_seq }; setConversation(item.conversation_id); setRun(item); setDocumentId(item.document_id ?? ''); setOutputDirectory(item.output_directory ?? null); }}>{item.kind} · {item.status}</button>)}</nav>
+      <div className="sidebar-footer"><SettingsDialog save={saveProfile} profile={profile} /></div>
+    </aside>
+    <main className="app-main"><header className="context-bar"><div><h1>CorelDRAW Agent</h1>
+      <p className="context-document" title={selectedDocument?.name || documentId || 'Документ не выбран'}>{selectedDocument?.name || documentId || 'Документ не выбран'}</p></div>
+      <div className="context-status"><p role="status">{run ? `Состояние: ${run.status}` : pending ? 'Состояние: ожидание принятия запроса' : 'Подключение к CorelDRAW выполняется только по явному запросу.'}</p>{pendingRequest.current || (run && !terminal(run.status)) ? <button className="danger" onClick={() => { const request = pendingRequest.current; const promise = request ? api<Run | null>(`/requests/${request}/stop`, { method: 'POST' }) : api<Run>(`/runs/${run!.id}/stop`, { method: 'POST' }); void promise.then(snapshot => { if (snapshot) { watermark.current = { id: snapshot.id, seq: snapshot.last_seq }; setRun(snapshot); } }).catch(error => setError(error.message)); }}>Стоп</button> : null}</div></header>
+      <div className="primary-alerts"><RecoveryPanel busy={busy} refreshKey={run?.status} /></div>
+      <div className="context-controls"><div className="context-actions"><DocumentPanel documents={documents} documentId={documentId} busy={busy} setDocumentId={setDocumentId} refresh={() => void action('corel_status')} action={(tool, args) => void action(tool, args)} /><FileActions disabled={busy} hasDocument={!!documentId} outputDirectory={outputDirectory} setOutputDirectory={setOutputDirectory} action={(tool, args) => void action(tool, args)} fail={setError} /></div>
+        <p className="selected-model" data-testid="selected-model" title={profile?.model || 'не выбрана'}>Модель: {profile?.model || 'не выбрана'}</p></div>
+      <section className="chat-surface">
+        <small>Локальная панель · операции выполняются без подтверждений; VBA имеет доступ к ОС</small>
+        <div className="run-context">
+        <div data-testid={run ? 'safety-state' : undefined}><details className="technical-disclosure"><summary>Технические данные</summary><div className="technical-content"><p data-testid="provider-scope">Следующий запрос: {profile ? `${profile.model} · ${profile.base_url} · Контекст и проверенные PNG-превью передаются автоматически` : 'модель не выбрана'}</p>
         <p data-testid="save-destination">Save выбранного CDR: {(documents.items ?? []).find(item => item.document_id === documentId)?.path || 'текущий путь отсутствует; нужен явный Save As'}</p>
         {run?.profile ? <p>Зафиксированный профиль Run: {run.profile.model} · {run.profile.base_url}</p> : null}
-        {error ? <p role="alert" className="error">{error}</p> : null}
-        {run ? <div data-testid="safety-state"><p>Цель Run: {run.document_id ?? 'не выбрана'} · Job: {run.job_id ?? 'нет'} · Мониторинг: {run.monitoring_state ?? 'healthy'}</p>{run.safety_barrier ? <p role="alert" className="error">Неопределённость этого Run: {run.safety_barrier.reason}. Новый допуск определяется текущим состоянием исполнителя.</p> : null}{run.stop_requested ? <p>Stop запрошен; уже отправленный COM ожидает завершения.</p> : null}</div> : null}
-        <p className="muted">Закрытие вкладки не останавливает отправленную операцию. «Стоп» запрещает следующие шаги, но не отменяет COM и не выполняет Undo.</p>
+        {run ? <p>Цель Run: {run.document_id ?? 'не выбрана'} · Job: {run.job_id ?? 'нет'} · Мониторинг: {run.monitoring_state ?? 'healthy'}</p> : null}
         <p data-testid="job-stage">Стадия Job: {streamDetails.stage || 'нет активной стадии'}</p>
+        </div></details>{run?.safety_barrier ? <p role="alert" className="error">Неопределённость этого Run: {run.safety_barrier.reason}. Новый допуск определяется текущим состоянием исполнителя.</p> : null}{run?.stop_requested ? <p>Stop запрошен; уже отправленный COM ожидает завершения.</p> : null}</div>
+        {error ? <p role="alert" className="error">{error}</p> : null}
+        <p className="muted">Закрытие вкладки не останавливает отправленную операцию. «Стоп» запрещает следующие шаги, но не отменяет COM и не выполняет Undo.</p>
         {[...new Set([...historyWarnings, ...streamDetails.warnings])].map((warning, index) => <p role="alert" key={index}>{warning}</p>)}
+        </div>
         <MessageList messages={[...messages.filter(item => !streamDetails.messages.some(live => live.id === item.id)), ...streamDetails.messages]} />
-        <RunPanel operations={operations} /><PreviewPanel preview={preview} /><label><input type="checkbox" checked={newDocument && !documentId} disabled={busy || !!documentId} onChange={event => setNewDocument(event.target.checked)} />Агент создаёт новый документ</label><Chat busy={busy} submit={agent} />
+        <RunPanel operations={operations} />
+        <PreviewPanel preview={preview} /><label className="new-document"><input type="checkbox" checked={newDocument && !documentId} disabled={busy || !!documentId} onChange={event => setNewDocument(event.target.checked)} />Агент создаёт новый документ</label><Chat busy={busy} submit={agent} />
       </section>
     </main>
   </div>;

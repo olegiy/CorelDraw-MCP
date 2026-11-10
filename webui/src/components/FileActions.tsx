@@ -16,7 +16,7 @@ export default function FileActions({ disabled, hasDocument, outputDirectory, se
     try { const saved = await api<components['schemas']['Workspace']>('/workspace', { method: 'PUT', body: JSON.stringify({ output_directory: directory || null }) }); setOutputDirectory(saved.output_directory ?? null); }
     catch (error) { fail(error instanceof Error ? error.message : 'Каталог назначения недоступен.'); }
   }
-  return <section className="panel document-panel"><h2>Файлы</h2>
+  return <details className="context-disclosure file-disclosure"><summary>Файлы</summary><section className="panel document-panel disclosure-content"><h2>Файлы</h2>
     <button disabled={disabled} onClick={() => action('corel_create_document')}>Создать новый CDR</button>
     <label>Открыть локальный CDR<input value={cdr} disabled={disabled} onChange={event => setCdr(event.target.value)} /></label>
     <button disabled={disabled || !cdr} onClick={() => action('corel_open_document', { path: cdr })}>Открыть CDR</button>
@@ -29,5 +29,5 @@ export default function FileActions({ disabled, hasDocument, outputDirectory, se
     <p className="muted">Существующие файлы Save As и экспорта заменяются автоматически.</p>
     <button disabled={disabled || !hasDocument || !destination} onClick={() => action('corel_export', { path: destination, format, range })}>Экспортировать</button>
     <button disabled={disabled || !hasDocument || !destination || !name.toLowerCase().endsWith('.cdr')} onClick={() => action('corel_save_document', { path: destination })}>Сохранить как CDR</button>
-  </section>;
+  </section></details>;
 }

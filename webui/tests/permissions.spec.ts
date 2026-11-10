@@ -12,6 +12,7 @@ test('ordinary Save and Close are available without permission controls', async 
   });
   await page.goto('/');
   await expect(page.getByLabel('Только чтение')).toHaveCount(0);
+  await page.locator('.context-controls .document-disclosure > summary').click();
   await page.getByLabel('Целевой документ').selectOption('fixture-b');
   await expect(page.getByRole('button', { name: 'Сохранить выбранный CDR', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Закрыть документ', exact: true })).toBeEnabled();
