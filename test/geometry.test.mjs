@@ -29,6 +29,13 @@ test('отклоняет NaN, неверную tolerance и превышение
   assert.throws(()=>measureSnapshot({objects:Array.from({length:101},(_,i)=>({static_id:i+1,segments:[]}))},.01), e=>e.code==='GEOMETRY_LIMIT_EXCEEDED');
 });
 
+test('отклоняет Infinity и -Infinity в координатах X/Y', () => {
+  assert.throws(()=>measureSnapshot({objects:[{static_id:1,segments:[line({x:Infinity,y:0},{x:1,y:0})]}]},.01), e=>e.code==='GEOMETRY_INVALID_INPUT');
+  assert.throws(()=>measureSnapshot({objects:[{static_id:1,segments:[line({x:-Infinity,y:0},{x:1,y:0})]}]},.01), e=>e.code==='GEOMETRY_INVALID_INPUT');
+  assert.throws(()=>measureSnapshot({objects:[{static_id:1,segments:[line({x:0,y:Infinity},{x:1,y:0})]}]},.01), e=>e.code==='GEOMETRY_INVALID_INPUT');
+  assert.throws(()=>measureSnapshot({objects:[{static_id:1,segments:[line({x:0,y:-Infinity},{x:1,y:0})]}]},.01), e=>e.code==='GEOMETRY_INVALID_INPUT');
+});
+
 const poly = (points,id=1)=>({static_id:id,segments:points.map((p,i)=>line(p,points[(i+1)%points.length]))});
 const approx=(actual,expected,tol=1e-8)=>assert.ok(Math.abs(actual-expected)<=tol,`${actual} != ${expected}`);
 test('сохраняет оба конца несвязанных сегментов и различает объекты/агрегат',()=>{
