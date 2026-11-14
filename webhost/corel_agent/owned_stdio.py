@@ -7,6 +7,7 @@ without termination deadlines, kill signals, shell commands, or Job Objects.
 
 import asyncio
 import json
+import ntpath
 import os
 import sys
 from datetime import timedelta
@@ -73,16 +74,19 @@ def identity_alive(identity: ProcessIdentity) -> bool | None:
 
 def restricted_environment(extra=None):
     env = {key: value for key, value in os.environ.items() if key.upper() in SAFE_ENV}
-    observer_mode = os.environ.get('CORELDRAW_MCP_VBA_OBSERVER')
-    if observer_mode is not None:
-        env['CORELDRAW_MCP_VBA_OBSERVER'] = observer_mode
+    worker_keys = {'CORELDRAW_MCP_BACKEND', 'CORELDRAW_MCP_CSHARP_WORKER', 'DOTNET_ROOT_X64'}
+    env.update({key: os.environ[key] for key in worker_keys if key in os.environ})
     for key, value in (extra or {}).items():
-        if key not in {"CORELDRAW_MCP_RUNS", "CORELDRAW_MCP_VBA_OBSERVER"}:
+        if key not in {"CORELDRAW_MCP_RUNS"} | worker_keys:
             raise LifecycleError("CHILD_ENV_DENIED", "Недопустимая переменная окружения MCP.", 403)
         env[key] = value
-    if ('CORELDRAW_MCP_VBA_OBSERVER' in env
-            and env['CORELDRAW_MCP_VBA_OBSERVER'] not in {'off', 'observe'}):
-        raise LifecycleError("CHILD_ENV_DENIED", "Режим наблюдателя VBA не поддерживается: допустимы off/observe.", 403)
+    if env.get('CORELDRAW_MCP_BACKEND', 'csharp') != 'csharp':
+        raise LifecycleError('CHILD_ENV_DENIED', 'Неподдерживаемый backend MCP.', 403)
+    for key in ('CORELDRAW_MCP_CSHARP_WORKER', 'DOTNET_ROOT_X64'):
+        if key in env and (not isinstance(env[key], str) or not ntpath.isabs(env[key])
+                           or len(ntpath.splitdrive(env[key])[0]) != 2
+                           or any(ord(char) < 32 for char in env[key])):
+            raise LifecycleError('CHILD_ENV_DENIED', 'Для исполнителя нужен абсолютный локальный путь Windows.', 403)
     return env
 
 

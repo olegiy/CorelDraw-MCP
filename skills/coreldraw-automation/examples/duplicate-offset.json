@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "title": "Копии со смещением",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_duplicate_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "copies": 3,
+        "step_x_mm": 35,
+        "step_y_mm": 0
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Проверять result, error.applied и cleanup.completed; после частичного/unknown/timed_out не повторять автоматически."
+  ]
+}

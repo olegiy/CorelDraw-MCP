@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "status": "pending",
+  "scope": "redistribute-generated-interop",
+  "typelib_sha256": "7044b6074dfa445f39f6238062ae40e96e01c7764dc28d215872abacce3bdd7c",
+  "source": "",
+  "evidence_path": "worker/legal/interop-evidence.txt",
+  "evidence_sha256": "",
+  "notice_path": "worker/legal/Corel-interop-notice.txt",
+  "reviewed_at": "",
+  "reviewed_by": ""
+}

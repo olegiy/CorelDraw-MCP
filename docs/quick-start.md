@@ -2,7 +2,9 @@
 
 ## 1. Установка
 
-Нужны Windows, CorelDRAW 27 с VBA, Node.js 24, Codex CLI и Windows PowerShell 5.1.
+Распространяемый пакет 0.3.0 пока не выпускается: требуется подтверждение прав на interop. См. [статус](../worker/INTEROP-DISTRIBUTION.md). Для исходников нужны SDK 10.0.404 и build-time генерация VGCore; готовая self-contained поставка не требует SDK/runtime/VBA.
+
+Нужны Windows, CorelDRAW 27, Node.js 24, Codex CLI и Windows PowerShell 5.1.
 
 В PowerShell из корня проекта выполните:
 
@@ -43,7 +45,7 @@ corel_save_document(request_id="save-001", document_id="полученный-id"
 - `corel_measure_shapes` измеряет поддерживаемые векторные объекты в миллиметрах.
 - Не повторяйте автоматически задания со статусом `timed_out` или `unknown`.
 - При `cleanup.completed=false` операция уже могла выполниться; сначала проверьте документ и отчёт.
-- VBA имеет полный доступ к CorelDRAW и Windows. Выполняйте только доверенный код.
+- Используйте готовые типизированные операции; произвольный код не принимается.
 - Панель исполняет действия сразу и автоматически отправляет контекст/проверенный PNG выбранной модели. Permission-checkbox и диалогов подтверждения нет; API-ключи остаются защищёнными.
 
 ## 4. Справка и очистка

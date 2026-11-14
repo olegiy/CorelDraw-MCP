@@ -10,3 +10,10 @@ __pycache__/
 *.egg-info/
 webui/test-results/
 webui/playwright-report/
+worker/**/bin/
+worker/**/obj/
+worker/generated/
+worker/publish/
+worker/native/build-provenance.json
+tools/**/bin/
+tools/**/obj/

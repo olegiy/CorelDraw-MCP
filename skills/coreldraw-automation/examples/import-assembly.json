@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "title": "Импорт, страницы и PowerClip",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_import",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "path": "C:/Inputs/рисунок.pdf",
+        "format": "pdf",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 123,
+        "pdf_page": 1,
+        "layer_id": "<layer_id>",
+        "x_mm": 10,
+        "y_mm": 10,
+        "fit": {
+          "width_mm": 50,
+          "height_mm": 50
+        }
+      }
+    },
+    {
+      "tool": "corel_manage_pages",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "add",
+        "count": 1,
+        "width_mm": 210,
+        "height_mm": 297
+      }
+    },
+    {
+      "tool": "corel_powerclip",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "place",
+        "container_id": 1002,
+        "static_ids": [
+          1001
+        ],
+        "center": false
+      }
+    },
+    {
+      "tool": "corel_powerclip",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "extract",
+        "container_id": 1002
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "MCP: SHA-256/size_bytes заменить фактическим fingerprint локального файла. В агенте эти поля вычисляет host и не задаёт модель.",
+    "Внешние SVG resources, PDF с паролем, неподдерживаемые символы и private native paths длиннее 259 UTF-16 отклоняются до изменения целевого документа."
+  ]
+}

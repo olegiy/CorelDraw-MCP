@@ -1,86 +1,86 @@
 # Архитектура
 
-Codex общается по stdio с TypeScript MCP-сервером. `src/tools.ts` задаёт строгие схемы Zod, `src/server.ts` регистрирует 18 инструментов и семь локальных ресурсов справки. В stdout разрешён только MCP; служебные сообщения уходят в stderr.
+TypeScript MCP → CSharpExecutor → JSON Lines → C# STA/message loop → CorelDRAW 27.
+Python host и React UI используют тот же каталог готовых операций и не вызывают COM.
+Версия 0.3.0 не имеет PowerShell COM/VBA backend или активного observer-процесса.
 
-`JobManager` атомарно сохраняет запросы и outcomes. Mutation ID строится из SHA-256 `request_id`; отдельный canonical fingerprint различает конфликт аргументов. Каталог задания — durable reservation. Потерянный владелец даёт `unknown`, автоматического replay нет. Polling читает диск и не вызывает COM. Дедлайн наблюдения не отменяет работающий COM-вызов.
+## Выполнение
 
-`PowerShellExecutor` запускает один скрытый Windows PowerShell 5.1 `-STA`. Параметры передаются массивом аргументов и UTF-8 JSON-lines, без shell evaluation. Один именованный mutex `Local\CorelDrawMcp_v27` охватывает подключение, операции и cleanup. Закрытие транспорта позволяет текущему вызову завершиться; `Application.Quit` не вызывается.
+Node ведёт request_id, Job, deadline, reports, артефакты и исходную вычислительную геометрию.
+CSharpExecutor запускает один EXE с shell:false, проверяет version/protocol/runtime/x64 handshake,
+принимает один pending job, ограничивает UTF-8 JSONL запись 4 МиБ и не перезапускает worker после
+потери результата. Старый/несовместимый handshake отклоняется до dispatch.
 
-По умолчанию executor также запускает отдельный read-only процесс наблюдения
-на каждый job (`CORELDRAW_MCP_VBA_OBSERVER=observe`). Он читает Win32-окна
-проверенного процесса приложения без COM/VBE и не отправляет клики/закрытие.
-Worker сообщает HWND после mutex/подключения, до первого VBE-вызова; отдельные
-поколения охватывают подготовку VBA, Compile, Main и cleanup, включая внутренние
-VBA-вызовы экспорта/измерения. Подключение к COM и получение HWND не покрыты.
-`off` исключает запуск observer, получение HWND и observer-handshake.
-`compile-errors` пока отклоняется при старте: проверенных action-профилей нет.
+Worker читает stdin отдельно от COM. Все нативные вызовы выполняются синхронно на одном STA
+с Windows Forms message loop под Local\CorelDrawMcp_v27. Dispatch guard остаётся занят и при
+повторном входе message loop, и до завершения cleanup. Закрытие stdin дожидается принятой работы;
+COM не прерывается deadline, CorelDRAW не завершается. Второй job получает BUSY.
 
-Единственный C#-читатель stdin worker передаёт записи на STA через очередь.
-Observer-handshake имеет корреляцию и предел 2 с; поздние ответы пропускаются
-dispatcher и не поглощают следующий job/JSON-validation. Observer контролирует
-identity владельца/worker, lease с renew и собственный watchdog; его отказ
-деградирует диагностику, сохраняя COM pending. Повтор мутации не выполняется.
-MCP EOF закрывает приём заданий и позволяет текущему job завершиться естественно.
+Connection привязан к потоку и точной версии 27, не выполняет reconnect/replay. Registry использует
+IUnknown документа; page/layer native TreeNode.Handle остаётся внутри worker, наружу непрозрачные
+session IDs. Фигуры адресуются StaticID. COM leases дедуплицируются; FinalRelease/GC не используются.
 
-Node публикует только проверенную `vba_observer` schema-1 сводку: режим,
-state, счётчики, фиксированный код, truncation и локальный путь журнала.
-Обновления доступны через `corel_get_job` при заблокированном COM. Token,
-текст окна и controls не попадают в публичный report/log. Единственный писатель
-`vba-observer.jsonl` — observer; квоты: 100 событий, запись 64 КиБ, файл 8 МиБ,
-текст диалога 16 КиБ UTF-8. Сканирование ограничено 1 с, чтение control — 250 мс.
-Перед окончательным result executor останавливает observer и ждёт выхода,
-чтобы журнал завершённого job не менялся во время inventory/prune. Компактизация
-и диагностический экспорт сохраняют безопасную сводку без пути журнала.
-Ни обнаружение окна, ни его исчезновение не определяют outcome задания.
+StateScope сохраняет Unit/refpoint/preserve-selection, active doc/page, optimization/events и живые ID
+выделения. Cleanup каждого ресурса независим, исходная ошибка не теряется. Успешно открытый undo group
+закрывается в finally; automatic Undo нет. Begin сам может изменить Dirty, поэтому applied не выводится
+из отсутствия созданных фигур. Dirty исходника не сбрасывается для маскировки изменения.
 
-`document_id` включает UUID сессии worker и UUID документа. Worker сопоставляет IUnknown identity с открытыми документами; закрытые документы удаляются из registry, reconnect меняет сессию. Для объектов используется `Shape.StaticID`, а не порядковый индекс.
+## Операции и геометрия
 
-Регистрация всегда публикует полный набор инструментов. Старый
-`%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается и не меняется.
-Новые reports не содержат разрешительного `tool_policy`; исторические payload
-с этим полем сохраняются при чтении и компактизации. Подсказки MCP описывают
-побочные действия, но не требуют подтверждения внутри сервера.
+Strict Zod schemas, JSON Schema variants и типизированные STJ DTO задают явные операции. Все входы и
+цели проверяются до Begin; нет компиляции кода модели или универсального COM вызова по имени.
+Drawing journal возвращает observed affected/created/deleted IDs и фактические параметры; большие DTO
+уходят в bounded JSON artifact. Partial result также сохраняет известные ID.
 
-## VBA и экспорт
+Read-only измерение/экспорт и текстовый geometry fingerprint используют собственный CreateDocumentFrom
+clone после проверки ID/type/physical geometry. Исходный текст не конвертируется. TypeScript сохраняет
+de Casteljau flattening, convex hull и rotating calipers: boundary_error=tolerance, dimension_error≤2*tolerance,
+предел 200000 точек. API metadata переносит прежний ITypeInfo алгоритм, не вызывает arbitrary getter/Invoke.
 
-Harness получает точный `Document` параметром RunMacro, активирует и проверяет
-его внутри VBA до Main. После Main worker проверяет identity активного документа
-и возвращает `TARGET_DOCUMENT_CHANGED` при смене. Это не sandbox: произвольный
-код может менять другие документы и возвращаться обратно; такие побочные
-действия нельзя предотвратить проверкой ActiveDocument. Для стандартных recipes
-ошибки с Source `CorelMcpRecipe` содержат JSON: applied, error_code,
-message, cleanup_failed. applied=true консервативно означает возможное действие;
-cleanup_failed переводится в независимую ошибку cleanup `recipe.selection`.
+Export использует staging рядом с назначением и публикуется только после Finish. PDF настройки
+восстанавливаются; SaveAs остаётся нативным и не обещает атомарности. Fixed export property bindings
+проверяют ITypeInfo GUID/DispID; пользователь не задаёт имя COM-свойства.
 
-Snapshot `.bas` читается как UTF-8, `Attribute VB_*` удаляется только в snapshot, код загружается через `CodeModule.AddFromString`. Worker создаёт уникальный временный GMS и выбирает его VBProject. Compile command 578 применяется к нему; `compiler_location` берётся из реально выделенного error span. `Main` возвращает JSON через typed harness; Node проверяет JSON до выгрузки GMS. Массивы и null передаются как raw JSON без PowerShell-unwrapping.
+Import: local file identity/size/SHA256 → frozen artifact → безопасный SVG-разбор или одна PDF-страница
+через pinned PDFsharp 6.2.4 MIT → private Corel document → подготовленный собственный CDR → transfer layer
+с job provenance markers → batch MoveToLayer. Clipboard и cross-document-copy fallback отсутствуют.
+Временные неизвестные/nonempty объекты не удаляются; неподтверждённый cleanup сохраняет их точный ID.
 
-Cleanup независимо восстанавливает настройки документа, выделение, Undo, оптимизацию, события, страницу и активный документ. Primary error сохраняется отдельно от `cleanup.errors`. `succeeded` плюс `cleanup.completed=false` даёт MCP `isError=true`, сохраняя outcome; это не повод повторять мутацию.
+Layout revision включает точную binary64 геометрию, матрицы, ID, страницу и параметры; текстовые glyphs
+читаются в собственном clone. Dry_run не открывает undo group; apply требует актуальный revision и отсутствие
+unplaced. Shelf не поворачивает/масштабирует/копирует. PowerClip имеет отдельный bounded walker для bitmap,
+групп и nested clips; extract снимает один уровень без изменения размера содержимого.
 
-Экспорт использует staging-файл рядом с назначением; публикация с заменой существующего файла происходит после успешного Finish. Нативный SaveAs использует `StructSaveAsOptions.Overwrite=true`, без обещания атомарности. PDF использует PublishToPDF с восстановлением PublishRange/PageRange. Прочие форматы используют типизированный VBA bridge из-за late-bound COM optional parameters. Для AI/EPS text curves и DXF/PLT создаётся собственный временный документ, копии проверяются на geometry invariant. Внешние CDR/экспорты не являются служебными артефактами для prune.
+Bitmap и смешанные группы принимаются transform/duplicate/group/move-to-layer и align/grid/layout.
+Revision bitmap использует полный CropEnvelope и матрицу; прямоугольный bitmap без crop — фактический frame.
+Boolean/convert/style не получают bitmap. Import diagnostics возвращает наблюдаемые шрифты/effects,
+но font/effect/source fidelity остаются unknown; доступность семейства в Windows не доказывает отсутствие подмены.
 
-Панель принимает прямые абсолютные пути и хранит `output_directory` только как
-назначение по умолчанию. Run фиксирует профиль, credential revision, документ,
-аргументы и operation/scope digests; перед dispatch повторно проверяются их
-идентичность, Stop, текущий барьер и бюджет с postchecks. Нет пользовательского
-read-only/consent/approval. Legacy schema-1 декодируется только для чтения;
-неотправленное ожидание старого подтверждения становится `interrupted`.
-Readiness снимает только текущий глобальный барьер по неизменённым ID/evidence
-и проверенному владельцу, не переписывая исход старого Run и не replay-ая его.
+## Host, история и обновление
 
-## Чтение API и измерение
+Policy v3 пересекает явную capability table с MCP-каталогом. Системные поля скрыты во всех корневых
+JSON Schema alternatives. Frozen document, operation/scope digest, Stop, owner identity и бюджет postchecks
+повторно проверяются перед dispatch. После drawing резервируются inspect/preview той же страницы.
+Revision не генерируется host. Import fingerprint фиксируется host и recheck выполняется до отправки.
 
-`ApiMetadata.cs` получает `ITypeInfo` только через `IDispatch.GetTypeInfo`, затем содержащую typelib. Он читает типы, descriptors, default incoming interface coclass, aliases, inherited interfaces, enum constants и параметры функций; `Invoke` и произвольных getters в этом пути нет. Кеш индексируется GUID/major/minor/LCID и живёт в worker-модуле. Дескрипторы освобождаются в finally; Application не освобождается модулем.
+CSRF/bootstrap, Credential Manager, provider contract, secret redaction и существующая access policy
+сохранены. Technical log имеет allowlist и не получает paths/arguments. Исторические v1/v2 DTO, observer
+summary и retained-GMS proof читаются как данные. Старые tool names не регистрируются и не dispatch-ятся.
+Unknown/cleanup barriers не снимаются пользовательским boolean и не обходятся обновлением.
 
-Измерение создаёт изолированную копию в собственном временном документе, проверяет геометрию и получает line/cubic segments. TypeScript выполняет de Casteljau flattening, convex hull и rotating calipers. Лимит 200000 точек; `boundary_error_mm=tolerance_mm`, `dimension_error_mm≤2*tolerance_mm`. Неподдерживаемые эффекты завершаются явной ошибкой, частичного успеха нет. Исходный документ не должен менять Dirty, selection и history.
+Read-only pre-upgrade проверяет owner markers, native reports и host history. SQLite читается immutable RO
+только без незавершённого WAL/journal; reports/history не меняются. Разрешение старого retained GMS признаётся
+только при совпадении committed absence evidence с исходным отчётом. Активный owner или неполная проверка
+блокируют активацию. Self-contained публикация отдельно заблокирована до подтверждения прав на interop.
 
-## Локальные операции
+### Подготовка гибридного runtime
 
-Guide и ресурсы читают одни Markdown-файлы без COM, в том числе пока worker занят. Notes атомарно сохраняются в `root/notes` как непроверенные данные; они не исполняются и не изменяют скилл.
+План: `.kilo/plans/2026-11-13-corel-hybrid-runtime.md`. `HybridPolicy` выбирает маршрут до мутации по проверенным целям и порогу20. В явном `execution_mode=hybrid` готовый GMS выполняет create/update batch, крупные create/style/move/duplicate и текстовые пакеты. Неподдержанные структуры прежних инструментов получают C#-маршрут до первой мутации. Новые batch-команды требуют поддержанного native runtime; ошибки не переключают backend.
 
-Diagnostics строится по allowlist: версии/время/статус/коды/cleanup и хешированный diagnostic ID. Исходный request ID, пользовательские paths/names/code/text/result и raw errors исключаются. Публикация атомарна и требует внешний путь.
+Manifest связывает protocol/version/Corel27/sourceSHA/GMS SHA и фиксированные capability IDs. Runtime держит read leases, сверяет точные имя/путь загруженного проекта и nonce. VBE/Compile находятся только в developer build tool. Общий модуль не выгружается при завершении другого клиента. Потеря ответа блокирует новые мутации текущего worker; чтение и диагностика остаются доступны, replay запрещён.
 
-Artifact inventory считает SHA-256 файлов, bytes и fingerprint. Protected outcomes не очищаются. Prune повторно проверяет токен и блокирует `.prune-lock`, затем сначала сохраняет компактный durable report (`details_pruned=true`, identity/fingerprint/outcome/error codes), после чего удаляет внутренние файлы. Reservation остаётся, повтор request ID не выполняет действие заново; при ошибке удаления возможна частичная очистка, итог сообщает результат каждого кандидата. Для отката подробностей автоматического восстановления нет: удаление явно запрошено. Junction/reparse traversal запрещён.
+Геометрия извлекается в подтверждённом private document; C# проверяет bounded JSON и публикует UTF-8 `.part`→`.json`. Private COM-ссылки освобождаются перед Close. Математика остаётся в TypeScript. Нулевые layout bounds, противоречащие ненулевой геометрии, дают `UNSUPPORTED_LAYOUT_BOUNDS`; Printable исходника не переключается.
 
-## Установка
+Corel WideText удаляет LF, сохраняя CR; postcheck учитывает наблюдаемое хранение CRLF/CR. Создание, замена диапазонов, установление текста и формат проверяются по фактическому содержимому/шрифту. SVG с распознанным встроенным bitmap получает `SVG_EMBEDDED_RASTER`; отсутствие такого bitmap не доказывает полноту векторного сохранения.
 
-Скилл хранится в репозитории и доступен глобально через Windows junction. Установщик делегирует конфигурацию `codex mcp`, сохраняет резервную копию config и отказывается перезаписывать чужие имена. Перенос проекта требует явной новой регистрации. Регистрация и переустановка не выполняются при обычной проверке документации.
+Default остаётся `csharp` до итоговых performance/safety/fresh-Corel gates. Упаковка разрешает только собственный GMS по фиксированному пути и хешу, отвергает VBE dependency/лишние GMS и сохраняет gate прав interop.

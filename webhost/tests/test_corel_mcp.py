@@ -5,7 +5,7 @@ from test_assets import png
 from corel_agent.contracts import PreparedOperation, new_id
 
 
-def operation(tool="corel_execute_vba"):
+def operation(tool="corel_edit_text"):
     return PreparedOperation(operation_id=new_id(), run_id=new_id(), tool=tool,
                              arguments={"document_id": "fixture"}, document_id="fixture",
                              digest="0" * 64)
@@ -20,7 +20,7 @@ async def test_job_running_then_success():
     result = await mcp.call_job(operation(), emit)
     assert result.outcome == "succeeded" and result.applied is True
     assert [update.status for update in updates] == ["running", "succeeded"]
-    assert session.calls[0][0] == "corel_execute_vba"
+    assert session.calls[0][0] == "corel_edit_text"
     assert all(name == "corel_get_job" for name, _ in session.calls[1:])
 
 
@@ -40,7 +40,7 @@ async def test_observer_summary_passes_through_without_changing_outcome_or_repla
     assert result.outcome == 'succeeded'
     assert result.report['vba_observer'] == summary
     assert all(update.report['vba_observer'] == summary for update in updates)
-    assert sum(name == 'corel_execute_vba' for name, _ in session.calls) == 1
+    assert sum(name == 'corel_edit_text' for name, _ in session.calls) == 1
 
 
 async def test_timed_out_then_success():
@@ -51,7 +51,7 @@ async def test_timed_out_then_success():
         updates.append(update.status)
     result = await mcp.call_job(operation(), emit)
     assert result.outcome == "succeeded" and "timed_out" in updates
-    assert sum(name == "corel_execute_vba" for name, _ in session.calls) == 1
+    assert sum(name == "corel_edit_text" for name, _ in session.calls) == 1
 
 
 async def test_cleanup_failure_not_retried():

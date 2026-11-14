@@ -1,20 +1,17 @@
 import pytest
 from conftest import implementation
 
-from corel_agent.contracts import AgentError
 
-
-def test_quotes_unicode_and_multiline_vba_are_not_rewritten():
+def test_quotes_unicode_and_multiline_text_are_not_rewritten():
     privacy = implementation("privacy").Privacy()
-    code = 'Function Main() As String\n Dim text As String\n text = "Привет ""мир"""\n Main = "{}"\nEnd Function'
-    assert privacy.validate_vba(code) == code
+    text = 'Привет "мир"\nВторая строка {}'
+    assert privacy.for_model(text) == text
 
 
 @pytest.mark.parametrize("alias", ["@output/file.cdr", "@file/fixture", "@path/fixture", "<локальный путь>"])
-def test_vba_alias_is_not_rewritten_or_blocked_by_permission_policy(alias):
+def test_text_alias_is_not_rewritten_or_blocked_by_privacy_policy(alias):
     privacy = implementation("privacy").Privacy()
-    code = f'Function Main() As String\n Main = "{alias}"\nEnd Function'
-    assert privacy.validate_vba(code) == code
+    assert privacy.for_model(alias) == alias
 
 
 def test_model_context_preserves_paths_and_masks_known_secrets():
@@ -29,8 +26,7 @@ def test_model_context_preserves_paths_and_masks_known_secrets():
     assert masked["error"]["applied"] is True and masked["cleanup"]["completed"] is False
 
 
-def test_known_secret_in_vba_is_denied_not_silently_rewritten():
+def test_secret_detection_covers_nested_operation_arguments():
     privacy = implementation("privacy").Privacy(secrets=("CANARY-CREDENTIAL-123",))
-    with pytest.raises(AgentError) as caught:
-        privacy.validate_vba('Main = "CANARY-CREDENTIAL-123"')
-    assert caught.value.code == "SECRET_IN_OPERATION"
+    assert privacy.contains_secret({'updates': [{'text': 'CANARY-CREDENTIAL-123'}]})
+    assert not privacy.contains_secret({'updates': [{'text': 'Без секрета'}]})

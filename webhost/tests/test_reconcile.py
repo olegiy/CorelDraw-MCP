@@ -72,7 +72,7 @@ async def test_recovery_restart_refresh_allows_only_proven_new_context(store, tm
     await recovery.reconcile(store, pending, tmp_path, reports)
     await store.put_meta('recovery_only', True)
     transport = implementation('owned_stdio').OwnedStdio(command=shutil.which('node'),
-        args=[str(Path(__file__).parent / 'fixtures/panel-server.mjs')], directory=tmp_path,
+        args=[str(Path(__file__).parent / 'fixtures/panel-server.mjs'), '--typed'], directory=tmp_path,
         env={'CORELDRAW_MCP_RUNS': str(tmp_path / 'runs')})
     mcp = implementation('corel_mcp').CorelMcp(transport=transport, poll_interval=0.02)
     runtime = await implementation('__main__').prepare_runtime(store, mcp, tmp_path)
@@ -84,7 +84,7 @@ async def test_recovery_restart_refresh_allows_only_proven_new_context(store, tm
         expected = 'uncertain' if outcome == 'unknown' else 'interrupted'
         assert (await store.get_snapshot(run.id)).status == expected
         assert (await store.get_operation(op.operation_id))['result']['outcome'] == outcome
-        new_command = command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'})
+        new_command = command(tool='corel_edit_text', document_id='fixture-b', arguments={'page_index': 1, 'static_ids': [1001], 'action': 'set_text', 'text': 'fixture'})
         if outcome == 'unknown':
             assert await store.get_barrier() is not None
             with pytest.raises(AgentError):

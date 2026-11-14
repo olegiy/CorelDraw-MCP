@@ -5,23 +5,16 @@ import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import { call, connect, operation } from './helpers.mjs';
 
-test('live recipe document-switch fixture cannot target a positional user drawing', async () => {
-  const source = await readFile(new URL('./integration-recipes.mjs', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /Application\.Documents\.Item\(2\)/);
-  assert.match(source, /otherPath/);
-  assert.match(source, /candidate\.FullFileName/);
-});
-
 test('integration helper drains known delayed job after its polling deadline', async () => {
   const runs = await mkdtemp(join(tmpdir(), 'corel-live-helper-'));
   const session = await connect({ fixture: true, runs, fixtureDelayMs: 4500 });
   let job;
   try {
-    await assert.rejects(operation(session, 'corel_execute_vba', {
-      request_id: 'helper-delayed-job', document_id: 'fixture-document', code: 'delay',
+    await assert.rejects(operation(session, 'corel_edit_text', {
+      request_id: 'helper-delayed-job', document_id: 'fixture-document', page_index: 1, static_ids: [1001], action: 'set_text', text: 'delay',
     }, 1), /Test polling timeout/);
-    job = (await call(session, 'corel_execute_vba', {
-      request_id: 'helper-delayed-job', document_id: 'fixture-document', code: 'delay',
+    job = (await call(session, 'corel_edit_text', {
+      request_id: 'helper-delayed-job', document_id: 'fixture-document', page_index: 1, static_ids: [1001], action: 'set_text', text: 'delay',
     })).job_id;
   } finally {
     await session.close();

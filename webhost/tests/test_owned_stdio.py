@@ -6,31 +6,36 @@ import pytest
 from conftest import implementation
 
 
-@pytest.mark.parametrize('mode', ['off', 'observe'])
-def test_observer_host_mode_is_forwarded_without_secrets(monkeypatch, mode):
+def test_explicit_csharp_build_environment_survives_without_credentials(monkeypatch):
     owned = implementation('owned_stdio')
-    monkeypatch.setenv('CORELDRAW_MCP_VBA_OBSERVER', mode)
+    values = {'CORELDRAW_MCP_BACKEND': 'csharp',
+              'CORELDRAW_MCP_CSHARP_WORKER': 'C:\\local\\CorelMcp.Worker.exe',
+              'DOTNET_ROOT_X64': 'C:\\local\\dotnet'}
+    for key, value in values.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setenv('OPENAI_API_KEY', 'PRIVATE_CANARY')
-    env = owned.restricted_environment()
-    assert env['CORELDRAW_MCP_VBA_OBSERVER'] == mode
-    assert 'OPENAI_API_KEY' not in env
-    assert owned.restricted_environment({'CORELDRAW_MCP_VBA_OBSERVER': mode})['CORELDRAW_MCP_VBA_OBSERVER'] == mode
+    result = owned.restricted_environment()
+    assert all(result.get(key) == value for key, value in values.items())
+    assert 'OPENAI_API_KEY' not in result
+    explicit = owned.restricted_environment(values)
+    assert all(explicit[key] == value for key, value in values.items())
 
 
-@pytest.mark.parametrize('mode', ['', 'typo', 'compile-errors'])
-def test_observer_invalid_or_unreleased_mode_fails_before_spawn(monkeypatch, mode):
+@pytest.mark.parametrize('mode', ['off', 'observe', '', 'typo', 'compile-errors'])
+def test_legacy_observer_environment_never_activates_or_blocks_the_typed_worker(monkeypatch, mode):
     owned = implementation('owned_stdio')
     monkeypatch.setenv('CORELDRAW_MCP_VBA_OBSERVER', mode)
+    assert 'CORELDRAW_MCP_VBA_OBSERVER' not in owned.restricted_environment()
     with pytest.raises(owned.LifecycleError) as error:
-        owned.restricted_environment()
+        owned.restricted_environment({'CORELDRAW_MCP_VBA_OBSERVER': mode})
     assert error.value.code == 'CHILD_ENV_DENIED'
 
 
 async def test_long_child_is_not_killed_on_graceful_close(transport_factory, tmp_path):
     script = Path(__file__).parent / "fixtures/long-child.mjs"
     transport = await transport_factory(script)
-    result = await transport.session.call_tool("corel_execute_vba", {
-        "document_id": "fixture", "request_id": "long-child", "code": "delay",
+    result = await transport.session.call_tool("corel_edit_text", {
+        "document_id": "fixture", "request_id": "long-child", "page_index": 1, "static_ids": [1001], "action": "set_text", "text": "delay",
     })
     assert result.structuredContent["status"] == "running"
     await transport.aclose()
@@ -43,8 +48,8 @@ async def test_long_child_is_not_killed_on_graceful_close(transport_factory, tmp
 async def test_cancelled_subscriber_does_not_close_mcp(transport_factory):
     transport = await transport_factory()
     try:
-        result = await transport.session.call_tool("corel_execute_vba", {
-            "document_id": "fixture", "request_id": "cancel-read", "code": "delay",
+        result = await transport.session.call_tool("corel_edit_text", {
+            "document_id": "fixture", "request_id": "cancel-read", "page_index": 1, "static_ids": [1001], "action": "set_text", "text": "delay",
         })
         job_id = result.structuredContent["job_id"]
         read = asyncio.create_task(transport.session.call_tool("corel_get_job", {
@@ -74,8 +79,8 @@ def test_spawn_pending_blocks_second_owner(tmp_path):
 
 async def test_direct_transport_close_survives_repeated_cancellation(transport_factory, tmp_path):
     transport = await transport_factory(Path(__file__).parent / 'fixtures/long-child.mjs')
-    await transport.session.call_tool('corel_execute_vba', {'document_id': 'fixture',
-        'request_id': 'double-cancel-close', 'code': 'delay'})
+    await transport.session.call_tool('corel_edit_text', {'document_id': 'fixture',
+        'request_id': 'double-cancel-close', 'page_index': 1, 'static_ids': [1001], 'action': 'set_text', 'text': 'delay'})
     close = asyncio.create_task(transport.aclose())
     await asyncio.sleep(0.02)
     close.cancel()

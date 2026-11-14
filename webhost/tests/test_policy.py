@@ -1,6 +1,5 @@
-
 import pytest
-from conftest import implementation
+from conftest import drawing_arguments, implementation
 
 from corel_agent.contracts import AgentError, OperationContext, new_id
 
@@ -15,12 +14,12 @@ def policy(runtime):
     return implementation("policy").Policy(runtime.mcp.catalog)
 
 
-async def test_vba_is_allowed_without_confirmation(policy, context):
+async def test_typed_drawing_is_allowed_without_confirmation(policy, context):
     code = 'Function Main() As String\n Main = "{\"\"ok\"\":true}"\nEnd Function'
-    operation = await policy.prepare("corel_execute_vba", {"code": code}, context)
+    operation = await policy.prepare("corel_edit_text", drawing_arguments(code), context)
     decision = await policy.classify(operation, context)
     assert decision.decision == "allow"
-    assert operation.arguments["code"] == code
+    assert operation.arguments["text"] == code
     assert operation.corel_request_id == f"web:{operation.operation_id}"
     assert operation.arguments["document_id"] == context.document_id
     assert operation.arguments["deadline_seconds"] == 600
@@ -40,7 +39,7 @@ async def test_export_replaces_destination_without_content_approval(policy, cont
 
 
 @pytest.mark.parametrize("tool,args", [
-    ("corel_execute_vba", {"code": "fixture"}), ("corel_create_document", {}),
+    ("corel_edit_text", drawing_arguments("fixture")), ("corel_create_document", {}),
 ])
 async def test_mutation_classification_uses_binding_not_read_only_permission(policy, context, tool, args):
     context = context.model_copy(update={"new_document": True,
@@ -60,20 +59,20 @@ async def test_model_cannot_override_binding(policy, context, field, value):
 
 
 async def test_changed_code_or_document_digest_is_denied(policy, context):
-    operation = await policy.prepare("corel_execute_vba", {"code": "first code"}, context)
-    operation.arguments["code"] = "changed code"
+    operation = await policy.prepare("corel_edit_text", drawing_arguments("first code"), context)
+    operation.arguments["text"] = "changed code"
     assert (await policy.classify(operation, context)).decision == "deny"
-    operation = await policy.prepare("corel_execute_vba", {"code": "first code"}, context)
+    operation = await policy.prepare("corel_edit_text", drawing_arguments("first code"), context)
     assert (await policy.classify(operation, context.model_copy(update={"document_id": "fixture-a"}))).decision == "deny"
 
 
 async def test_model_catalog_is_mvp_intersection_and_has_no_system_fields(policy, context):
     tools = policy.catalog(context)
     names = {tool.name for tool in tools}
-    assert {"corel_execute_vba", "corel_preview", "corel_export"} <= names
+    assert {"corel_edit_text", "corel_preview", "corel_export"} <= names
     assert not names & {"corel_get_job", "corel_prune_artifacts", "corel_build_vba", "corel_add_note"}
     for tool in tools:
-        assert not {"document_id", "request_id", "deadline_seconds"} & tool.input_schema["properties"].keys()
+        assert not {"document_id", "request_id", "deadline_seconds"} & tool.input_schema.get("properties", {}).keys()
     exported = next(tool for tool in tools if tool.name == "corel_export")
     assert exported.input_schema["properties"]["format"]["enum"] == ["png", "svg", "pdf"]
 
@@ -155,9 +154,9 @@ async def test_removed_overwrite_argument_is_rejected(policy, context, tmp_path,
     assert caught.value.status == 422
 
 
-async def test_new_operations_are_version_two_and_version_one_is_evidence_only(policy, context):
-    operation = await policy.prepare('corel_execute_vba', {'code': 'fixture'}, context)
-    assert operation.policy_version == 2
+async def test_new_operations_are_version_three_and_version_one_is_evidence_only(policy, context):
+    operation = await policy.prepare('corel_edit_text', drawing_arguments('fixture'), context)
+    assert operation.policy_version == 3
     old = operation.model_copy(update={'policy_version': 1})
     old = old.model_copy(update={'digest': policy.operation_digest(old)})
     assert (await policy.classify(old, context)).decision == 'deny'
@@ -165,7 +164,7 @@ async def test_new_operations_are_version_two_and_version_one_is_evidence_only(p
 
 def test_catalog_exposes_close_and_export_without_permission_context(policy, context):
     names = {tool.name for tool in policy.catalog(context)}
-    assert {'corel_close_document', 'corel_export', 'corel_execute_vba', 'corel_save_document'} <= names
+    assert {'corel_close_document', 'corel_export', 'corel_edit_text', 'corel_save_document'} <= names
 
 
 @pytest.mark.parametrize('binding', ['current_document_path', 'document_id'])

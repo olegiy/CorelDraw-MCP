@@ -5,7 +5,7 @@ from mcp.types import CallToolResult, ImageContent, TextContent
 from corel_agent.contracts import new_id
 
 
-def report(status="running", *, tool="corel_execute_vba", **updates):
+def report(status="running", *, tool="corel_edit_text", **updates):
     return {"job_id": new_id(), "owner_pid": 123, "owner_session": "fixture",
             "request_id": "web:fixture", "fingerprint": "f" * 64, "tool": tool,
             "status": status, "stage": "fixture", "started_at": "2026-11-04T00:00:00Z",
@@ -16,7 +16,7 @@ def report(status="running", *, tool="corel_execute_vba", **updates):
 
 
 class ScriptedSession:
-    def __init__(self, statuses=("running", "succeeded"), *, tool="corel_execute_vba",
+    def __init__(self, statuses=("running", "succeeded"), *, tool="corel_edit_text",
                  fail_dispatch=False, fail_poll=False, cleanup=None, image=None):
         self.base = report(tool=tool)
         self.statuses, self.calls = list(statuses), []

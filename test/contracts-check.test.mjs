@@ -15,12 +15,12 @@ test('contract checker accepts repository and rejects real corrupted documentati
   assert.equal(valid.status, 0, valid.stderr);
   const cases = [
     ['missing tool', 'references/tools.md', text => text.replace(/^\| `corel_export`.*\r?\n/m, ''), /corel_export/],
-    ['required schema field', 'references/tools.md', text => text.replace('"required":["request_id","document_id","code"]', '"required":["document_id","code"]'), /required.*corel_execute_vba/],
+    ['required schema field', 'references/tools.md', text => text.replace('"tool":"corel_create_document","required":["request_id"]', '"tool":"corel_create_document","required":[]'), /required.*corel_create_document/],
     ['stale preview target', 'references/tools.md', text => text.replace('"target":["page","selection"]', '"target":["page"]'), /enum.*corel_preview/],
     ['stale export alias', 'references/tools.md', text => text.replace('"jpg","jpeg"', '"jpg","jpegg"'), /enum.*corel_export/],
     ['undocumented default', 'references/tools.md', text => text.replace('"max_size":1200', '"max_size":2400'), /default.*corel_preview/],
-    ['missing recipe', 'examples/M_TextUnicode.bas', null, /M_TextUnicode/],
-    ['stale description', 'references/tools.md', text => text.replace('"corel_preview":"PNG-превью', '"corel_preview":"Обещание PDF вместо PNG'), /description.*corel_preview/],
+    ['missing recipe', 'examples/text-unicode.json', null, /text-unicode/],
+    ['stale description', 'references/tools.md', text => text.replace(/("corel_preview"\s*:\s*")[^"]*/, '$1Обещание PDF вместо PNG'), /description.*corel_preview/],
     ['stale tool row', 'references/tools.md', text => text + '\n| `corel_removed` | obsolete |\n', /unknown tool.*corel_removed/],
   ];
   for (const [label, file, corrupt, expected] of cases) await t.test(label, () => {

@@ -23,7 +23,7 @@ def test_panel_powershell_scripts_parse_without_execution(shell):
         assert result.returncode == 0, result.stderr.decode(errors='replace')
 
 
-def script_harness(tmp_path, name, *, arguments=(), python_ok=True, node_version='v24.18.1', fail_call=0):
+def script_harness(tmp_path, name, *, arguments=(), python_ok=True, node_version='v24.18.1', fail_call=0, fail_check=''):
     project = tmp_path / 'project with spaces'
     scripts = project / 'scripts'
     scripts.mkdir(parents=True)
@@ -43,7 +43,13 @@ function Invoke-Fixture([string]$Program, [object[]]$Arguments) {
     $record = @{program=$Program; arguments=@($Arguments); cwd=(Get-Location).Path}
     [IO.File]::AppendAllText($env:TEST_LOG, ($record | ConvertTo-Json -Compress) + "`n")
     $global:LASTEXITCODE = 0
-    if ($Program -eq 'node') { $env:TEST_NODE_VERSION; return }
+    if ($Program -eq 'node') {
+        if ($Arguments[0] -eq '--version') { $env:TEST_NODE_VERSION }
+        if ($env:TEST_FAIL_CHECK -and [IO.Path]::GetFileName([string]$Arguments[0]) -eq $env:TEST_FAIL_CHECK) {
+            $global:LASTEXITCODE = 1
+        }
+        return
+    }
     if ($Program -eq 'python' -and $Arguments[0] -eq '-c') {
         $version = if ($env:TEST_PYTHON_OK -eq '1') { '(3, 12)' } else { '(3, 11)' }
         & $env:TEST_REAL_PYTHON -c ("import sys; sys.version_info=$version; " + $Arguments[1])
@@ -62,7 +68,7 @@ $global:callCount = 0
     env = {**os.environ, 'TEST_LOG': str(log), 'TEST_PYTHON': str(python),
            'TEST_REAL_PYTHON': sys.executable,
            'TEST_SCRIPT': str(script), 'TEST_PYTHON_OK': '1' if python_ok else '0',
-           'TEST_NODE_VERSION': node_version, 'TEST_FAIL_CALL': str(fail_call),
+           'TEST_NODE_VERSION': node_version, 'TEST_FAIL_CALL': str(fail_call), 'TEST_FAIL_CHECK': fail_check,
            'LOCALAPPDATA': str(tmp_path / 'local')}
     result = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                              '-File', str(harness), *arguments], env=env, cwd=tmp_path,
@@ -90,6 +96,23 @@ def test_install_preserves_locked_commands_and_workdirs_with_spaces(tmp_path):
     ]
     assert [call['cwd'] for call in installs[1:]] == [str(project)] * 2 + [str(project / 'webui')] * 3
     assert not (tmp_path / 'local').exists()
+
+
+@pytest.mark.parametrize('check', ['check-preupgrade.mjs', 'worker-package.mjs'])
+def test_install_refuses_unsafe_upgrade_or_worker_before_dependency_install(tmp_path, check):
+    _, result, calls = script_harness(tmp_path, 'Install', fail_check=check)
+    assert result.returncode != 0
+    assert calls[-1]['program'] == 'node'
+    assert calls[-1]['arguments'][0].endswith(check)
+    assert not any(call['program'] != 'node' for call in calls)
+    assert not (tmp_path / 'local').exists()
+
+
+def test_verify_release_refuses_missing_package_before_running_suites(tmp_path):
+    _, result, calls = script_harness(tmp_path, 'Verify', fail_check='worker-package.mjs')
+    assert result.returncode != 0
+    assert calls == [{'program': 'node', 'arguments': [str(tmp_path / 'project with spaces/scripts/worker-package.mjs')],
+                      'cwd': str(tmp_path / 'project with spaces')}]
 
 
 @pytest.mark.parametrize('fail_call', [1, 2, 3, 4, 5, 6])

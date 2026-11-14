@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Version>0.4.0</Version>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishAot>false</PublishAot>
+    <PublishSingleFile>false</PublishSingleFile>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../native/CorelMcp.Runtime.gms" Link="native/CorelMcp.Runtime.gms" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('../native/CorelMcp.Runtime.gms')" />
+    <None Include="../native/module-manifest.json" Link="native/module-manifest.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('../native/module-manifest.json')" />
+    <PackageReference Include="PDFsharp" Version="[6.2.4]" />
+    <None Include="../third-party/PDFsharp.LICENSE.txt" Link="third-party/PDFsharp.LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Reference Include="VGCore.Interop">
+      <HintPath>../generated/VGCore.Interop.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+    </Reference>
+    <InternalsVisibleTo Include="CorelMcp.Worker.Tests" />
+    <InternalsVisibleTo Include="CorelMcp.NativeVerifier" />
+  </ItemGroup>
+  <Target Name="RequireGeneratedInterop" BeforeTargets="ResolveReferences"
+          Condition="!Exists('$(MSBuildProjectDirectory)/../generated/VGCore.Interop.dll')">
+    <Error Text="Сначала выполните scripts/build-worker.ps1 -GenerateInteropOnly на Windows с установленным CorelDRAW 27." />
+  </Target>
+</Project>

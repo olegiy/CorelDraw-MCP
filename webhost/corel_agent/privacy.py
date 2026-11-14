@@ -1,6 +1,5 @@
-"""Outbound masking, not a VBA sandbox or a source-code restoration mechanism."""
+"""Mask known credentials in reports and outbound model context."""
 
-from .contracts import AgentError
 
 SECRET_MARKER = "<секрет скрыт>"
 SECRET_KEYS = frozenset({"api_key", "authorization", "password", "access_token", "refresh_token"})
@@ -22,11 +21,6 @@ class Privacy:
         if isinstance(value, list | tuple):
             return any(self.contains_secret(item) for item in value)
         return False
-
-    def validate_vba(self, code):
-        if self.contains_secret(code):
-            raise AgentError("SECRET_IN_OPERATION", "Операция содержит credential value; отправка запрещена.", 403)
-        return code
 
     def sanitize_local(self, value):
         if isinstance(value, str):

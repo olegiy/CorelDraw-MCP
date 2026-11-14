@@ -1,39 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+const directory = new URL('../skills/coreldraw-automation/examples/', import.meta.url);
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const examples = join(root, 'skills/coreldraw-automation/examples');
-const recipeNames = [
-  'M_TextUnicode.bas',
-  'M_FillOutline.bas',
-  'M_DuplicateOffset.bas',
-  'M_LayerGroup.bas',
-  'M_BooleanShapes.bas',
-  'M_CurveNodes.bas',
-];
-
-test('six documented recipes have bounded safe source contracts', async () => {
-  const recipeFiles = await readdir(examples);
-  assert.deepEqual(recipeNames.filter((name) => recipeFiles.includes(name)), recipeNames);
-  for (const name of recipeNames) {
-    const source = await readFile(join(examples, name), 'utf8');
-    assert.match(source, /Option Explicit/);
-    assert.match(source, /Public Function Main\(\) As String/);
-    assert.match(source, /document_id|ActiveDocument|Documents\.Count/);
-    assert.match(source, /StaticID/);
-    assert.match(source, /error_code|Err\.Raise|RecipeError/);
-    assert.doesNotMatch(source, /\b(?:Eval|Execute|Shell|Application\.Quit)\b/i);
-    assert.doesNotMatch(source, /Open\s+.+\s+For\s+/i);
-    assert.doesNotMatch(source, /CreateObject\s*\(/i);
+test('all recipe assets are bounded data and contain no executable module source', async () => {
+  const files = await readdir(directory); assert.equal(files.length, 12);
+  for (const file of files) {
+    assert(file.endsWith('.json'));
+    const bytes = await readFile(new URL(file, directory)); assert(bytes.length <= 32768);
+    const value = JSON.parse(bytes.toString('utf8'));
+    assert(value.steps.length > 0 && value.steps.length <= 6);
+    assert(value.steps.every(step => typeof step.tool === 'string' && !Object.hasOwn(step.arguments, 'code')));
   }
 });
 
-test('recipe reference lists stable result fields and explicit preconditions', async () => {
-  const recipes = await readFile(join(root, 'skills/coreldraw-automation/references/recipes.md'), 'utf8');
-  for (const name of recipeNames) assert.match(recipes, new RegExp(name.replace('.', '\\.'), 'i'));
-  for (const term of ['провер', 'StaticID', 'empty|пуст', 'результ'])
-    assert.match(recipes, new RegExp(term, 'i'));
+test('recipe reference links every validated scenario and warns that example identities must be replaced', async () => {
+  const text = await readFile(new URL('../skills/coreldraw-automation/references/recipes.md', import.meta.url), 'utf8');
+  const contract = await readFile(new URL('../skills/coreldraw-automation/references/recipe-contract.md', import.meta.url), 'utf8');
+  for (const name of await readdir(directory)) assert(text.includes(name));
+  for (const term of ['StaticID', 'request_id', 'revision', 'cleanup.completed', 'предуслов']) assert(contract.includes(term));
 });

@@ -1,6 +1,6 @@
 import httpx
 import pytest
-from conftest import implementation
+from conftest import drawing_arguments, implementation
 from test_manual_api import HarnessAccess
 from test_settings import FakeVault, profile
 
@@ -180,10 +180,10 @@ async def test_saved_key_is_known_before_any_agent_run_and_never_sent_to_mcp(cli
         'profile': item.model_dump(), 'api_key': 'CANARY-credential-XYZ'})
     assert response.status_code == 200
     await prime(runtime, store)
-    response = await client.post('/api/v1/actions', json=command(tool='corel_execute_vba',
-        document_id='fixture-b', arguments={'code': 'CANARY-credential-XYZ'}).model_dump())
+    response = await client.post('/api/v1/actions', json=command(tool='corel_edit_text',
+        document_id='fixture-b', arguments=drawing_arguments('CANARY-credential-XYZ')).model_dump())
     assert response.status_code == 403 and 'CANARY' not in response.text
-    assert calls(store, 'corel_execute_vba') == []
+    assert calls(store, 'corel_edit_text') == []
 
 
 async def test_key_value_cannot_be_persisted_in_profile_metadata(client, store):

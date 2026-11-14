@@ -26,7 +26,7 @@ def verified(row):
     report = result.report
     if (row['state'] != 'terminal' or not row['job_id']
             or operation.operation_id != row['id'] or operation.run_id != row['run_id']
-            or operation.policy_version not in {1, 2}
+            or operation.policy_version not in {1, 2, 3}
             or operation.digest != Policy.operation_digest(operation)
             or result.operation_id != row['id'] or result.job_id != row['job_id']
             or result.outcome not in {'succeeded', 'failed'}

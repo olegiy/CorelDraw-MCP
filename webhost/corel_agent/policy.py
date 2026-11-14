@@ -15,19 +15,29 @@ from .contracts import AgentError, PreparedOperation, RiskDecision, ToolDefiniti
 from .privacy import Privacy
 from .store import canonical, fingerprint
 
-POLICY_VERSION = 2
-READ_ONLY = frozenset({"corel_status", "corel_inspect_document", "corel_preview"})
+POLICY_VERSION = 3
+GLOBAL_TOOLS = frozenset({'corel_status', 'corel_describe_api'})
+READ_ONLY = GLOBAL_TOOLS | frozenset({"corel_inspect_document", "corel_preview",
+    'corel_measure_shapes', 'corel_inspect_curve', 'corel_find_text', 'corel_preflight'})
 NEW_DOCUMENT = frozenset({"corel_create_document", "corel_open_document"})
-MVP_TOOLS = READ_ONLY | NEW_DOCUMENT | frozenset({
-    "corel_execute_vba", "corel_save_document", "corel_export", "corel_close_document",
+DRAWING_MUTATIONS = frozenset({
+    'corel_create_batch', 'corel_update_batch',
+    'corel_create_shapes', 'corel_transform_shapes', 'corel_duplicate_shapes', 'corel_style_shapes',
+    'corel_manage_layers', 'corel_group_shapes', 'corel_boolean_shapes', 'corel_create_text',
+    'corel_convert_to_curves', 'corel_create_curve', 'corel_edit_curve', 'corel_edit_text',
+    'corel_align_shapes', 'corel_grid_duplicate', 'corel_layout_shapes', 'corel_import',
+    'corel_manage_pages', 'corel_powerclip',
 })
+MVP_TOOLS = READ_ONLY | NEW_DOCUMENT | frozenset({
+    "corel_save_document", "corel_export", "corel_close_document",
+}) | DRAWING_MUTATIONS
 SYSTEM_FIELDS = frozenset({
     "request_id", "document_id", "deadline_seconds", "base_url", "profile_id", 'new_document', 'output_directory',
-    "credential_revision", "policy_version", "operation_id", "run_id",
+    "credential_revision", "policy_version", "operation_id", "run_id", 'sha256', 'size_bytes',
 })
 EXPORT_ONLY = frozenset({"color_mode", "jpeg_compression", "tiff_compression", "use_document_profile", "transparent", "text_mode"})
 POSTCHECKS = {
-    "corel_execute_vba": ("corel_inspect_document", "corel_preview"),
+    **{tool: ("corel_inspect_document", "corel_preview") for tool in DRAWING_MUTATIONS},
     "corel_create_document": ("corel_inspect_document",),
     "corel_open_document": ("corel_inspect_document",),
     "corel_save_document": ("corel_inspect_document",),
@@ -71,7 +81,7 @@ class PathGuard:
             raise AgentError("ROOT_UNAVAILABLE", "Каталог назначения должен уже существовать.", 403)
         return path
 
-    def file_fingerprint(self, value):
+    def input_fingerprint(self, value):
         path = self.path(value)
         if not path.exists():
             if not path.parent.is_dir():
@@ -90,7 +100,12 @@ class PathGuard:
             return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
         if identity(before) != identity(after) or identity(after) != identity(current):
             raise AgentError("FILE_CHANGED", "Файл изменился при проверке.")
-        return fingerprint({"identity": identity(after), "sha256": digest.hexdigest()})
+        sha256 = digest.hexdigest()
+        return fingerprint({"identity": identity(after), "sha256": sha256}), sha256, after.st_size
+
+    def file_fingerprint(self, value):
+        result = self.input_fingerprint(value)
+        return result[0] if result else None
 
     def output(self, value, extension):
         path = self.path(value)
@@ -130,9 +145,18 @@ class Policy:
         if name not in self.registry:
             raise AgentError("TOOL_DENIED", "Инструмент не входит в зарегистрированный MVP-каталог.", 403)
         schema = deepcopy(self.registry[name].input_schema)
+        def strip_host_fields(branch):
+            properties = branch.get('properties', {})
+            for key in SYSTEM_FIELDS:
+                properties.pop(key, None)
+            branch['required'] = [key for key in branch.get('required', []) if key not in SYSTEM_FIELDS]
+            if 'static_ids' in properties:
+                properties['static_ids']['uniqueItems'] = True
+            for keyword in ('oneOf', 'anyOf', 'allOf'):
+                for alternative in branch.get(keyword, []):
+                    strip_host_fields(alternative)
+        strip_host_fields(schema)
         properties = schema.get("properties", {})
-        for key in SYSTEM_FIELDS:
-            properties.pop(key, None)
         if name == "corel_preview":
             properties.pop("range", None)
             properties["target"] = {"type": "string", "enum": ["page", "selection"], "default": "page"}
@@ -140,10 +164,8 @@ class Policy:
             properties["format"] = {"type": "string", "enum": ["png", "svg", "pdf"]}
             for key in EXPORT_ONLY:
                 properties.pop(key, None)
-        if "static_ids" in properties:
-            properties["static_ids"]["uniqueItems"] = True
-        schema["required"] = [key for key in schema.get("required", []) if key not in SYSTEM_FIELDS]
-        schema["additionalProperties"] = False
+        if 'properties' in schema:
+            schema["additionalProperties"] = False
         return schema
 
     def catalog(self, context):
@@ -152,7 +174,7 @@ class Policy:
             if name in NEW_DOCUMENT:
                 if context.document_id or not context.new_document:
                     continue
-            elif name != "corel_status" and not context.document_id:
+            elif name not in GLOBAL_TOOLS and not context.document_id:
                 continue
             description = tool.description if name != "corel_export" else "Экспорт PNG/SVG/PDF по абсолютному пути; существующий файл заменяется автоматически."
             result.append(ToolDefinition(name=name, description=description,
@@ -177,7 +199,7 @@ class Policy:
             if tool in NEW_DOCUMENT:
                 if context.document_id or not context.new_document:
                     raise AgentError("DOCUMENT_INTENT_REQUIRED", "Новый документ должен быть явно запрошен без другой привязки.")
-            elif tool != "corel_status" and not context.document_id:
+            elif tool not in GLOBAL_TOOLS and not context.document_id:
                 raise AgentError("DOCUMENT_REQUIRED", "Выберите точный документ для этого Run.")
             args = deepcopy(arguments)
             for key, property_schema in schema.get("properties", {}).items():
@@ -190,6 +212,18 @@ class Policy:
                     raise AgentError('FILE_UNAVAILABLE', 'Открытие требует существующего обычного CDR.', 403)
                 args["path"] = str(path)
                 file_digest = self.paths.file_fingerprint(args["path"])
+            if tool == 'corel_import':
+                from .assets import assert_no_links
+                value = args['path']
+                if not re.match(r'^[A-Za-z]:[\\/]', value):
+                    raise AgentError('INPUT_NOT_LOCAL', 'Импорт требует путь на локальном диске Windows.', 403)
+                assert_no_links(Path(value))
+                path = self.paths.path(value)
+                extensions = {'svg': {'.svg'}, 'pdf': {'.pdf'}, 'png': {'.png'}, 'jpeg': {'.jpg', '.jpeg'}}
+                if path.suffix.lower() not in extensions[args['format']] or not path.is_file():
+                    raise AgentError('FILE_UNAVAILABLE', 'Файл импорта должен существовать и соответствовать формату.', 403)
+                args['path'] = str(path)
+                file_digest, args['sha256'], args['size_bytes'] = self.paths.input_fingerprint(args['path'])
             if tool in {"corel_save_document", "corel_export"}:
                 if tool == "corel_save_document" and "path" not in args:
                     if not context.current_document_path:
@@ -201,14 +235,12 @@ class Policy:
                     if ((args.get("range", "page") == "document" and args["format"] != "pdf")
                             or (args.get("range") == "selection" and args["format"] == "pdf")):
                         raise AgentError("EXPORT_RANGE_INVALID", "PDF поддерживает страницу/документ, PNG/SVG страницу/выделение.", 422)
-            if tool == "corel_execute_vba":
-                self.privacy.validate_vba(args["code"])
             operation_id = new_id()
             request_id = f"web:{operation_id}" if tool not in READ_ONLY else None
             if request_id:
                 args["request_id"] = request_id
             args["deadline_seconds"] = 600
-            if tool not in NEW_DOCUMENT and tool != "corel_status":
+            if tool not in NEW_DOCUMENT and tool not in GLOBAL_TOOLS:
                 args["document_id"] = context.document_id
             if self.privacy.contains_secret(args):
                 raise AgentError('SECRET_IN_OPERATION', 'Credential value не отправляется в Corel MCP.', 403)
@@ -235,12 +267,13 @@ class Policy:
                 return decision("deny", "OPERATION_CHANGED: параметры изменились или политика несовместима.")
             if operation.scope_digest != self.scope_digest(current_state):
                 return decision("deny", "SCOPE_CHANGED: зафиксированный контекст изменился.")
-            if operation.tool == 'corel_open_document':
+            if operation.tool in {'corel_open_document', 'corel_import'}:
+                if operation.tool == 'corel_import':
+                    from .assets import assert_no_links
+                    assert_no_links(Path(operation.arguments['path']))
                 actual = self.paths.file_fingerprint(operation.arguments["path"])
                 if actual != operation.file_fingerprint:
                     return decision("deny", "FILE_CHANGED: файл изменился после подготовки операции.")
-            if operation.tool == "corel_execute_vba":
-                self.privacy.validate_vba(operation.arguments["code"])
             return decision("allow")
         try:
             return await asyncio.to_thread(classify)

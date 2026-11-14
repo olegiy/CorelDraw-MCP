@@ -1,0 +1,2 @@
+# Native module manifests bind the exact source bytes, including line endings.
+worker/vba/*.bas -text

@@ -18,6 +18,7 @@ if (process.argv.includes('--inventory-vbe')) temporaryProjects.vbe_names.push(r
 if (process.argv.includes('--inventory-malformed')) temporaryProjects.gms.push({name: 'Missing path'});
 const shapes = new Map(documents.map(doc => [doc.document_id, [{ static_id: 1001, name: 'Baseline', bounds_mm: { left: 0, bottom: 0, width: 20, height: 30 } }]]));
 const executor = {
+  backend: 'csharp',
   async run(job, args, progress) {
     appendFileSync(join(process.env.CORELDRAW_MCP_RUNS, 'calls.jsonl'), JSON.stringify({ tool: job.tool, args }) + '\n');
     progress('fixture_running');
@@ -33,13 +34,15 @@ const executor = {
         : process.argv.includes('--smoke-localized_version') ? 'Версия 27.2.0.135' : '27.0',
         session_id: 'fixture', active_document_id: 'fixture-a', documents,
         vba: { available: true, compile_available: true,
-          ...(process.argv.includes('--inventory-omitted') ? {} : {temporary_projects: temporaryProjects}) }, executor: { state: 'ready' },
+          ...(process.argv.includes('--inventory-omitted') ? {} : {temporary_projects: temporaryProjects}) }, executor: { state: 'ready', backend: 'csharp' },
+        capabilities: { typed_operations: true, arbitrary_code: false },
         application_state: { optimization: false, events_enabled: true } }, cleanup };
     if (job.tool === 'corel_inspect_document' && smoke) {
       const current = shapes.get(args.document_id) ?? [];
       return { ok: true, result: { document: documents.find(doc => doc.document_id === args.document_id),
-        shapes: current, total_shapes: current.length, selection_ids: current.map(shape => shape.static_id),
-        total_selected: current.length, next_offset: null, shapes_truncated: false, pages_truncated: false,
+        shapes: current, total_shapes: current.length, selection_ids: [],
+        layers: [{ layer_id: `layer-${args.document_id}`, is_special_layer: false }],
+        total_selected: 0, next_offset: null, shapes_truncated: false, pages_truncated: false,
         layers_truncated: false, selection_truncated: false, depth_truncated: false, visited_truncated: false }, cleanup };
     }
     if (job.tool === 'corel_inspect_document')
@@ -52,6 +55,10 @@ const executor = {
       return { ok: true, result: smoke ? { path, bytes: png.length, format: 'png', range: args.target ?? 'page' }
         : { path, document_id: args.document_id, page_index: args.page_index ?? 1, target: args.target }, artifacts: [path], cleanup };
     }
+    if (job.tool === 'corel_layout_shapes') return { ok: true, result: {
+      document_id: args.document_id, dry_run: args.dry_run, layout_revision: '1'.repeat(64),
+      placements: [], unplaced: [], received: args,
+    }, cleanup };
     if (job.tool === 'corel_create_document' || job.tool === 'corel_open_document') {
       const doc = { document_id: `fixture-created-${documents.length}`, name: 'Новый рисунок', path: args.path ?? '', dirty: false, pages: 1, active_page: 1 };
       documents.push(doc);
@@ -65,28 +72,18 @@ const executor = {
       shapes.delete(args.document_id);
       return { ok: true, result: { applied: true, document_id: args.document_id }, cleanup };
     }
-    if (smoke && job.tool === 'corel_execute_vba') {
-      const project = 'CorelMcp_fixture_' + job.job_id;
-      const inventory = ['CorelMcp_previous_diagnostic', 'UserGMS_keep', project];
-      const vbaCleanup = { ...cleanup, project_name: project, project_retained: false };
+    if (smoke && job.tool === 'corel_create_shapes') {
       if (process.argv.includes('--smoke-retained_gms'))
-        return { ok: false, error: { code: 'VBA_RUNTIME_ERROR', message: 'Diagnostic GMS retained', applied: true },
-          cleanup: { ...vbaCleanup, project_retained: true } };
-      if (process.argv.includes('--smoke-cleanup_failure')) {
-        vbaCleanup.completed = false;
-        vbaCleanup.errors.push({ stage: 'restore', message: 'Synthetic cleanup failure' });
-      }
-      if (process.argv.includes('--smoke-vba_failure'))
-        return { ok: false, error: { code: 'VBA_RUNTIME_ERROR', message: 'Synthetic VBA failure', applied: true }, cleanup: vbaCleanup };
-      if (args.code.includes('CorelMcpPanelSmoke: geometry v1')) {
-        const shape = { static_id: 2000 + documents.indexOf(documents.find(doc => doc.document_id === args.document_id)),
-          name: 'CorelMcp panel smoke', bounds_mm: { left: 10, bottom: 10, width: 20, height: 30 } };
-        shapes.set(args.document_id, [shape]);
-        return { ok: true, result: { value: { projects: inventory, static_id: shape.static_id }, applied: true }, cleanup: vbaCleanup };
-      }
-      if (args.code.includes('CorelMcpPanelSmoke: inventory v1'))
-        return { ok: true, result: { value: { projects: inventory }, applied: true }, cleanup: vbaCleanup };
-      throw new Error('Unexpected smoke VBA');
+        return { ok: false, error: { code: 'UNEXPECTED_LEGACY_CLEANUP', message: 'Historical cleanup evidence retained', applied: true },
+          cleanup: { ...cleanup, project_name: 'CorelMcp_fixture_historical', project_retained: true } };
+      if (process.argv.includes('--smoke-drawing_failure'))
+        return { ok: false, error: { code: 'DRAWING_FAILED', message: 'Synthetic drawing failure', applied: true }, cleanup };
+      const observedCleanup = process.argv.includes('--smoke-cleanup_failure')
+        ? { completed: false, errors: [{ stage: 'restore', message: 'Synthetic cleanup failure' }] } : cleanup;
+      const shape = { static_id: 2000 + documents.findIndex(doc => doc.document_id === args.document_id),
+        name: 'CorelMcp panel smoke', bounds_mm: { left: 10, bottom: 10, width: 20, height: 30 } };
+      shapes.set(args.document_id, [shape]);
+      return { ok: true, result: { created_static_ids: [shape.static_id], items: [shape], applied: true }, cleanup: observedCleanup };
     }
     if (job.tool === 'corel_save_document' || job.tool === 'corel_export') {
       const doc = documents.find(doc => doc.document_id === args.document_id);
@@ -95,9 +92,9 @@ const executor = {
       if (job.tool === 'corel_save_document') { doc.path = path; doc.dirty = false; }
       return { ok: true, result: { applied: true, path, document_id: doc.document_id }, artifacts: [path], cleanup };
     }
-    if (args.code === 'lose executor') throw new Error('Synthetic loss');
-    if (args.code === 'fail') return { ok: false, error: { code: 'VBA_RUNTIME_ERROR', stage: 'executing_vba', message: 'Ошибка VBA.', applied: true }, cleanup };
-    if (args.code === 'cleanup fail') return { ok: true, result: { applied: true }, cleanup: { completed: false, errors: [{ code: 'CLEANUP_FAILED', step: 'fixture' }] } };
+    if (args.text === 'lose executor') throw new Error('Synthetic loss');
+    if (args.text === 'fail') return { ok: false, error: { code: 'DRAWING_FAILED', stage: 'drawing', message: 'Ошибка операции.', applied: true }, cleanup };
+    if (args.text === 'cleanup fail') return { ok: true, result: { applied: true }, cleanup: { completed: false, errors: [{ code: 'CLEANUP_FAILED', step: 'fixture' }] } };
     return { ok: true, result: { received: args, applied: true, document_id: args.document_id }, cleanup };
   },
   close() {},

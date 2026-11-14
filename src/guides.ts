@@ -4,7 +4,7 @@ import { AutomationFailure } from './types.js';
 const definitions = {
   skill: { title: 'Порядок работы', path: '../skills/coreldraw-automation/SKILL.md' },
   tools: { title: 'Инструменты', path: '../skills/coreldraw-automation/references/tools.md' },
-  vba: { title: 'Сценарии VBA', path: '../skills/coreldraw-automation/references/vba.md' },
+  operations: { title: 'Готовые операции', path: '../skills/coreldraw-automation/references/operations.md' },
   api: { title: 'API CorelDRAW 27', path: '../skills/coreldraw-automation/references/api-v27.md' },
   recipes: { title: 'Рецепты', path: '../skills/coreldraw-automation/references/recipes.md' },
   pitfalls: { title: 'Ограничения', path: '../skills/coreldraw-automation/references/pitfalls.md' },

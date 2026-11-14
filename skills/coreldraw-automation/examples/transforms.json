@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "title": "Перенос, поворот и масштаб",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_transform_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "move",
+        "static_ids": [
+          1001
+        ],
+        "dx_mm": 5,
+        "dy_mm": 10
+      }
+    },
+    {
+      "tool": "corel_transform_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "rotate",
+        "static_ids": [
+          1001
+        ],
+        "angle_deg": 30,
+        "anchor_x_mm": 10,
+        "anchor_y_mm": 10
+      }
+    },
+    {
+      "tool": "corel_transform_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "scale",
+        "static_ids": [
+          1001
+        ],
+        "sx": 2,
+        "sy": 2,
+        "anchor_x_mm": 10,
+        "anchor_y_mm": 10
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Проверять result, error.applied и cleanup.completed; после частичного/unknown/timed_out не повторять автоматически."
+  ]
+}

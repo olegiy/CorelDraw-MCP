@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "title": "Явная подготовка к производству",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_preflight",
+      "arguments": {
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "checks": [
+          {
+            "kind": "open_contours"
+          },
+          {
+            "kind": "text_present"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "corel_style_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "fill": {
+          "kind": "none"
+        },
+        "outline": {
+          "kind": "uniform",
+          "width_mm": 0.1,
+          "color": {
+            "model": "rgb",
+            "r": 255,
+            "g": 0,
+            "b": 0
+          }
+        }
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Preflight ничего не исправляет и не гарантирует совместимость со станком. После явной правки повторить соответствующие проверки; unknown не означает passed."
+  ]
+}

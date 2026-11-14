@@ -16,11 +16,11 @@ test('stdio negotiation publishes all tools and strict schemas', async t => {
   const list = await session.client.listTools();
   for (const name of ['corel_measure_shapes','corel_describe_api','corel_add_note','corel_export_diagnostics','corel_prune_artifacts','corel_list_artifacts','corel_guide']) assert(list.tools.some(tool => tool.name === name));
   assert(list.tools.every(tool => tool.inputSchema.type === 'object'));
-  const execution = list.tools.find(tool => tool.name === 'corel_execute_vba');
+  const execution = list.tools.find(tool => tool.name === 'corel_create_text');
   assert.equal(execution.annotations.destructiveHint, true);
-  assert.equal(execution.inputSchema.additionalProperties, false);
-  assert(execution.inputSchema.required.includes('request_id'));
-  assert.match(execution.description, /sandbox/);
+  assert(list.tools.every(tool => !['corel_execute_vba', 'corel_build_vba'].includes(tool.name)));
+  assert(execution.inputSchema.oneOf || execution.inputSchema.anyOf);
+  assert.match(execution.description, /Текст|текст/);
 });
 test('invalid inputs fail before any job is created', async t => {
   const session = await fixture(t);
@@ -51,20 +51,20 @@ test('identical requests reuse persisted jobs; changed arguments conflict', asyn
 });
 test('Unicode, Windows paths and literal shell metacharacters round trip', async t => {
   const session = await fixture(t);
-  const code = 'Привет "$()" `backticks` C:\\Макеты с пробелами\\тест.cdr';
-  const job = await operation(session, 'corel_execute_vba', { request_id: 'юникод', document_id: 'synthetic', code });
-  assert.equal(job.result.received.code, code);
+  const text = 'Привет "$()" `backticks` C:\\Макеты с пробелами\\тест.cdr';
+  const job = await operation(session, 'corel_edit_text', { request_id: 'юникод', document_id: 'synthetic', page_index: 1, static_ids: [1001], action: 'set_text', text });
+  assert.equal(job.result.received.text, text);
 });
 test('deadline preserves busy state and late completion reconciles the result', async t => {
   const session = await fixture(t);
-  const args = { request_id: 'slow', document_id: 'synthetic', code: 'delay', deadline_seconds: 1 };
-  const first = await call(session, 'corel_execute_vba', args);
+  const args = { request_id: 'slow', document_id: 'synthetic', page_index: 1, static_ids: [1001], action: 'set_text', text: 'delay', deadline_seconds: 1 };
+  const first = await call(session, 'corel_edit_text', args);
   const timed = await call(session, 'corel_get_job', { job_id: first.job_id, wait_seconds: 2 });
   assert.equal(timed.status, 'timed_out');
   assert.equal(timed.deadline_exceeded, true);
   const busy = await call(session, 'corel_status');
   assert.equal(busy.error.code, 'BUSY');
-  assert.equal((await call(session, 'corel_execute_vba', args)).job_id, first.job_id);
+  assert.equal((await call(session, 'corel_edit_text', args)).job_id, first.job_id);
   await new Promise(resolve => setTimeout(resolve, 600));
   const complete = await call(session, 'corel_get_job', { job_id: first.job_id });
   assert.equal(complete.status, 'succeeded');
@@ -73,11 +73,11 @@ test('deadline preserves busy state and late completion reconciles the result', 
 });
 test('worker errors use MCP isError and retain structured diagnostics', async t => {
   const session = await fixture(t);
-  const report = await operation(session, 'corel_execute_vba', { request_id: 'failure', document_id: 'synthetic', code: 'fail' });
+  const report = await operation(session, 'corel_edit_text', { request_id: 'failure', document_id: 'synthetic', page_index: 1, static_ids: [1001], action: 'set_text', text: 'fail' });
   const result = await session.client.callTool({ name: 'corel_get_job', arguments: { job_id: report.job_id } });
   assert.equal(result.isError, true);
   assert.equal(data(result).error.number, 123);
-  const unknown = await operation(session, 'corel_execute_vba', { request_id: 'unknown', document_id: 'synthetic', code: 'lose executor' });
+  const unknown = await operation(session, 'corel_edit_text', { request_id: 'unknown', document_id: 'synthetic', page_index: 1, static_ids: [1001], action: 'set_text', text: 'lose executor' });
   assert.equal(unknown.status, 'unknown');
   assert.equal(unknown.error.code, 'EXECUTOR_LOST');
 });

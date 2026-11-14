@@ -381,7 +381,7 @@ class Store:
 
     async def mark_dispatching(self, operation_id, *, expected=None):
         def dispatch(db):
-            from .policy import POLICY_VERSION, Policy
+            from .policy import MVP_TOOLS, POLICY_VERSION, Policy
             row = db.execute("SELECT * FROM operations WHERE id=?", (operation_id,)).fetchone()
             if not row:
                 raise AgentError('OPERATION_NOT_FOUND', 'Подготовленная операция не найдена.', 404)
@@ -390,7 +390,7 @@ class Store:
                 raise AgentError("DISPATCH_BLOCKED", "Операция остановлена либо Run завершён.")
             prepared = PreparedOperation.model_validate_json(row['prepared'])
             if (prepared.operation_id != operation_id or prepared.run_id != snapshot.id
-                    or prepared.policy_version != POLICY_VERSION or prepared.digest != Policy.operation_digest(prepared)
+                    or prepared.tool not in MVP_TOOLS or prepared.policy_version != POLICY_VERSION or prepared.digest != Policy.operation_digest(prepared)
                     or (expected is not None and prepared != expected)):
                 raise AgentError('OPERATION_CHANGED', 'Сохранённая операция изменилась или относится к старой версии; отправка запрещена.')
             if expected is not None:
@@ -673,7 +673,7 @@ class Store:
             try:
                 prepared = PreparedOperation.model_validate_json(row['prepared'])
                 if (prepared.operation_id != row['id'] or prepared.run_id != row['run_id']
-                        or prepared.policy_version not in {1, 2}):
+                        or prepared.policy_version not in {1, 2, 3}):
                     raise ValueError
                 if row['state'] == 'prepared' and row['job_id'] is None:
                     sent = db.execute("SELECT 1 FROM events WHERE json_extract(payload,'$.type') "

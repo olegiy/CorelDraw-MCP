@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { connect, call, operation } from './helpers.mjs';
 import { toolDefinitions } from '../dist/tools.js';
 
-for (const config of ['{"disabled_tools":["corel_execute_vba","corel_export"]}',
+for (const config of ['{"disabled_tools":["corel_edit_text","corel_export"]}',
                       '{"disabled_tools":[', '{"unknown":true}', ' '.repeat(65537)]) {
   test(`legacy configuration cannot hide tools (${config.length} bytes)`, async t => {
     const root = mkdtempSync(join(tmpdir(), 'corelmcp-config-'));
@@ -16,9 +16,10 @@ for (const config of ['{"disabled_tools":["corel_execute_vba","corel_export"]}',
     const session = await connect({ runs: join(root, 'runs'), fixture: true, configRoot: root });
     t.after(() => session.close());
     const names = (await session.client.listTools()).tools.map(tool => tool.name).sort();
-    assert.deepEqual(names, [...Object.keys(toolDefinitions), 'corel_get_job', 'corel_guide'].sort());
-    const executed = await operation(session, 'corel_execute_vba', {
-      request_id: 'no-permission', document_id: 'fixture', code: 'fixture',
+    const defaultCatalog = Object.keys(toolDefinitions);
+    assert.deepEqual(names, [...defaultCatalog, 'corel_get_job', 'corel_guide'].sort());
+    const executed = await operation(session, 'corel_edit_text', {
+      request_id: 'no-permission', document_id: 'fixture', page_index: 1, static_ids: [1001], action: 'set_text', text: 'fixture',
     });
     assert.equal(executed.status, 'succeeded');
     assert.equal(readFileSync(path, 'utf8'), config);

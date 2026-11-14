@@ -8,8 +8,10 @@ async def test_node_v2_catalog_and_structured_content(transport_factory):
     transport = await transport_factory()
     try:
         catalog = await transport.session.list_tools()
-        assert len(catalog.tools) == 18
-        assert "corel_get_job" in {tool.name for tool in catalog.tools}
+        names = {tool.name for tool in catalog.tools}
+        assert len(names) == 37
+        assert {'corel_get_job', 'corel_import', 'corel_layout_shapes', 'corel_edit_text'} <= names
+        assert not {'corel_execute_vba', 'corel_build_vba'} & names
         result = await transport.session.call_tool("corel_status", {})
         report = result.structuredContent
         assert report["job_id"] and report["tool"] == "corel_status"

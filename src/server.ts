@@ -62,7 +62,7 @@ export function createServer(jobs: JobManager): McpServer {
     { name: 'coreldraw', version: VERSION },
     {
       instructions:
-        'Локальная автоматизация CorelDRAW 27. Прочитайте corel_guide. COM-операции возвращают job_id: опрашивайте corel_get_job. После timed_out/unknown повтор запрещён. succeeded с cleanup.completed=false означает выполненное действие с проблемой восстановления; оно не требует повтора. VBA имеет полный доступ к системе.',
+        'Локальная автоматизация CorelDRAW 27. Прочитайте corel_guide. COM-операции возвращают job_id: опрашивайте corel_get_job. После timed_out/unknown повтор запрещён. succeeded с cleanup.completed=false означает выполненное действие с проблемой восстановления; оно не требует повтора. Доступны только готовые типизированные операции; произвольный код не исполняется.',
     },
   );
   for (const [name, definition] of Object.entries(toolDefinitions)) {
@@ -76,7 +76,7 @@ export function createServer(jobs: JobManager): McpServer {
           readOnlyHint: definition.readOnly,
           destructiveHint: definition.destructive ?? false,
           idempotentHint: !definition.readOnly,
-          openWorldHint: name === 'corel_execute_vba',
+          openWorldHint: name === 'corel_import',
         },
       },
       async (args: Arguments) => {
@@ -99,7 +99,7 @@ export function createServer(jobs: JobManager): McpServer {
     'corel_get_job',
     {
       description:
-        'Прочитать сохранённый отчёт задания без вызова CorelDRAW, даже если VBA занят. Статусы: running, timed_out (исполнитель ещё занят), succeeded, failed или unknown. Для готового PNG-превью укажите include_preview=true.',
+        'Прочитать сохранённый отчёт задания без вызова CorelDRAW, даже если исполнитель занят. Статусы: running, timed_out (исполнитель ещё занят), succeeded, failed или unknown. Для готового PNG-превью укажите include_preview=true.',
       inputSchema: getJobSchema,
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },

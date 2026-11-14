@@ -2,7 +2,7 @@ import asyncio
 from copy import deepcopy
 
 import pytest
-from conftest import command, implementation, wait_run
+from conftest import command, drawing_arguments, implementation, wait_run
 from pydantic import SecretStr
 from test_approvals import calls, prime
 from test_settings import FakeVault, profile
@@ -43,6 +43,53 @@ async def configure(runtime, store, completions):
     runtime.provider_factory = lambda frozen: provider
     return provider, command(kind="agent", tool=None, profile_id=saved.id, document_id="fixture-b",
                               message="Покажи выбранный рисунок")
+
+
+async def test_typed_multicommand_recipe_uses_observed_revision_and_same_page_within_budget(runtime, store):
+    import json
+
+    from corel_agent.contracts import NativeToolCall
+    create = completion('corel_create_shapes', page_index=2, layer_id='layer', items=[
+        {'kind': 'rectangle', 'x_mm': 0, 'y_mm': 0, 'width_mm': 10, 'height_mm': 10}])
+    plan = completion('corel_layout_shapes', page_index=2, static_ids=[1001])
+    provider, cmd = await configure(runtime, store, [create, plan, completion()])
+    original = provider.complete
+
+    async def complete(history, tools, emit_delta=None):
+        if len(provider.histories) == 2:
+            provider.histories.append(deepcopy(history))
+            observed = json.loads(next(item['content'] for item in reversed(history) if item['role'] == 'tool'))
+            revision = observed['report']['result']['layout_revision']
+            return Completion(tool_calls=(NativeToolCall(id='layout-apply', name='corel_layout_shapes', arguments={
+                'page_index': 2, 'static_ids': [1001], 'dry_run': False, 'expected_revision': revision}),))
+        return await original(history, tools, emit_delta)
+
+    provider.complete = complete
+    run = await runtime.start(cmd)
+    snapshot = await wait_run(store, run.id, timeout=10)
+    assert snapshot.status == 'completed' and snapshot.max_calls == 20
+    assert snapshot.counters.calls == 9 and snapshot.counters.turns == 4
+    system = '\n'.join(item['content'] for item in provider.histories[0] if item['role'] == 'system')
+    assert 'corel_execute_vba' not in system and 'corel_build_vba' not in system
+    assert calls(store, 'corel_layout_shapes')[-1]['args']['expected_revision'] == '1' * 64
+    assert all(item['args']['document_id'] == 'fixture-b' and item['args']['page_index'] == 2
+               for tool in ('corel_create_shapes', 'corel_layout_shapes', 'corel_preview', 'corel_inspect_document')
+               for item in calls(store, tool))
+
+
+async def test_historical_code_message_is_data_and_cannot_reappear_as_tool_dispatch(runtime, store):
+    from corel_agent.contracts import new_id
+    provider, cmd = await configure(runtime, store, [completion()])
+    old = await runtime.start(cmd)
+    await wait_run(store, old.id)
+    await store.add_message(old.id, 'assistant', 'Историческая операция corel_execute_vba', {
+        'role': 'assistant', 'tool_calls': [{'id': 'old', 'function': {'name': 'corel_execute_vba', 'arguments': '{"code":"historical"}'}}]})
+    following = FakeProvider([completion()])
+    runtime.provider_factory = lambda frozen: following
+    run = await runtime.start(cmd.model_copy(update={'client_request_id': new_id(), 'message': 'Продолжай'}))
+    assert (await wait_run(store, run.id)).status == 'completed'
+    assert not any(item.get('tool_calls') for item in following.histories[0])
+    assert calls(store, 'corel_execute_vba') == []
 
 
 async def test_agent_serializes_terminal_tool_results_before_next_turn(runtime, store):
@@ -96,21 +143,21 @@ async def test_next_run_in_same_conversation_receives_previous_finished_dialog(r
     assert history[-1]['content'] == 'Продолжи прежний ответ'
 
 
-async def test_background_vba_executes_and_postchecks_without_confirmation(runtime, store):
-    provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fixture"), completion()])
+async def test_background_drawing_executes_and_postchecks_without_confirmation(runtime, store):
+    provider, cmd = await configure(runtime, store, [completion("corel_edit_text", **drawing_arguments("fixture")), completion()])
     run = await runtime.start(cmd)
     snapshot = await wait_run(store, run.id)
     assert snapshot.status == "completed" and snapshot.counters.calls == 3
     assert len(provider.histories) == 2
-    assert len(calls(store, 'corel_execute_vba')) == 1
+    assert len(calls(store, 'corel_edit_text')) == 1
     assert not any(event.type == 'confirmation' for event in await store.get_events(run.id))
 
 
-async def test_failed_vba_is_not_repaired_or_retried(runtime, store):
-    provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fail"), completion()])
+async def test_failed_drawing_is_not_repaired_or_retried(runtime, store):
+    provider, cmd = await configure(runtime, store, [completion("corel_edit_text", **drawing_arguments("fail")), completion()])
     run = await runtime.start(cmd)
     assert (await wait_run(store, run.id)).status == "failed"
-    assert len(provider.histories) == 1 and len(calls(store, "corel_execute_vba")) == 1
+    assert len(provider.histories) == 1 and len(calls(store, "corel_edit_text")) == 1
     operations = await store.get_operations(run.id)
     assert operations[0]["result"]["applied"] is True
 
@@ -126,10 +173,10 @@ async def test_stop_during_model_wait_cancels_only_model_not_com(runtime, store)
 
 
 async def test_explicit_stop_drains_job_and_persists_applied_outcome(runtime, store):
-    provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fixture"), completion()])
+    provider, cmd = await configure(runtime, store, [completion("corel_edit_text", **drawing_arguments("fixture")), completion()])
     run = await runtime.start(cmd)
     async def job_started():
-        while not calls(store, "corel_execute_vba"):
+        while not calls(store, "corel_edit_text"):
             await asyncio.sleep(0.01)
     await asyncio.wait_for(job_started(), 5)
     await runtime.stop(run.id)
@@ -140,10 +187,10 @@ async def test_explicit_stop_drains_job_and_persists_applied_outcome(runtime, st
 
 
 async def test_call_budget_is_reserved_before_mutation_even_with_model_tools(runtime, store):
-    provider, cmd = await configure(runtime, store, [completion("corel_execute_vba", code="fixture")])
+    provider, cmd = await configure(runtime, store, [completion("corel_edit_text", **drawing_arguments("fixture"))])
     run = await runtime.start(cmd.model_copy(update={"max_calls": 1}))
     assert (await wait_run(store, run.id)).status == "limit_reached"
-    assert calls(store, "corel_execute_vba") == []
+    assert calls(store, "corel_edit_text") == []
 
 
 async def test_stop_before_first_model_call_never_looks_up_profile(runtime, store):

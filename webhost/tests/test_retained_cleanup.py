@@ -2,7 +2,7 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from conftest import command, wait_run
+from conftest import command, drawing_arguments, wait_run
 from test_approvals import calls
 from test_readiness import drain, fault
 from test_recovery import operation
@@ -13,8 +13,16 @@ NAME = 'CorelMcp_a1b2c3d4e5f6'
 JOB = '00000000-0000-4000-8000-000000000001'
 
 
-async def retained(runtime, store, *, outcome='failed', completed=True, errors=None):
+async def retained(runtime, store, *, outcome='failed', completed=True, errors=None, applied=None):
     barrier, run_id, operation = await fault(runtime, store)
+    # Restore an actual historical v2 binding directly in the fixture history; never dispatch it.
+    from corel_agent.policy import Policy
+    operation = operation.model_copy(update={'tool': 'corel_execute_vba', 'policy_version': 2,
+        'arguments': {'document_id': operation.document_id, 'request_id': operation.corel_request_id,
+                      'code': 'historical retained diagnostic'}})
+    operation = operation.model_copy(update={'digest': Policy.operation_digest(operation)})
+    await store._db(lambda db: db.execute('UPDATE operations SET prepared=? WHERE id=?',
+        (operation.model_dump_json(), operation.operation_id)), write=True)
     report = {'job_id': JOB, 'tool': operation.tool, 'request_id': operation.corel_request_id,
         'status': outcome, 'owner_pid': 123,
         'finished_at': (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
@@ -22,8 +30,10 @@ async def retained(runtime, store, *, outcome='failed', completed=True, errors=N
         'artifacts': [f'C:\\runs\\{JOB}\\{NAME}.gms'],
         'cleanup': {'completed': completed, 'errors': errors or [],
                     'project_name': NAME, 'project_retained': True}}
+    if applied is not None:
+        report['error'] = {'applied': applied}
     await store.complete_operation(OperationResult(operation_id=operation.operation_id, job_id=JOB,
-        outcome=outcome, report=report, cleanup=report['cleanup']))
+        outcome=outcome, applied=applied, report=report, cleanup=report['cleanup']))
     barrier = barrier.model_copy(update={'job_id': JOB})
     await store.set_barrier(barrier, status='halted')
     return barrier, run_id, operation
@@ -52,10 +62,10 @@ async def test_refresh_proves_unloaded_retained_gms_without_rewriting_or_replayi
     assert audit['observation_id'] in [item['id'] for item in await store.get_operations(refresh.id)]
     assert any(event.type == 'warning' and event.data.code == 'RETAINED_GMS_ABSENT'
                for event in await store.get_events(refresh.id))
-    assert calls(store, 'corel_execute_vba') == []
-    new = await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
+    assert calls(store, 'corel_edit_text') == []
+    new = await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
     assert (await wait_run(store, new.id)).status == 'completed'
-    assert len(calls(store, 'corel_execute_vba')) == 1
+    assert len(calls(store, 'corel_edit_text')) == 1
     # Durable and idempotent: a new status does not rewrite the original proof.
     original = await audits(store)
     await store.aclose()
@@ -78,8 +88,8 @@ async def test_loaded_renamed_busy_or_unverifiable_project_cannot_be_confirmed(r
     assert await audits(store) == []
     assert (await store.readiness_proof())['reason'] == 'CLEANUP_NOT_PROVEN'
     with pytest.raises(AgentError):
-        await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
-    assert calls(store, 'corel_execute_vba') == []
+        await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
+    assert calls(store, 'corel_edit_text') == []
 
 
 @pytest.mark.parametrize('case', ['unknown', 'incomplete', 'restore_error', 'foreign_name', 'missing_artifact',
@@ -112,7 +122,7 @@ async def test_absence_does_not_override_unknown_cleanup_errors_or_unbound_repor
     assert await audits(store) == []
     assert (await store.readiness_proof())['reason'] is not None
     with pytest.raises(AgentError):
-        await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
+        await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
 
 
 @pytest.mark.parametrize('changed', ['retained', 'observation'])
@@ -201,5 +211,5 @@ async def test_resolved_retention_does_not_release_another_unknown_effect(runtim
     assert (await store.readiness_proof())['reason'] == 'OUTCOME_UNKNOWN'
     assert (await store.get_snapshot(old.id)).status == 'halted'
     with pytest.raises(AgentError):
-        await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
-    assert calls(store, 'corel_execute_vba') == []
+        await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
+    assert calls(store, 'corel_edit_text') == []

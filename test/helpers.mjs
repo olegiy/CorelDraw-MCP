@@ -3,10 +3,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function connect({ runs, fixture = false, configRoot, fixtureDelayMs } = {}) {
+export async function connect({ runs, fixture = false, configRoot, fixtureDelayMs, executionMode } = {}) {
   const transport = new StdioClientTransport({ command: process.execPath,
     args: [fileURLToPath(new URL(fixture ? './fixture-server.mjs' : '../dist/index.js', import.meta.url))],
-    env: Object.fromEntries(Object.entries({ ...process.env, ...(runs ? { CORELDRAW_MCP_RUNS: runs } : {}), ...(configRoot ? { CORELDRAW_MCP_CONFIG_ROOT: configRoot } : {}), ...(fixtureDelayMs ? { CORELDRAW_MCP_TEST_DELAY_MS: String(fixtureDelayMs) } : {}) }).filter(([, value]) => value !== undefined)),
+    env: Object.fromEntries(Object.entries({ ...process.env, ...(executionMode ? { CORELDRAW_MCP_EXECUTION_MODE: executionMode } : {}), ...(runs ? { CORELDRAW_MCP_RUNS: runs } : {}), ...(configRoot ? { CORELDRAW_MCP_CONFIG_ROOT: configRoot } : {}), ...(fixtureDelayMs ? { CORELDRAW_MCP_TEST_DELAY_MS: String(fixtureDelayMs) } : {}) }).filter(([, value]) => value !== undefined)),
     stderr: 'pipe',
   });
   let stderr = '';

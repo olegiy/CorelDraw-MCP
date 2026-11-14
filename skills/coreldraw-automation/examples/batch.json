@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "title": "Пакетное создание и изменение",
+  "preconditions": [
+    "Проверить corel_status: executor.execution_mode должен быть hybrid, готовый модуль установлен и проверен. Отказ не обходить другим backend.",
+    "Получить точные document_id, page_index и layer_id через status/inspect. StaticID 1001 во втором шаге заменить ID из фактического ответа первого шага.",
+    "Для каждой новой мутации новый request_id. Между шагами дождаться успешного job с cleanup.completed=true; при partial/unknown не повторять команду."
+  ],
+  "steps": [
+    {
+      "tool": "corel_create_batch",
+      "arguments": {
+        "request_id": "<новый UUID>", "document_id": "<document_id>", "page_index": 1, "layer_id": "<layer_id>",
+        "items": [
+          {"item_key": "plate-1", "kind": "rectangle", "x_mm": 20, "y_mm": 20, "width_mm": 12, "height_mm": 8, "rotation_deg": 15,
+           "fill": {"kind": "uniform", "color": {"model": "rgb", "r": 40, "g": 120, "b": 210}}, "outline": {"kind": "none"}},
+          {"item_key": "label-1", "kind": "artistic_text", "text": "Этикетка 1", "x_mm": 20, "y_mm": 35, "font_family": "Arial", "font_size_pt": 12}
+        ]
+      }
+    },
+    {
+      "tool": "corel_update_batch",
+      "arguments": {
+        "request_id": "<другой UUID>", "document_id": "<document_id>", "page_index": 1,
+        "items": [{"static_id": 1001, "transform": {"action": "move", "dx_mm": 5, "dy_mm": 3}}]
+      }
+    }
+  ],
+  "postchecks": ["corel_inspect_document", "corel_preview"],
+  "limitations": [
+    "Требуется execution_mode=hybrid и проверенный готовый runtime. Максимум 1000 элементов, 100000 UTF-16 и 1 МиБ входного JSON.",
+    "Только заявленные простые фигуры и заливки. При partial/unknown/ошибке повтор и другой backend не допускаются."
+  ]
+}

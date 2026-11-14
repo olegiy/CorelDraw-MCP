@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { AutomationFailure, type Arguments, type Executor, type Job } from './types.js';
 import { assertNoLinks } from './artifacts.js';
 import { VERSION } from './version.js';
-import { mergeObserverSummary, safeObserverSummary } from './vba-observer.js';
+import { mergeObserverSummary, safeObserverSummary } from './historical-reports.js';
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -20,6 +20,7 @@ function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 export class JobManager {
+  get backend(): 'csharp' { return 'csharp'; }
   readonly session = randomUUID();
   private active: Job | undefined;
   private unpersisted = new Map<string, Job>();
@@ -230,16 +231,10 @@ export class JobManager {
         this.executor.run(job, args, (stage) => {
           job.stage = stage;
           this.record(job, stage);
-        }, (value) => {
-          if (job.finished_at) return;
-          const next = mergeObserverSummary(job.vba_observer, safeObserverSummary(value, job.run_directory));
-          if (!next || JSON.stringify(next) === JSON.stringify(job.vba_observer)) return;
-          job.vba_observer = next;
-          this.record(job, 'Обновлена безопасная сводка наблюдателя VBA.');
         }),
       )
       .then((result) => {
-        job.status = result.ok ? 'succeeded' : 'failed';
+        job.status = result.ok ? 'succeeded' : result.error?.code === 'NATIVE_OUTCOME_UNKNOWN' ? 'unknown' : 'failed';
         job.stage = result.ok ? 'completed' : (result.error?.stage ?? job.stage);
         if (result.result !== undefined) job.result = result.result;
         if (result.error) job.error = result.error;

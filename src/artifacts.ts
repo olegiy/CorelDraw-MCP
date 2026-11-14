@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { AutomationFailure, type Job } from './types.js';
-import { publicObserverSummary } from './vba-observer.js';
+import { publicObserverSummary } from './historical-reports.js';
 
 const validId = /^(?:[a-f0-9-]{36}|req-[a-f0-9]{64})$/;
 export function assertNoLinks(path: string): void {

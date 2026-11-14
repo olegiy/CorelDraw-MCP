@@ -28,51 +28,10 @@ from corel_agent.storage_acl import ensure_private
 from corel_agent.store import Store
 
 ROOT = Path(__file__).resolve().parents[2]
-HELPERS = '''Private Function JsonString(ByVal value As String) As String
-    Dim i As Long, code As Long, ch As String, result As String
-    For i = 1 To Len(value)
-        ch = Mid$(value, i, 1)
-        code = AscW(ch)
-        If code = 34 Or code = 92 Then
-            result = result & Chr$(92) & ch
-        ElseIf code >= 0 And code < 32 Then
-            result = result & Chr$(92) & "u" & Right$("0000" & Hex$(code), 4)
-        Else
-            result = result & ch
-        End If
-    Next i
-    JsonString = Chr$(34) & result & Chr$(34)
-End Function
-Private Function ProjectsJson() As String
-    Dim i As Long, result As String
-    If Application.GMSManager.Projects.Count > 500 Then Err.Raise 5, "PanelSmoke", "GMS limit"
-    result = "["
-    For i = 1 To Application.GMSManager.Projects.Count
-        If i > 1 Then result = result & ","
-        result = result & JsonString(Application.GMSManager.Projects.Item(i).Name)
-    Next i
-    ProjectsJson = result & "]"
-End Function
-'''
-GEOMETRY = '''Option Explicit
-' CorelMcpPanelSmoke: geometry v1
-Public Function Main() As String
-    Dim s As Shape, projects As String
-    projects = ProjectsJson()
-    ActiveDocument.Unit = cdrMillimeter
-    Set s = ActiveLayer.CreateRectangle2(10, 10, 20, 30)
-    s.Name = "CorelMcp panel smoke"
-    s.CreateSelection
-    Main = "{""projects"":" & projects & ",""static_id"":" & CStr(s.StaticID) & "}"
-End Function
-''' + HELPERS
-INVENTORY = '''Option Explicit
-' CorelMcpPanelSmoke: inventory v1
-Public Function Main() As String
-    Main = "{""projects"":" & ProjectsJson() & "}"
-End Function
-''' + HELPERS
-CODES = {'geometry': GEOMETRY, 'inventory': INVENTORY}
+GEOMETRY = {'items': [{'kind': 'rectangle', 'x_mm': 10, 'y_mm': 10,
+                       'width_mm': 20, 'height_mm': 30}]}
+OPERATIONS = {'geometry': GEOMETRY}
+
 
 
 class LiveFixture(BaseModel):
@@ -80,25 +39,25 @@ class LiveFixture(BaseModel):
     schema_version: int
     approved: StrictBool
     create_temporary_documents: StrictBool
-    execute_reviewed_vba: StrictBool
+    execute_reviewed_operations: StrictBool
     discard_created_documents: StrictBool
     output_directory: str
-    vba_sha256: dict[str, str]
+    operations_sha256: dict[str, str]
     _source_sha256: str | None = None
 
 
 def fixture_template(output_directory):
-    return {'schema_version': 1, 'approved': False, 'create_temporary_documents': True,
-            'execute_reviewed_vba': True, 'discard_created_documents': True,
+    return {'schema_version': 2, 'approved': False, 'create_temporary_documents': True,
+            'execute_reviewed_operations': True, 'discard_created_documents': True,
             'output_directory': output_directory,
-            'vba_sha256': {name: hashlib.sha256(code.encode('utf-8')).hexdigest() for name, code in CODES.items()}}
+            'operations_sha256': {name: hashlib.sha256(json.dumps(args, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest() for name, args in OPERATIONS.items()}}
 
 
 def validate_fixture(value):
     fixture = LiveFixture.model_validate(value)
-    if (fixture.schema_version != 1 or not all((fixture.approved, fixture.create_temporary_documents,
-            fixture.execute_reviewed_vba, fixture.discard_created_documents))
-            or fixture.vba_sha256 != fixture_template(fixture.output_directory)['vba_sha256']):
+    if (fixture.schema_version != 2 or not all((fixture.approved, fixture.create_temporary_documents,
+            fixture.execute_reviewed_operations, fixture.discard_created_documents))
+            or fixture.operations_sha256 != fixture_template(fixture.output_directory)['operations_sha256']):
         raise ValueError('Unreviewed fixture')
     root = PathGuard().directory(fixture.output_directory)
     local = os.environ.get('LOCALAPPDATA')
@@ -136,7 +95,7 @@ def load_fixture(path):
         fixture._source_sha256 = hashlib.sha256(content).hexdigest()
         return fixture
     except Exception:
-        raise AgentError('LIVE_FIXTURE_INVALID', 'Нужен проверенный локальный JSON fixture с явным согласием и точными SHA-256 VBA.', 403) from None
+        raise AgentError('LIVE_FIXTURE_INVALID', 'Нужен проверенный локальный JSON fixture с явным согласием и точным SHA-256 готовой операции.', 403) from None
 
 
 async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
@@ -188,10 +147,10 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
             offset = page['next_offset']
         reports = [await get('/operations/' + op['id'] + '/report') for op in operations]
         for op, item in zip(operations, reports, strict=True):
-            if (op['prepared']['tool'] == 'corel_execute_vba' and
+            if (op['prepared']['tool'] == 'corel_create_shapes' and
                     (op['job_id'] or op['state'] == 'dispatching' or (item['result'] or {}).get('outcome') == 'unknown')):
                 cleanup = (item['report'] or {}).get('cleanup', {})
-                if cleanup.get('project_retained') is not False:
+                if cleanup.get('project_retained') is True:
                     if not any(project['operation_id'] == op['id'] for project in proof['retained_projects']):
                         proof['retained_projects'].append({'operation_id': op['id'], 'name': cleanup.get('project_name'),
                                                           'reason': 'GMS_UNLOAD_NOT_PROVEN'})
@@ -204,10 +163,10 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
 
     async def action(tool, document_id=None, arguments=None, *, expected='completed'):
         proof['stage'] = 'tool:' + tool
-        if tool in {'corel_execute_vba', 'corel_close_document'}:
+        if tool in {'corel_create_shapes', 'corel_close_document'}:
             assert document_id in created
-            if tool == 'corel_execute_vba':
-                assert (arguments or {}).get('code') in CODES.values()
+            if tool == 'corel_create_shapes':
+                assert (arguments or {}).get('items') == GEOMETRY['items']
             else:
                 assert (arguments or {}).get('discard_changes') is True
         command = RunCommand(client_request_id=new_id(), conversation_id=new_id(), kind='manual',
@@ -263,12 +222,6 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
                                           for index in range(1, pages + 1)]
         return result
 
-    def projects(report):
-        cleanup = report['cleanup']
-        values = report['result']['value']['projects']
-        assert cleanup['project_retained'] is False and values.count(cleanup['project_name']) == 1
-        return sorted(name for name in values if name != cleanup['project_name'])
-
     async def preview(document_id, target):
         report, run_id = await action('corel_preview', document_id, {'target': target, 'page_index': 1, 'max_size': 600})
         assert report['result']['format'] == 'png' and report['result']['range'] == target
@@ -299,8 +252,9 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
         assert response.status_code == 200
         client.headers['X-Corel-CSRF'] = response.json()['csrf_token']
         initial, _ = await action('corel_status')
-        assert initial['versions']['coreldraw'].split('.')[0] == '27' and initial['result']['vba']['available'] is True
-        assert initial['result']['vba']['compile_available'] is True
+        assert initial['versions']['coreldraw'].split('.')[0] == '27'
+        assert initial['result']['executor']['backend'] == 'csharp'
+        assert initial['result']['capabilities']['arbitrary_code'] is False
         proof['application_state_before'] = initial['result']['application_state']
         proof['active_document_before'] = initial['result']['active_document_id']
         proof['documents_before'] = sorted(initial['result']['documents'], key=lambda doc: doc['document_id'])
@@ -315,23 +269,20 @@ async def run_smoke(fixture, *, mcp_factory=None, authority='live'):
         empty, _ = await action('corel_preview', b, {'target': 'selection', 'max_size': 600}, expected='failed')
         assert empty['status'] == 'failed' and empty['error']['code'] == 'EMPTY_SELECTION'
         proof['empty_selection_code'] = empty['error']['code']
-        first, _ = await action('corel_execute_vba', a, {'code': GEOMETRY})
-        proof['gms_before'] = projects(first)
+        a_before = await inspect(a)
+        layer_a = next(layer['layer_id'] for layer in a_before['layers'] if not layer['is_special_layer'])
+        first, _ = await action('corel_create_shapes', a, {'page_index': 1, 'layer_id': layer_a, **GEOMETRY})
         assert await inspect(b) == b_before
-        second, _ = await action('corel_execute_vba', b, {'code': GEOMETRY})
-        assert projects(second) == proof['gms_before']
+        layer_b = next(layer['layer_id'] for layer in b_before['layers'] if not layer['is_special_layer'])
+        second, _ = await action('corel_create_shapes', b, {'page_index': 1, 'layer_id': layer_b, **GEOMETRY})
         for doc_id, execution in ((a, first), (b, second)):
             observed = await inspect(doc_id)
-            static_id = execution['result']['value']['static_id']
-            assert observed['total_shapes'] == 1 and observed['selection_ids'] == [static_id]
+            static_id = execution['result']['created_static_ids'][0]
+            assert observed['total_shapes'] == 1 and observed['selection_ids'] == []
             assert observed['shapes'][0]['static_id'] == static_id
             bounds = observed['shapes'][0]['bounds_mm']
             assert abs(bounds['width'] - 20) < 0.001 and abs(bounds['height'] - 30) < 0.001
-            for target in ('page', 'selection'):
-                await preview(doc_id, target)
-        final_gms, _ = await action('corel_execute_vba', a, {'code': INVENTORY})
-        proof['gms_after'] = projects(final_gms)
-        assert proof['gms_after'] == proof['gms_before']
+            await preview(doc_id, 'page')
         proof['ok'] = True
     except asyncio.CancelledError:
         proof['failure_code'], proof['failure_stage'] = 'SMOKE_CANCELLED', proof['stage']

@@ -36,6 +36,10 @@ def command(**updates):
     return RunCommand(**{**values, **updates})
 
 
+def drawing_arguments(text='fixture'):
+    return {'page_index': 1, 'static_ids': [1001], 'action': 'set_text', 'text': text}
+
+
 @pytest.fixture
 async def store(tmp_path):
     store = implementation("store").Store(tmp_path)
@@ -64,7 +68,7 @@ async def runtime(store, transport_factory, tmp_path, request):
     mcp_module = implementation("corel_mcp")
     runtime_module = implementation("runtime")
     transport = await transport_factory(Path(__file__).parent / "fixtures/panel-server.mjs",
-                                         args=("--slow", *getattr(request, "param", ())))
+                                         args=("--slow", "--typed", *getattr(request, "param", ())))
     mcp = mcp_module.CorelMcp(transport=transport, poll_interval=0.02)
     await mcp.start()
     assets = implementation("assets").Assets(tmp_path, store)

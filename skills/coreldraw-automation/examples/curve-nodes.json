@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "title": "Узлы и revision",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_inspect_curve",
+      "arguments": {
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_id": 1001
+      }
+    },
+    {
+      "tool": "corel_edit_curve",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "close_subpath",
+        "static_id": 1001,
+        "subpath_index": 1,
+        "expected_revision": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "expected_revision из примера заменить точным geometry_revision предыдущего inspect; нули являются только структурным примером и не разрешают изменение.",
+    "Одна правка за вызов, индексы с единицы; не выполнять close уже замкнутого контура."
+  ]
+}

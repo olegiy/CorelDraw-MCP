@@ -6,9 +6,11 @@ import { mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { connect, operation } from './helpers.mjs';
 
-test('a second Windows executor cannot enter the named application mutex', { skip: process.platform !== 'win32', timeout: 15000 }, async () => {
+const worker = process.env.CORELDRAW_MCP_CSHARP_WORKER ?? fileURLToPath(new URL('../worker/publish/win-x64/CorelMcp.Worker.exe', import.meta.url));
+test('a second Windows executor cannot enter the named application mutex', { skip: process.platform !== 'win32' || !existsSync(worker), timeout: 15000 }, async () => {
   const holder = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-STA', '-File', fileURLToPath(new URL('./hold-mutex.ps1', import.meta.url))], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   let errorOutput = '';
   holder.stderr.on('data', value => { errorOutput += value.toString(); });

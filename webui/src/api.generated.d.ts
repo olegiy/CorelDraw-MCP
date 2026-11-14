@@ -1012,7 +1012,7 @@ export interface components {
             operation_id: string;
             /**
              * Policy Version
-             * @default 2
+             * @default 3
              */
             policy_version: number;
             /**

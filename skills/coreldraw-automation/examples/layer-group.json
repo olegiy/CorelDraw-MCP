@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "title": "Слой и группировка",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_manage_layers",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "create",
+        "page_id": "<page_id>",
+        "name": "Рабочий слой"
+      }
+    },
+    {
+      "tool": "corel_manage_layers",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "move_shapes",
+        "layer_id": "<layer_id>",
+        "static_ids": [
+          1001,
+          1002
+        ]
+      }
+    },
+    {
+      "tool": "corel_group_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "group",
+        "static_ids": [
+          1001,
+          1002
+        ]
+      }
+    },
+    {
+      "tool": "corel_group_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "ungroup",
+        "static_ids": [
+          1001
+        ]
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Проверять result, error.applied и cleanup.completed; после частичного/unknown/timed_out не повторять автоматически."
+  ]
+}

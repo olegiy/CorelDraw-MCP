@@ -24,19 +24,19 @@ test('preview selection and bounded recursive inspection reach the executor with
 });
 test('an applied operation with failed cleanup retains success and exposes MCP error on poll and retry', async t => {
   const s = await fixture(t);
-  const args = { request_id: 'cleanup-failure', document_id: 'fixture', code: 'cleanup fail' };
-  const job = await operation(s, 'corel_execute_vba', args);
+  const args = { request_id: 'cleanup-failure', document_id: 'fixture', page_index: 1, static_ids: [1001], action: 'set_text', text: 'cleanup fail' };
+  const job = await operation(s, 'corel_edit_text', args);
   assert.equal(job.status, 'succeeded');
   assert.equal(job.cleanup.completed, false);
   const response = await s.client.callTool({ name: 'corel_get_job', arguments: { job_id: job.job_id } });
   assert.equal(response.isError, true);
-  const retry = await s.client.callTool({ name: 'corel_execute_vba', arguments: args });
+  const retry = await s.client.callTool({ name: 'corel_edit_text', arguments: args });
   assert.equal(retry.isError, true);
   assert.deepEqual(data(retry).result, { applied: true });
 });
 test('guides and resources are local and available while a COM job remains busy', async t => {
   const s = await fixture(t);
-  await call(s, 'corel_execute_vba', { request_id: 'busy-guides', document_id: 'fixture', code: 'delay' });
+  await call(s, 'corel_edit_text', { request_id: 'busy-guides', document_id: 'fixture', page_index: 1, static_ids: [1001], action: 'set_text', text: 'delay' });
   const guide = await call(s, 'corel_guide', { topic: 'tools', offset: 0, limit: 200 });
   assert.match(guide.text, /corel_/);
   assert.equal(guide.text.length <= 200, true);

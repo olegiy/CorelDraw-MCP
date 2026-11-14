@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "protocol": 1,
+  "module_version": "0.4.0",
+  "corel_major": 27,
+  "source_sha256": "9b5348678d96ccb92bedc28e2ab84894b7b4998d7ca145a8b1c64d168dbd9157",
+  "project_name": "CorelMcp_Runtime_v1_9b5348678d96",
+  "file": "CorelMcp.Runtime.gms",
+  "gms_sha256": "126b41afa31e908d1b0008b87cfb18812ade20502fbb52408837b9ea5654d0f9",
+  "operations": [
+    "handshake",
+    "validate_fonts",
+    "create_batch",
+    "update_batch",
+    "replace_literal",
+    "set_text",
+    "format_text",
+    "duplicate",
+    "convert_text",
+    "extract_geometry"
+  ]
+}

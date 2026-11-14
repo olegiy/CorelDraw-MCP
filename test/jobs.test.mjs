@@ -5,31 +5,37 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { JobManager } from '../dist/jobs.js';
 
-test('observer snapshots persist during timeout without releasing COM or erasing counters on result', async () => {
-  let finish, observerUpdate;
-  const root = mkdtempSync(join(tmpdir(), 'corelmcp-observer-job-'));
-  const executor = { run: (_job, _args, _progress, observe) => new Promise(resolve => { finish = resolve; observerUpdate = observe; }), close() {} };
+test('native indeterminate outcome remains unknown with diagnostics and is never replayed', async t => {
+  let calls=0;
+  const jobs=new JobManager(mkdtempSync(join(tmpdir(),'corelmcp-native-unknown-')),{
+    run:async()=>{calls++;return {ok:false,error:{code:'NATIVE_OUTCOME_UNKNOWN',stage:'native_applying',message:'Исход не подтверждён'},result:{partial:true,created_static_ids:[4]},cleanup:{completed:true}};},close(){}
+  });
+  t.after(()=>jobs.close());
+  const first=jobs.submit('corel_create_batch',{request_id:'native-once'});
+  await jobs.wait(first.job_id,1);
+  const report=jobs.get(first.job_id);
+  assert.equal(report.status,'unknown');assert.equal(report.error.code,'NATIVE_OUTCOME_UNKNOWN');
+  assert.deepEqual(report.result.created_static_ids,[4]);
+  assert.equal(jobs.submit('corel_create_batch',{request_id:'native-once'}).job_id,first.job_id);
+  assert.equal(calls,1);
+});
+
+test('timeout preserves the slot and a late completion keeps the original request identity', async t => {
+  let finish;
+  const root = mkdtempSync(join(tmpdir(), 'corelmcp-late-job-'));
+  const executor = { run: () => new Promise(resolve => { finish = resolve; }), close() {} };
   const jobs = new JobManager(root, executor, 20);
-  const job = jobs.submit('synthetic', { request_id: 'observer-once' });
-  await Promise.resolve();
+  t.after(() => { finish?.({ ok: true }); jobs.close(); });
+  const job = jobs.submit('synthetic', { request_id: 'once' });
   await new Promise(resolve => setTimeout(resolve, 30));
-  const summary = { schema_version: 1, mode: 'observe', state: 'observing', detected: 2, requires_operator: 2,
-    action_attempted: 0, dismissed: 0, events_truncated: true, text: 'PRIVATE_CANARY' };
-  observerUpdate(summary);
-  assert.equal(jobs.get(job.job_id).vba_observer.detected, 2);
   assert.equal(jobs.get(job.job_id).status, 'timed_out');
   assert.throws(() => jobs.submit('synthetic', {}), /занят/);
-  assert(!readFileSync(job.report_path, 'utf8').includes('PRIVATE_CANARY'));
-  finish({ ok: true, vba_observer: { ...summary, detected: 0, requires_operator: 0, events_truncated: false, state: 'stopped' } });
-  await new Promise(resolve => setTimeout(resolve, 20));
-  observerUpdate({ ...summary, detected: 99 });
+  finish({ ok: true, result: { observed: true } });
+  await new Promise(resolve => setImmediate(resolve));
+  await jobs.wait(job.job_id, 1);
   const completed = jobs.get(job.job_id);
-  assert.equal(completed.status, 'succeeded');
-  assert.equal(completed.deadline_exceeded, true);
-  assert.equal(completed.vba_observer.detected, 2);
-  assert.equal(completed.vba_observer.events_truncated, true);
-  assert.equal(jobs.submit('synthetic', { request_id: 'observer-once' }).job_id, job.job_id);
-  jobs.close();
+  assert.equal(completed.status, 'succeeded'); assert.equal(completed.deadline_exceeded, true);
+  assert.equal(jobs.submit('synthetic', { request_id: 'once' }).job_id, job.job_id);
 });
 
 test('transport close lets an in-flight mutation finish and writes its report', async () => {
@@ -64,19 +70,16 @@ test('an orphaned persisted request is reported unknown and never re-executed', 
   jobs.close();
 });
 test('report and log failures keep the in-memory outcome and release the busy slot', async () => {
-  let finish, progress, observe;
+  let finish, progress;
   const root = mkdtempSync(join(tmpdir(), 'corelmcp-io-'));
-  const executor = { run: (_job, _args, update, observerUpdate) => new Promise(resolve => { finish = resolve; progress = update; observe = observerUpdate; }), close() {} };
+  const executor = { run: (_job, _args, update) => new Promise(resolve => { finish = resolve; progress = update; }), close() {} };
   const jobs = new JobManager(root, executor);
   const job = jobs.submit('synthetic', { request_id: 'io-once' });
   await Promise.resolve();
   // Simulate storage becoming unwritable after dispatch without changing ACLs.
   for (const path of [job.log_path, job.report_path]) { rmSync(path); mkdirSync(path); }
   progress('executing');
-  observe({ schema_version: 1, mode: 'observe', state: 'observing', detected: 1, requires_operator: 1,
-    action_attempted: 0, dismissed: 0, events_truncated: false });
   assert.equal(jobs.get(job.job_id).stage, 'executing');
-  assert.equal(jobs.get(job.job_id).vba_observer.detected, 1);
   assert.throws(() => jobs.submit('synthetic', {}), /занят заданием/);
   finish({ ok: true, result: { changed: true } });
   await new Promise(resolve => setTimeout(resolve, 20));

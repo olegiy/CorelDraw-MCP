@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "title": "Заливка и обводка",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_style_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "fill": {
+          "kind": "uniform",
+          "color": {
+            "model": "rgb",
+            "r": 45,
+            "g": 125,
+            "b": 230
+          }
+        },
+        "outline": {
+          "kind": "uniform",
+          "width_mm": 0.2,
+          "color": {
+            "model": "cmyk",
+            "c": 0,
+            "m": 0,
+            "y": 0,
+            "k": 100
+          }
+        }
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Проверять result, error.applied и cleanup.completed; после частичного/unknown/timed_out не повторять автоматически."
+  ]
+}

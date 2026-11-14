@@ -1,17 +1,18 @@
 {
   "name": "corel-mcp",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "Local CorelDRAW 27 automation and VBA compilation over MCP",
+  "description": "Typed CorelDRAW 27 automation over MCP with a C# STA worker",
   "type": "module",
-  "engines": { "node": ">=24 <25" },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/build.mjs",
     "start": "node dist/index.js",
     "test": "npm run build && node --test test/*.test.mjs",
     "check:contracts": "npm run build && node scripts/check-contracts.mjs",
-    "test:integration": "npm run build && node test/integration.mjs && node test/integration-recipes.mjs",
-    "test:integration:observer": "npm run build && node test/integration-vba-observer.mjs",
+    "test:integration": "npm run build && node test/integration.mjs && node test/integration-drawing.mjs && node test/integration-production.mjs && node test/integration-layout.mjs && node test/integration-import.mjs",
     "install:codex": "node scripts/install-codex.mjs",
     "uninstall:codex": "node scripts/install-codex.mjs --uninstall"
   },

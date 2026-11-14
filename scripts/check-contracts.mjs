@@ -42,10 +42,16 @@ try {
     check(isDeepStrictEqual(contract.defaults, defaults), `defaults mismatch ${name}`);
     check(isDeepStrictEqual(contract.enums, enums), `enum values mismatch ${name}`);
   }
-  check(skill.includes('references/tools.md') && skill.includes('corel_execute_vba'), 'skill does not link public tools');
-  for (const file of ['M_TextUnicode.bas', 'M_FillOutline.bas', 'M_DuplicateOffset.bas', 'M_LayerGroup.bas', 'M_BooleanShapes.bas', 'M_CurveNodes.bas', 'M_CommonHelpers.bas']) {
+  check(skill.includes('references/tools.md') && skill.includes('corel_create_shapes'), 'skill does not link public tools');
+  for (const file of ['batch.json', 'create-geometry.json', 'text-unicode.json', 'fill-outline.json', 'duplicate-offset.json', 'layer-group.json', 'boolean-shapes.json', 'curve-nodes.json', 'transforms.json', 'production.json', 'layout.json', 'import-assembly.json']) {
     check(existsSync(join(root, 'skills/coreldraw-automation/examples', file)), `missing recipe ${file}`);
     check(recipes.includes(file), `recipe ${file} is not documented`);
+    if (existsSync(join(root, 'skills/coreldraw-automation/examples', file))) {
+      const recipe = JSON.parse(readFileSync(join(root, 'skills/coreldraw-automation/examples', file), 'utf8'));
+      check(recipe.schema_version === 1 && Array.isArray(recipe.preconditions) && recipe.preconditions.length > 0, `invalid recipe ${file}`);
+      for (const step of recipe.steps ?? [])
+        check(toolDefinitions[step.tool]?.schema.safeParse(step.arguments).success === true, `recipe schema mismatch ${file}/${step.tool}`);
+    }
   }
 } catch (error) {
   failures.push(error.message);

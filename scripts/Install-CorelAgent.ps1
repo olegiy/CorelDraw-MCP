@@ -5,6 +5,10 @@ $venv = Join-Path $hostRoot '.venv'
 if (-not (Test-Path -LiteralPath $hostRoot)) { throw 'Не найден webhost.' }
 $nodeVersion = & node --version
 if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v24\.\d+\.\d+$') { throw 'Для установки нужен Node.js 24.' }
+& node (Join-Path $PSScriptRoot 'check-preupgrade.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Проверка прежних заданий/владельцев не пройдена; установка не начата.' }
+& node (Join-Path $PSScriptRoot 'worker-package.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Готовый комплект C#-исполнителя не подтверждён; установка не начата.' }
 if (-not (Test-Path -LiteralPath $venv)) {
     & py -3.12 -m venv $venv
     if ($LASTEXITCODE -ne 0) { throw 'Не удалось создать Python 3.12 venv.' }

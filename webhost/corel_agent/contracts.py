@@ -122,7 +122,7 @@ class PreparedOperation(DTO):
     arguments: dict[str, Any]
     document_id: DocumentId | None = None
     corel_request_id: str | None = None
-    policy_version: int = 2
+    policy_version: int = 3
     digest: Digest
     required_postchecks: tuple[str, ...] = ()
     file_fingerprint: str | None = None

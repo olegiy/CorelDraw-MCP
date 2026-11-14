@@ -1,4 +1,11 @@
 export type Arguments = Record<string, unknown>;
+export interface WorkerReady {
+  type: 'ready';
+  protocol_version: 1;
+  worker_version: string;
+  runtime: string;
+  architecture: 'x64';
+}
 export interface VbaObserverSummary {
   schema_version: 1;
   mode: 'off' | 'observe' | 'compile-errors';
@@ -7,7 +14,7 @@ export interface VbaObserverSummary {
   action_attempted: number;
   dismissed: number;
   requires_operator: number;
-  last_code?: import('./vba-observer.js').ObserverCode;
+  last_code?: import('./historical-reports.js').ObserverCode;
   events_truncated: boolean;
   artifact?: string;
 }
@@ -61,8 +68,8 @@ export interface Job {
   tool_policy?: Record<string, unknown>;
 }
 export interface Executor {
-  run(job: Job, args: Arguments, progress: (stage: string) => void,
-    observerUpdate?: (summary: VbaObserverSummary) => void): Promise<WorkerResult>;
+  readonly backend?: 'csharp';
+  run(job: Job, args: Arguments, progress: (stage: string) => void): Promise<WorkerResult>;
   close(): void;
 }
 export class AutomationFailure extends Error {

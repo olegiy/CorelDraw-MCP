@@ -1,6 +1,8 @@
 import * as z from 'zod';
 import { win32 } from 'node:path';
 import type { Arguments } from './types.js';
+import { drawingToolDefinitions } from './drawing-tools.js';
+import { batchToolDefinitions } from './batch-tools.js';
 
 z.config(z.locales.ru());
 
@@ -40,19 +42,22 @@ const shapeIds = z
   .refine((ids) => new Set(ids).size === ids.length, 'StaticID не должны повторяться.');
 const offset = z.number().int().min(0).max(10000000).default(0);
 export const jobIdSchema = z.string().regex(/^(?:[a-f0-9-]{36}|req-[a-f0-9]{64})$/, 'Нужен точный job_id.');
-interface Definition {
+export interface Definition {
   schema: z.ZodType<Arguments>;
   description: string;
   readOnly: boolean;
   destructive?: boolean;
   local?: boolean;
+  backend?: 'csharp';
 }
 export const toolDefinitions: Record<string, Definition> = {
+  ...drawingToolDefinitions,
+  ...batchToolDefinitions,
   corel_status: {
     schema: z.strictObject({ ...deadline }),
     readOnly: true,
     description:
-      'Подключиться к CorelDRAW 27: версия, VBA, состояние приложения и точные ID документов. Возвращает job_id.',
+      'Подключиться к CorelDRAW 27: версия, состояние приложения и точные ID документов. Возвращает job_id.',
   },
   corel_inspect_document: {
     schema: z.strictObject({
@@ -203,23 +208,6 @@ export const toolDefinitions: Record<string, Definition> = {
     readOnly: true,
     description: 'PNG-превью страницы или выделения (`target=page|selection`). Получить изображение через corel_get_job.',
   },
-  corel_build_vba: {
-    schema: z.strictObject({
-      ...request,
-      source_root: absolutePath,
-      module_paths: z.array(z.string().min(1).max(1024)).min(1).max(100).optional(),
-      ...deadline,
-    }),
-    readOnly: false,
-    description: 'Полностью скомпилировать UTF-8 .bas в отдельном GMS без выполнения. Возвращает job_id.',
-  },
-  corel_execute_vba: {
-    schema: z.strictObject({ ...request, ...document, code: z.string().min(1).max(262144), ...deadline }),
-    readOnly: false,
-    destructive: true,
-    description:
-      'Выполнить Main() As String с JSON-результатом и восстановлением настроек. VBA имеет полный доступ к системе, это не sandbox. Возвращает job_id.',
-  },
   corel_describe_api: {
     schema: z
       .strictObject({
@@ -309,7 +297,7 @@ export const getJobSchema = z.strictObject({
   include_preview: z.boolean().default(false),
 });
 export const guideSchema = z.strictObject({
-  topic: z.enum(['skill', 'tools', 'vba', 'api', 'recipes', 'pitfalls', 'install']).optional(),
+  topic: z.enum(['skill', 'tools', 'operations', 'api', 'recipes', 'pitfalls', 'install']).optional(),
   offset,
   limit: z.number().int().min(1).max(20000).default(8000),
 });

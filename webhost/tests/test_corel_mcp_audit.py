@@ -5,7 +5,7 @@ from corel_agent.contracts import PreparedOperation, new_id
 
 
 def op():
-    return PreparedOperation(operation_id=new_id(), run_id=new_id(), tool="corel_execute_vba",
+    return PreparedOperation(operation_id=new_id(), run_id=new_id(), tool="corel_edit_text",
                              arguments={"code": "fixture"}, document_id="fixture", digest="0" * 64)
 
 
@@ -45,4 +45,4 @@ async def test_verified_dead_owned_transport_ends_monitoring_as_unknown_without_
     assert result.outcome == "unknown" and result.job_id == session.base['job_id']
     assert result.report['error']['code'] == 'MCP_PROCESS_EXITED'
     assert mcp.ready is False
-    assert sum(name == 'corel_execute_vba' for name, _ in session.calls) == 1
+    assert sum(name == 'corel_edit_text' for name, _ in session.calls) == 1

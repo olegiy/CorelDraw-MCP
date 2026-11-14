@@ -8,10 +8,10 @@ import { createServer } from '../dist/server.js';
 const fixture = {
   async run(job, args, progress) {
     progress('fixture_running');
-    if (args.code === 'lose executor') throw new Error('Synthetic executor loss');
-    if (args.code === 'delay') await delay(Math.min(10000, Number(process.env.CORELDRAW_MCP_TEST_DELAY_MS) || 1400));
-    if (args.code === 'fail') return { ok: false, error: { code: 'VBA_RUNTIME_ERROR', stage: 'executing_vba', message: 'Synthetic failure', number: 123 } };
-    if (args.code === 'cleanup fail') return { ok: true, result: { applied: true }, cleanup: { completed: false, errors: [{ step: 'fixture', code: 'CLEANUP_FAILED', message: 'Не удалось восстановить настройку' }] } };
+    if (args.text === 'lose executor') throw new Error('Synthetic executor loss');
+    if (args.text === 'delay') await delay(Math.min(10000, Number(process.env.CORELDRAW_MCP_TEST_DELAY_MS) || 1400));
+    if (args.text === 'fail') return { ok: false, error: { code: 'DRAWING_FAILED', stage: 'drawing', message: 'Synthetic failure', number: 123 } };
+    if (args.text === 'cleanup fail') return { ok: true, result: { applied: true }, cleanup: { completed: false, errors: [{ step: 'fixture', code: 'CLEANUP_FAILED', message: 'Не удалось восстановить настройку' }] } };
     if (job.tool === 'corel_preview') {
       const path = join(job.run_directory, 'preview.png');
       writeFileSync(path, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/vYEAAAAASUVORK5CYII=', 'base64'));

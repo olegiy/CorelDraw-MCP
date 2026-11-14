@@ -1,11 +1,15 @@
 # Запуск и работа с MCP-сервером CorelDRAW
 
-Эта инструкция предназначена для Windows и CorelDRAW 27. Сервер работает локально через MCP-транспорт `stdio`: Codex запускает `node dist/index.js`, а сервер передаёт операции CorelDRAW отдельному PowerShell 5.1 STA-исполнителю.
+Эта инструкция предназначена для Windows и CorelDRAW 27. Сервер работает локально через MCP-транспорт `stdio`: Codex запускает `node dist/index.js`, а сервер передаёт операции CorelDRAW отдельному C# .NET 10 STA-исполнителю.
+
+## Статус поставки
+
+Готовый распространяемый пакет заблокирован до подтверждения прав на interop; [подробности](../worker/INTEROP-DISTRIBUTION.md). Исходная сборка требует SDK 10.0.404 и официальной VGCore type library; self-contained поставка должна работать без глобального .NET runtime/SDK и VBA.
 
 ## Требования
 
 - Windows с интерактивной пользовательской сессией;
-- CorelDRAW 27 с установленным VBA;
+- CorelDRAW 27;
 - Node.js 24.x;
 - Windows PowerShell 5.1;
 - Codex CLI, доступный в `PATH`.
@@ -94,13 +98,13 @@ Save As и экспорт автоматически заменяют сущес
 
 ## Задания, повторы и ошибки
 
-Операции CorelDRAW, экспорт, VBA и сборка возвращают `job_id`. Получайте результат через `corel_get_job(job_id, wait_seconds=20)`. Опрос читает сохранённый отчёт и не обращается к COM. Проверяйте `status`, `result`, `error`, `cleanup`, `warnings` и `artifacts`.
+Операции CorelDRAW, экспорт и типизированное рисование возвращают `job_id`. Получайте результат через `corel_get_job(job_id, wait_seconds=20)`. Опрос читает сохранённый отчёт и не обращается к COM. Проверяйте `status`, `result`, `error`, `cleanup`, `warnings` и `artifacts`.
 
 Изменяющие вызовы требуют нового уникального `request_id`. Повтор с теми же аргументами возвращает исходное задание; изменение аргументов отклоняется. Задания `timed_out` и `unknown` нельзя автоматически повторять: сначала проверьте документ и состояние CorelDRAW. Если `cleanup.completed=false`, действие уже могло выполниться — повтор также запрещён до проверки.
 
-## VBA и измерения
+## Готовые операции и измерения
 
-`corel_measure_shapes` измеряет поддерживаемые векторные объекты в миллиметрах. `corel_build_vba` проверяет исходники `.bas`, а `corel_execute_vba` выполняет модуль с `Public Function Main() As String` и JSON-результатом. VBA имеет полный доступ к CorelDRAW и операционной системе; запускайте только доверенный код и не используйте `Application.Quit`, shell или диалоги.
+Рисование, текст, кривые, слои/группы, булевы операции, preflight, layout и импорт доступны через [готовые операции](../skills/coreldraw-automation/references/operations.md). Произвольный код не принимается. `corel_measure_shapes` измеряет поддерживаемые векторные объекты в миллиметрах на собственной изолированной копии.
 
 ## Обслуживание
 
@@ -111,7 +115,7 @@ Save As и экспорт автоматически заменяют сущес
 модели контекст/проверенные PNG. Подробности защиты ключей и recovery описаны
 в [руководстве панели](agent-panel.md).
 
-Справка: `corel_guide(topic="tools")`, `corel_guide(topic="vba")`, `corel_guide(topic="install")`. Служебные файлы перечисляет `corel_list_artifacts`; удаление выполняется только выбранными токенами через `corel_prune_artifacts`. Диагностику можно выгрузить через `corel_export_diagnostics`.
+Справка: `corel_guide(topic="tools")`, `corel_guide(topic="operations")`, `corel_guide(topic="install")`. Служебные файлы перечисляет `corel_list_artifacts`; удаление выполняется только выбранными токенами через `corel_prune_artifacts`. Диагностику можно выгрузить через `corel_export_diagnostics`.
 
 ## Проверка установки
 
@@ -123,5 +127,6 @@ npm run check:contracts
 Интеграционные тесты выполняйте только при доступном CorelDRAW:
 
 ```powershell
+$env:CORELDRAW_WORKER_LIVE = '1'
 npm run test:integration
 ```

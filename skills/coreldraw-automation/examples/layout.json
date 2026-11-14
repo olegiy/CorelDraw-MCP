@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "title": "Сетка и раскладка",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_grid_duplicate",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "rows": 2,
+        "columns": 3,
+        "gap_x_mm": 2,
+        "gap_y_mm": 2,
+        "anchor_x_mm": 10,
+        "anchor_y_mm": 10
+      }
+    },
+    {
+      "tool": "corel_layout_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001,
+          1002
+        ],
+        "margin_left_mm": 5,
+        "margin_right_mm": 5,
+        "margin_bottom_mm": 5,
+        "margin_top_mm": 5,
+        "gap_x_mm": 2,
+        "gap_y_mm": 2
+      }
+    },
+    {
+      "tool": "corel_layout_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001,
+          1002
+        ],
+        "margin_left_mm": 5,
+        "margin_right_mm": 5,
+        "margin_bottom_mm": 5,
+        "margin_top_mm": 5,
+        "gap_x_mm": 2,
+        "gap_y_mm": 2,
+        "dry_run": false,
+        "expected_revision": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Перед apply заменить нулевой revision точным layout_revision dry_run, проверить unplaced=[] и сохранить порядок ID/параметры. Это shelf bounding-box раскладка без поворотов и фигурного nesting."
+  ]
+}

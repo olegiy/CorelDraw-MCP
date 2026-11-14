@@ -3,7 +3,7 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from conftest import command, implementation, wait_run
+from conftest import command, drawing_arguments, implementation, wait_run
 from test_approvals import calls, prime
 from test_recovery import operation
 
@@ -60,9 +60,9 @@ async def test_confirmed_terminal_refresh_allows_only_new_context_without_review
     assert await store.get_barrier() is None
     assert (await store.get_snapshot(old_id)).model_dump() == old.model_dump()
     assert (await store.get_operation(op.operation_id))['result']['outcome'] == outcome
-    new = await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
+    new = await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
     assert (await wait_run(store, new.id)).status == 'completed'
-    assert len(calls(store, 'corel_execute_vba')) == 1
+    assert len(calls(store, 'corel_edit_text')) == 1
     assert await store._db(lambda db: db.execute('SELECT count(*) FROM reviews').fetchone()[0]) == 0
 
 
@@ -84,16 +84,16 @@ async def test_unproven_effects_or_scope_never_gain_admission(runtime, store, ca
     elif case == 'recovery_pending':
         await store.put_meta('recovery_pending', [{'job_id': 'fixture'}])
     with pytest.raises(AgentError):
-        await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
-    assert (await store.get_barrier()).id == barrier.id and calls(store, 'corel_execute_vba') == []
+        await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
+    assert (await store.get_barrier()).id == barrier.id and calls(store, 'corel_edit_text') == []
 
 
 async def test_old_review_without_global_barrier_is_not_executable_authority(runtime, store):
     _, _, _ = await fault(runtime, store, outcome='unknown')
     await store.put_meta('safety_barrier', None)
     with pytest.raises(AgentError):
-        await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
-    assert calls(store, 'corel_execute_vba') == []
+        await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
+    assert calls(store, 'corel_edit_text') == []
 
 
 @pytest.mark.parametrize('effects', ['empty', 'prepared'])
@@ -106,7 +106,7 @@ async def test_empty_and_never_dispatched_fault_can_be_cleared(runtime, store, e
         old_id = (await store.accept_run(command(), None)).snapshot.id
         await store.set_barrier(SafetyBarrier(reason='RUNTIME_INTERRUPTED', run_id=old_id), status='interrupted')
     old_status = (await store.get_snapshot(old_id)).status
-    new = await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b', arguments={'code': 'fixture'}))
+    new = await runtime.start(command(tool='corel_edit_text', document_id='fixture-b', arguments=drawing_arguments('fixture')))
     assert (await wait_run(store, new.id)).status == 'completed'
     assert await store.get_barrier() is None and (await store.get_snapshot(old_id)).status == old_status
 

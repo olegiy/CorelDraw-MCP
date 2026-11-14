@@ -1,0 +1,3043 @@
+{
+  "schema_version": 1,
+  "status": "source_cutover_verified_release_blocked",
+  "sdk_version": "10.0.404",
+  "target_framework": "net10.0-windows",
+  "architecture": "x64",
+  "prog_id": "CorelDRAW.Application.27",
+  "typelib": {
+    "guid": "95e23c91-bc5a-49f3-8cd1-1fc515597048",
+    "major": 27,
+    "minor": 2,
+    "syskind": "SYS_WIN64",
+    "source_sha256": "7044b6074dfa445f39f6238062ae40e96e01c7764dc28d215872abacce3bdd7c"
+  },
+  "coreldraw_version": "27.2.0.135",
+  "enum_values": {
+    "cdrUnit.cdrMillimeter": 3,
+    "cdrFilter.cdrPNG": 802,
+    "cdrExportRange.cdrCurrentPage": 1,
+    "cdrImageType.cdrRGBColorImage": 4,
+    "cdrNodeType.cdrCuspNode": 0,
+    "cdrNodeType.cdrSmoothNode": 1,
+    "cdrNodeType.cdrSymmetricalNode": 2,
+    "cdrNodeType.cdrMixedNodes": 3,
+    "cdrLineSpacingType.cdrPercentOfCharacterHeightLineSpacing": 0,
+    "cdrLineSpacingType.cdrPointLineSpacing": 1,
+    "cdrLineSpacingType.cdrPercentOfPointSizeLineSpacing": 2,
+    "cdrLineSpacingType.cdrMixedLineSpacing": 3,
+    "cdrSegmentOffsetType.cdrAbsoluteSegmentOffset": 0,
+    "cdrSegmentOffsetType.cdrRelativeSegmentOffset": 1,
+    "cdrSegmentOffsetType.cdrParamSegmentOffset": 2,
+    "cdrFilter.cdrSVG": 1345,
+    "cdrFilter.cdrPDF": 1333,
+    "cdrFilter.cdrJPEG": 774,
+    "cdrFilter.cdrCDR": 1795,
+    "cdrImportMode.cdrImportFull": 0,
+    "cdrTriState.cdrTrue": -1,
+    "cdrTriState.cdrFalse": 0
+  },
+  "signatures": [
+    {
+      "interface": "ICorelExportFilter",
+      "member": "Finish",
+      "clr_signature": "Void Finish()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/exportfilter.finish?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IPDFVBASettings",
+      "member": "get_PageRange",
+      "clr_signature": "System.String get_PageRange()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/pdfvbasettings.pagerange?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IPDFVBASettings",
+      "member": "get_PublishRange",
+      "clr_signature": "VGCore.pdfExportRange get_PublishRange()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/pdfvbasettings.publishrange?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IPDFVBASettings",
+      "member": "set_PageRange",
+      "clr_signature": "Void set_PageRange(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/pdfvbasettings.pagerange?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pszExportPagesRange",
+          "type": "System.String",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IPDFVBASettings",
+      "member": "set_PublishRange",
+      "clr_signature": "Void set_PublishRange(VGCore.pdfExportRange)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/pdfvbasettings.publishrange?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pExportRange",
+          "type": "VGCore.pdfExportRange",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "ConvertUnits",
+      "clr_signature": "Double ConvertUnits(Double, VGCore.cdrUnit, VGCore.cdrUnit)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.convertunits?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "System.Double",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "FromUnit",
+          "type": "VGCore.cdrUnit",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "ToUnit",
+          "type": "VGCore.cdrUnit",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "CreateCMYKColor",
+      "clr_signature": "VGCore.Color CreateCMYKColor(Int32, Int32, Int32, Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.createcmykcolor?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Cyan",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Magenta",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Yellow",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Black",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "CreateCurve",
+      "clr_signature": "VGCore.Curve CreateCurve(VGCore.Document)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.createcurve?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Document",
+          "type": "VGCore.Document",
+          "optional": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "CreateDocument",
+      "clr_signature": "VGCore.Document CreateDocument()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.createdocument?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "CreateRGBColor",
+      "clr_signature": "VGCore.Color CreateRGBColor(Int32, Int32, Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.creatergbcolor?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Red",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Green",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Blue",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "CreateShapeRange",
+      "clr_signature": "VGCore.ShapeRange CreateShapeRange()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.createshaperange?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "CreateStructSaveAsOptions",
+      "clr_signature": "VGCore.StructSaveAsOptions CreateStructSaveAsOptions()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.createstructsaveasoptions?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_ActiveDocument",
+      "clr_signature": "VGCore.Document get_ActiveDocument()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.activedocument?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_Documents",
+      "clr_signature": "VGCore.Documents get_Documents()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.documents?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_EventsEnabled",
+      "clr_signature": "Boolean get_EventsEnabled()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.eventsenabled?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_FontList",
+      "clr_signature": "VGCore.FontList get_FontList()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.fontlist?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_Optimization",
+      "clr_signature": "Boolean get_Optimization()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.optimization?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_Version",
+      "clr_signature": "System.String get_Version()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.version?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "get_VersionMajor",
+      "clr_signature": "Int32 get_VersionMajor()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.versionmajor?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "OpenDocument",
+      "clr_signature": "VGCore.Document OpenDocument(System.String, Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/application.opendocument?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "FileName",
+          "type": "System.String",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "CodePage",
+          "type": "System.Int32",
+          "optional": true,
+          "default": "0"
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "set_EventsEnabled",
+      "clr_signature": "Void set_EventsEnabled(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.eventsenabled?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGApplication",
+      "member": "set_Optimization",
+      "clr_signature": "Void set_Optimization(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.optimization?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGCurve",
+      "member": "CreateSubPath",
+      "clr_signature": "VGCore.SubPath CreateSubPath(Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/curve.createsubpath?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "y",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGCurve",
+      "member": "get_Nodes",
+      "clr_signature": "VGCore.Nodes get_Nodes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/curve.nodes?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGCurve",
+      "member": "get_Segments",
+      "clr_signature": "VGCore.Segments get_Segments()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/curve.segments?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGCurve",
+      "member": "get_SubPaths",
+      "clr_signature": "VGCore.SubPaths get_SubPaths()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/curve.subpaths?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "Activate",
+      "clr_signature": "Void Activate()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.activate?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "AddPages",
+      "clr_signature": "VGCore.Page AddPages(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.addpages?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "NumberOfPages",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "BeginCommandGroup",
+      "clr_signature": "Void BeginCommandGroup(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.begincommandgroup?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "CommandName",
+          "type": "System.String",
+          "optional": true,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "ClearSelection",
+      "clr_signature": "Void ClearSelection()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.clearselection?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "Close",
+      "clr_signature": "Void Close()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.close?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "EndCommandGroup",
+      "clr_signature": "Void EndCommandGroup()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.endcommandgroup?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "ExportBitmap",
+      "clr_signature": "VGCore.ExportFilter ExportBitmap(System.String, VGCore.cdrFilter, VGCore.cdrExportRange, VGCore.cdrImageType, Int32, Int32, Int32, Int32, VGCore.cdrAntiAliasingType, Boolean, Boolean, Boolean, Boolean, VGCore.cdrCompressionType, VGCore.StructPaletteOptions, VGCore.Rect)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.exportbitmap?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "FileName",
+          "type": "System.String",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "Filter",
+          "type": "VGCore.cdrFilter",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "Range",
+          "type": "VGCore.cdrExportRange",
+          "optional": true,
+          "default": "cdrCurrentPage"
+        },
+        {
+          "name": "ImageType",
+          "type": "VGCore.cdrImageType",
+          "optional": true,
+          "default": "cdrRGBColorImage"
+        },
+        {
+          "name": "Width",
+          "type": "System.Int32",
+          "optional": true,
+          "default": "0"
+        },
+        {
+          "name": "Height",
+          "type": "System.Int32",
+          "optional": true,
+          "default": "0"
+        },
+        {
+          "name": "ResolutionX",
+          "type": "System.Int32",
+          "optional": true,
+          "default": "72"
+        },
+        {
+          "name": "ResolutionY",
+          "type": "System.Int32",
+          "optional": true,
+          "default": "72"
+        },
+        {
+          "name": "AntiAliasingType",
+          "type": "VGCore.cdrAntiAliasingType",
+          "optional": true,
+          "default": "cdrNormalAntiAliasing"
+        },
+        {
+          "name": "Dithered",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": "False"
+        },
+        {
+          "name": "Transparent",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": "False"
+        },
+        {
+          "name": "UseColorProfile",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": "True"
+        },
+        {
+          "name": "MaintainLayers",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": "False"
+        },
+        {
+          "name": "Compression",
+          "type": "VGCore.cdrCompressionType",
+          "optional": true,
+          "default": "cdrCompressionNone"
+        },
+        {
+          "name": "PaletteOptions",
+          "type": "VGCore.StructPaletteOptions",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "ExportArea",
+          "type": "VGCore.Rect",
+          "optional": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "ExportEx",
+      "clr_signature": "VGCore.ExportFilter ExportEx(System.String, VGCore.cdrFilter, VGCore.cdrExportRange, VGCore.StructExportOptions, VGCore.StructPaletteOptions)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.exportex?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "FileName",
+          "type": "System.String",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "Filter",
+          "type": "VGCore.cdrFilter",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "Range",
+          "type": "VGCore.cdrExportRange",
+          "optional": true,
+          "default": "cdrCurrentPage"
+        },
+        {
+          "name": "Options",
+          "type": "VGCore.StructExportOptions",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "PaletteOptions",
+          "type": "VGCore.StructPaletteOptions",
+          "optional": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_ActiveLayer",
+      "clr_signature": "VGCore.Layer get_ActiveLayer()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.activelayer?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_ActivePage",
+      "clr_signature": "VGCore.Page get_ActivePage()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.activepage?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_Dirty",
+      "clr_signature": "Boolean get_Dirty()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.dirty?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_Pages",
+      "clr_signature": "VGCore.Pages get_Pages()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.pages?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_PDFSettings",
+      "clr_signature": "VGCore.PDFVBASettings get_PDFSettings()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.pdfsettings?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_PreserveSelection",
+      "clr_signature": "Boolean get_PreserveSelection()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.preserveselection?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_ReferencePoint",
+      "clr_signature": "VGCore.cdrReferencePoint get_ReferencePoint()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.referencepoint?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_SelectionRange",
+      "clr_signature": "VGCore.ShapeRange get_SelectionRange()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.selectionrange?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_Unit",
+      "clr_signature": "VGCore.cdrUnit get_Unit()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.unit?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "PublishToPDF",
+      "clr_signature": "Void PublishToPDF(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.publishtopdf?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "FileName",
+          "type": "System.String",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "Save",
+      "clr_signature": "Void Save()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.save?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "SaveAs",
+      "clr_signature": "Void SaveAs(System.String, VGCore.StructSaveAsOptions)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/document.saveas?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "FileName",
+          "type": "System.String",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "Options",
+          "type": "VGCore.StructSaveAsOptions",
+          "optional": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "set_Dirty",
+      "clr_signature": "Void set_Dirty(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.dirty?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "Dirty",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "set_PreserveSelection",
+      "clr_signature": "Void set_PreserveSelection(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.preserveselection?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "set_ReferencePoint",
+      "clr_signature": "Void set_ReferencePoint(VGCore.cdrReferencePoint)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.referencepoint?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pRefPoint",
+          "type": "VGCore.cdrReferencePoint",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "set_Unit",
+      "clr_signature": "Void set_Unit(VGCore.cdrUnit)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.unit?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "pnUnit",
+          "type": "VGCore.cdrUnit",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFill",
+      "member": "ApplyNoFill",
+      "clr_signature": "Void ApplyNoFill()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fill.applynofill?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFill",
+      "member": "ApplyUniformFill",
+      "clr_signature": "Void ApplyUniformFill(VGCore.Color)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fill.applyuniformfill?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Color",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFill",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrFillType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fill.type?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFill",
+      "member": "get_UniformColor",
+      "clr_signature": "VGCore.Color get_UniformColor()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fill.uniformcolor?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFontList",
+      "member": "get_Count",
+      "clr_signature": "Int32 get_Count()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fontlist.count?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFontList",
+      "member": "get_Item",
+      "clr_signature": "System.String get_Item(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fontlist.item?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Index",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "CreateArtisticTextWide",
+      "clr_signature": "VGCore.Shape CreateArtisticTextWide(Double, Double, System.String, VGCore.cdrTextLanguage, VGCore.cdrTextCharSet, System.String, Single, VGCore.cdrTriState, VGCore.cdrTriState, VGCore.cdrFontLine, VGCore.cdrAlignment)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.createartistictextwide?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Left",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Bottom",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Text",
+          "type": "System.String",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "LanguageID",
+          "type": "VGCore.cdrTextLanguage",
+          "optional": true,
+          "default": "cdrLanguageNone"
+        },
+        {
+          "name": "CharSet",
+          "type": "VGCore.cdrTextCharSet",
+          "optional": true,
+          "default": "cdrCharSetMixed"
+        },
+        {
+          "name": "Font",
+          "type": "System.String",
+          "optional": true,
+          "default": "missing"
+        },
+        {
+          "name": "Size",
+          "type": "System.Single",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "Bold",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": "cdrUndefined"
+        },
+        {
+          "name": "Italic",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": "cdrUndefined"
+        },
+        {
+          "name": "Underline",
+          "type": "VGCore.cdrFontLine",
+          "optional": true,
+          "default": "cdrMixedFontLine"
+        },
+        {
+          "name": "Alignment",
+          "type": "VGCore.cdrAlignment",
+          "optional": true,
+          "default": "cdrMixedAlignment"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "CreateCurve",
+      "clr_signature": "VGCore.Shape CreateCurve(VGCore.Curve)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.createcurve?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Source",
+          "type": "VGCore.Curve",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "CreateEllipse2",
+      "clr_signature": "VGCore.Shape CreateEllipse2(Double, Double, Double, Double, Double, Double, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.createellipse2?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "CenterX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "CenterY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Radius1",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Radius2",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "StartAngle",
+          "type": "System.Double",
+          "optional": true,
+          "default": 90
+        },
+        {
+          "name": "EndAngle",
+          "type": "System.Double",
+          "optional": true,
+          "default": 90
+        },
+        {
+          "name": "Pie",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "CreateLineSegment",
+      "clr_signature": "VGCore.Shape CreateLineSegment(Double, Double, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.createlinesegment?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "StartX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "StartY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "EndX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "EndY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "CreateParagraphTextWide",
+      "clr_signature": "VGCore.Shape CreateParagraphTextWide(Double, Double, Double, Double, System.String, VGCore.cdrTextLanguage, VGCore.cdrTextCharSet, System.String, Single, VGCore.cdrTriState, VGCore.cdrTriState, VGCore.cdrFontLine, VGCore.cdrAlignment)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.createparagraphtextwide?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Left",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Top",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Right",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Bottom",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Text",
+          "type": "System.String",
+          "optional": true,
+          "default": "missing"
+        },
+        {
+          "name": "LanguageID",
+          "type": "VGCore.cdrTextLanguage",
+          "optional": true,
+          "default": "cdrLanguageNone"
+        },
+        {
+          "name": "CharSet",
+          "type": "VGCore.cdrTextCharSet",
+          "optional": true,
+          "default": "cdrCharSetMixed"
+        },
+        {
+          "name": "Font",
+          "type": "System.String",
+          "optional": true,
+          "default": "missing"
+        },
+        {
+          "name": "Size",
+          "type": "System.Single",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "Bold",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": "cdrUndefined"
+        },
+        {
+          "name": "Italic",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": "cdrUndefined"
+        },
+        {
+          "name": "Underline",
+          "type": "VGCore.cdrFontLine",
+          "optional": true,
+          "default": "cdrMixedFontLine"
+        },
+        {
+          "name": "Alignment",
+          "type": "VGCore.cdrAlignment",
+          "optional": true,
+          "default": "cdrMixedAlignment"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "CreateRectangle2",
+      "clr_signature": "VGCore.Shape CreateRectangle2(Double, Double, Double, Double, Double, Double, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.createrectangle2?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "y",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Width",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Height",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "RadiusUL",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "RadiusUR",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "RadiusLR",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "RadiusLL",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Editable",
+      "clr_signature": "Boolean get_Editable()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.editable?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Index",
+      "clr_signature": "Int32 get_Index()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.index?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_IsSpecialLayer",
+      "clr_signature": "Boolean get_IsSpecialLayer()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.isspeciallayer?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Name",
+      "clr_signature": "System.String get_Name()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.name?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Page",
+      "clr_signature": "VGCore.Page get_Page()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.page?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Printable",
+      "clr_signature": "Boolean get_Printable()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.printable?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Shapes",
+      "clr_signature": "VGCore.Shapes get_Shapes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.shapes?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_TreeNode",
+      "clr_signature": "VGCore.TreeNode get_TreeNode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.treenode?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "get_Visible",
+      "clr_signature": "Boolean get_Visible()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.visible?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "set_Editable",
+      "clr_signature": "Void set_Editable(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.editable?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "set_Name",
+      "clr_signature": "Void set_Name(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.name?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.String",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "set_Printable",
+      "clr_signature": "Void set_Printable(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.printable?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "set_Visible",
+      "clr_signature": "Void set_Visible(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/layer.visible?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGNode",
+      "member": "Delete",
+      "clr_signature": "Void Delete()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/node.delete?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGNode",
+      "member": "get_PositionX",
+      "clr_signature": "Double get_PositionX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/node.positionx?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGNode",
+      "member": "get_PositionY",
+      "clr_signature": "Double get_PositionY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/node.positiony?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGNode",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrNodeType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/node.type?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGNode",
+      "member": "JoinWith",
+      "clr_signature": "Void JoinWith(VGCore.Node)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/node.joinwith?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Target",
+          "type": "VGCore.Node",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGNode",
+      "member": "set_Type",
+      "clr_signature": "Void set_Type(VGCore.cdrNodeType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/node.type?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrNodeType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGNode",
+      "member": "SetPosition",
+      "clr_signature": "Void SetPosition(Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/node.setposition?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "PositionX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "PositionY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGOutline",
+      "member": "ConvertToObject",
+      "clr_signature": "VGCore.Shape ConvertToObject()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/outline.converttoobject?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGOutline",
+      "member": "get_Color",
+      "clr_signature": "VGCore.Color get_Color()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/outline.color?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGOutline",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrOutlineType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/outline.type?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGOutline",
+      "member": "get_Width",
+      "clr_signature": "Double get_Width()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/outline.width?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGOutline",
+      "member": "SetNoOutline",
+      "clr_signature": "Void SetNoOutline()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/outline.setnooutline?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGOutline",
+      "member": "SetProperties",
+      "clr_signature": "Void SetProperties(Double, VGCore.OutlineStyle, VGCore.Color, VGCore.ArrowHead, VGCore.ArrowHead, VGCore.cdrTriState, VGCore.cdrTriState, VGCore.cdrOutlineLineCaps, VGCore.cdrOutlineLineJoin, Double, Int32, Double, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/outline.setproperties?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Width",
+          "type": "System.Double",
+          "optional": true,
+          "default": -1
+        },
+        {
+          "name": "Style",
+          "type": "VGCore.OutlineStyle",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "Color",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "StartArrow",
+          "type": "VGCore.ArrowHead",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "EndArrow",
+          "type": "VGCore.ArrowHead",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "BehindFill",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": "cdrUndefined"
+        },
+        {
+          "name": "ScaleWithShape",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": "cdrUndefined"
+        },
+        {
+          "name": "LineCaps",
+          "type": "VGCore.cdrOutlineLineCaps",
+          "optional": true,
+          "default": "cdrOutlineUndefinedLineCaps"
+        },
+        {
+          "name": "LineJoin",
+          "type": "VGCore.cdrOutlineLineJoin",
+          "optional": true,
+          "default": "cdrOutlineUndefinedLineJoin"
+        },
+        {
+          "name": "NibAngle",
+          "type": "System.Double",
+          "optional": true,
+          "default": -9999
+        },
+        {
+          "name": "NibStretch",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "DashDotLength",
+          "type": "System.Double",
+          "optional": true,
+          "default": -1
+        },
+        {
+          "name": "PenWidth",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "MiterLimit",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        }
+      ]
+    },
+    {
+      "interface": "IVGPage",
+      "member": "Activate",
+      "clr_signature": "Void Activate()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/page.activate?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "CreateLayer",
+      "clr_signature": "VGCore.Layer CreateLayer(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/page.createlayer?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "LayerName",
+          "type": "System.String",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGPage",
+      "member": "Delete",
+      "clr_signature": "Void Delete()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/page.delete?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_ActiveLayer",
+      "clr_signature": "VGCore.Layer get_ActiveLayer()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.activelayer?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_BottomY",
+      "clr_signature": "Double get_BottomY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.bottomy?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_BoundingBox",
+      "clr_signature": "VGCore.Rect get_BoundingBox()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.boundingbox?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_Index",
+      "clr_signature": "Int32 get_Index()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.index?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_Layers",
+      "clr_signature": "VGCore.Layers get_Layers()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.layers?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_LeftX",
+      "clr_signature": "Double get_LeftX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.leftx?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_Shapes",
+      "clr_signature": "VGCore.Shapes get_Shapes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.shapes?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_SizeHeight",
+      "clr_signature": "Double get_SizeHeight()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.sizeheight?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_SizeWidth",
+      "clr_signature": "Double get_SizeWidth()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.sizewidth?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "get_TreeNode",
+      "clr_signature": "VGCore.TreeNode get_TreeNode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/page.treenode?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPage",
+      "member": "MoveTo",
+      "clr_signature": "Void MoveTo(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/page.moveto?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "Index",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGPage",
+      "member": "SetSize",
+      "clr_signature": "Void SetSize(Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/page.setsize?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "Width",
+          "type": "System.Double",
+          "optional": false,
+          "default": "<none>"
+        },
+        {
+          "name": "Height",
+          "type": "System.Double",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "AddNodeAt",
+      "clr_signature": "VGCore.Node AddNodeAt(Double, VGCore.cdrSegmentOffsetType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/segment.addnodeat?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Offset",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.5
+        },
+        {
+          "name": "OffsetType",
+          "type": "VGCore.cdrSegmentOffsetType",
+          "optional": true,
+          "default": "cdrParamSegmentOffset"
+        }
+      ]
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_EndingControlPointX",
+      "clr_signature": "Double get_EndingControlPointX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.endingcontrolpointx?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_EndingControlPointY",
+      "clr_signature": "Double get_EndingControlPointY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.endingcontrolpointy?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_EndNode",
+      "clr_signature": "VGCore.Node get_EndNode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.endnode?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_StartingControlPointX",
+      "clr_signature": "Double get_StartingControlPointX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.startingcontrolpointx?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_StartingControlPointY",
+      "clr_signature": "Double get_StartingControlPointY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.startingcontrolpointy?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_StartNode",
+      "clr_signature": "VGCore.Node get_StartNode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.startnode?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSegment",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrSegmentType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/segment.type?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "ConvertToCurves",
+      "clr_signature": "Void ConvertToCurves()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.converttocurves?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "CreateSelection",
+      "clr_signature": "Void CreateSelection()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.createselection?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "Duplicate",
+      "clr_signature": "VGCore.Shape Duplicate(Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.duplicate?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "OffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "OffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_BottomY",
+      "clr_signature": "Double get_BottomY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.bottomy?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Curve",
+      "clr_signature": "VGCore.Curve get_Curve()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.curve?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_DisplayCurve",
+      "clr_signature": "VGCore.Curve get_DisplayCurve()",
+      "parameters": [],
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.displaycurve?lang=cs",
+      "live_status": "verified_stage6_rectangle_ellipse_group; DisplayCurve_text_null_requires_verified_private_copy"
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Effects",
+      "clr_signature": "VGCore.Effects get_Effects()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.effects?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Fill",
+      "clr_signature": "VGCore.Fill get_Fill()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.fill?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Layer",
+      "clr_signature": "VGCore.Layer get_Layer()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.layer?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_LeftX",
+      "clr_signature": "Double get_LeftX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.leftx?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Locked",
+      "clr_signature": "Boolean get_Locked()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.locked?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Name",
+      "clr_signature": "System.String get_Name()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.name?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Outline",
+      "clr_signature": "VGCore.Outline get_Outline()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.outline?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Page",
+      "clr_signature": "VGCore.Page get_Page()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.page?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_ParentGroup",
+      "clr_signature": "VGCore.Shape get_ParentGroup()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.parentgroup?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_PowerClip",
+      "clr_signature": "VGCore.PowerClip get_PowerClip()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.powerclip?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_RotationAngle",
+      "clr_signature": "Double get_RotationAngle()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.rotationangle?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Shapes",
+      "clr_signature": "VGCore.Shapes get_Shapes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.shapes?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_SizeHeight",
+      "clr_signature": "Double get_SizeHeight()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.sizeheight?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_SizeWidth",
+      "clr_signature": "Double get_SizeWidth()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.sizewidth?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_StaticID",
+      "clr_signature": "Int32 get_StaticID()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.staticid?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Text",
+      "clr_signature": "VGCore.Text get_Text()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.text?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Transparency",
+      "clr_signature": "VGCore.Transparency get_Transparency()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.transparency?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrShapeType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.type?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "GetBoundingBox",
+      "clr_signature": "Void GetBoundingBox(Double ByRef, Double ByRef, Double ByRef, Double ByRef, Boolean)",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "y",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Width",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Height",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "UseOutline",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ],
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.getboundingbox?lang=cs",
+      "live_status": "verified_stage6_rectangle_ellipse_group; DisplayCurve_text_null_requires_verified_private_copy"
+    },
+    {
+      "interface": "IVGShape",
+      "member": "GetMatrix",
+      "clr_signature": "Void GetMatrix(Double ByRef, Double ByRef, Double ByRef, Double ByRef, Double ByRef, Double ByRef)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.getmatrix?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "d11",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d12",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d21",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d22",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "tx",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "ty",
+          "type": "System.Double&",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "Intersect",
+      "clr_signature": "VGCore.Shape Intersect(VGCore.Shape, Boolean, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.intersect?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "TargetShape",
+          "type": "VGCore.Shape",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "LeaveSource",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": true
+        },
+        {
+          "name": "LeaveTarget",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": true
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "Move",
+      "clr_signature": "Void Move(Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.move?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "DeltaX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "DeltaY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "MoveToLayer",
+      "clr_signature": "Void MoveToLayer(VGCore.Layer)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.movetolayer?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Layer",
+          "type": "VGCore.Layer",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "RotateEx",
+      "clr_signature": "Void RotateEx(Double, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.rotateex?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "CenterX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "CenterY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "StretchEx",
+      "clr_signature": "Void StretchEx(Double, Double, Double, Double, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.stretchex?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "CenterX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "CenterY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "StretchX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "StretchY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "StretchCharactersSize",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "Trim",
+      "clr_signature": "VGCore.Shape Trim(VGCore.Shape, Boolean, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.trim?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "TargetShape",
+          "type": "VGCore.Shape",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "LeaveSource",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": true
+        },
+        {
+          "name": "LeaveTarget",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "UngroupEx",
+      "clr_signature": "VGCore.ShapeRange UngroupEx()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.ungroupex?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "Weld",
+      "clr_signature": "VGCore.Shape Weld(VGCore.Shape, Boolean, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.weld?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "TargetShape",
+          "type": "VGCore.Shape",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "LeaveSource",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        },
+        {
+          "name": "LeaveTarget",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "Add",
+      "clr_signature": "Void Add(VGCore.Shape)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.add?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "Shape",
+          "type": "VGCore.Shape",
+          "optional": false,
+          "default": "<none>"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "CreateDocumentFrom",
+      "clr_signature": "VGCore.Document CreateDocumentFrom(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.createdocumentfrom?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": [
+        {
+          "name": "TemporaryDocument",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": "False"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "CreateSelection",
+      "clr_signature": "Void CreateSelection()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.createselection?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "get_Count",
+      "clr_signature": "Int32 get_Count()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shaperange.count?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "get_Item",
+      "clr_signature": "VGCore.Shape get_Item(System.Object)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shaperange.item?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": [
+        {
+          "name": "IndexOrName",
+          "type": "System.Object",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "Group",
+      "clr_signature": "VGCore.Shape Group()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.group?lang=cs",
+      "live_status": "verified_stage4",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "AppendCurveSegment2",
+      "clr_signature": "VGCore.Segment AppendCurveSegment2(Double, Double, Double, Double, Double, Double, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/subpath.appendcurvesegment2?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "y",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "StartingControlPointX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "StartingControlPointY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "EndingControlPointX",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "EndingControlPointY",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "AppendAtBeginning",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "AppendLineSegment",
+      "clr_signature": "VGCore.Segment AppendLineSegment(Double, Double, Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/subpath.appendlinesegment?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "y",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "AppendAtBeginning",
+          "type": "System.Boolean",
+          "optional": true,
+          "default": false
+        }
+      ]
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "get_Closed",
+      "clr_signature": "Boolean get_Closed()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/subpath.closed?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "get_EndNode",
+      "clr_signature": "VGCore.Node get_EndNode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/subpath.endnode?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "get_Nodes",
+      "clr_signature": "VGCore.Nodes get_Nodes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/subpath.nodes?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "get_Segments",
+      "clr_signature": "VGCore.Segments get_Segments()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/subpath.segments?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "get_StartNode",
+      "clr_signature": "VGCore.Node get_StartNode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/subpath.startnode?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGSubPath",
+      "member": "set_Closed",
+      "clr_signature": "Void set_Closed(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/subpath.closed?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextCharacters",
+      "member": "get_Item",
+      "clr_signature": "VGCore.TextRange get_Item(Int32, Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textcharacters.item?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Index",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Count",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 1
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_Alignment",
+      "clr_signature": "VGCore.cdrAlignment get_Alignment()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.alignment?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_Bold",
+      "clr_signature": "Boolean get_Bold()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.bold?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_Characters",
+      "clr_signature": "VGCore.TextCharacters get_Characters()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.characters?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_Font",
+      "clr_signature": "System.String get_Font()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.font?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_Italic",
+      "clr_signature": "Boolean get_Italic()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.italic?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_Size",
+      "clr_signature": "Single get_Size()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.size?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "get_WideText",
+      "clr_signature": "System.String get_WideText()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.widetext?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "ReplaceWide",
+      "clr_signature": "VGCore.TextRange ReplaceWide(System.String, VGCore.cdrTextLanguage, VGCore.cdrTextCharSet, System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/textrange.replacewide?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Text",
+          "type": "System.String",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "LanguageID",
+          "type": "VGCore.cdrTextLanguage",
+          "optional": true,
+          "default": "cdrLanguageNone"
+        },
+        {
+          "name": "CharSet",
+          "type": "VGCore.cdrTextCharSet",
+          "optional": true,
+          "default": "cdrCharSetMixed"
+        },
+        {
+          "name": "Font",
+          "type": "System.String",
+          "optional": true,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "set_Alignment",
+      "clr_signature": "Void set_Alignment(VGCore.cdrAlignment)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.alignment?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrAlignment",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "set_Bold",
+      "clr_signature": "Void set_Bold(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.bold?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "set_Font",
+      "clr_signature": "Void set_Font(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.font?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.String",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "set_Italic",
+      "clr_signature": "Void set_Italic(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.italic?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "set_Size",
+      "clr_signature": "Void set_Size(Single)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.size?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Single",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "set_WideText",
+      "clr_signature": "Void set_WideText(System.String)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/textrange.widetext?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "ppVal",
+          "type": "System.String",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTextRange",
+      "member": "SetLineSpacing",
+      "clr_signature": "Void SetLineSpacing(VGCore.cdrLineSpacingType, Single, Single, Single)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/textrange.setlinespacing?lang=cs",
+      "live_status": "verified_stage5",
+      "parameters": [
+        {
+          "name": "Type",
+          "type": "VGCore.cdrLineSpacingType",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "LineSpacing",
+          "type": "System.Single",
+          "optional": true,
+          "default": -1
+        },
+        {
+          "name": "ParaBefore",
+          "type": "System.Single",
+          "optional": true,
+          "default": -1
+        },
+        {
+          "name": "ParaAfter",
+          "type": "System.Single",
+          "optional": true,
+          "default": -1
+        }
+      ]
+    },
+    {
+      "interface": "IVGTreeNode",
+      "member": "get_Handle",
+      "clr_signature": "Int32 get_Handle()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/treenode.handle?lang=cs",
+      "live_status": "verified_stage3",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "AddToPowerClip",
+      "clr_signature": "Void AddToPowerClip(VGCore.Shape, VGCore.cdrTriState)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.addtopowerclip?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "Shape",
+          "type": "VGCore.Shape",
+          "optional": false,
+          "default": null
+        },
+        {
+          "name": "CenterInContainer",
+          "type": "VGCore.cdrTriState",
+          "optional": true,
+          "default": -2
+        }
+      ]
+    },
+    {
+      "interface": "IVGShapeRange",
+      "member": "MoveToLayer",
+      "clr_signature": "Void MoveToLayer(VGCore.Layer)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.movetolayer?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "Layer",
+          "type": "VGCore.Layer",
+          "optional": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGStructImportOptions",
+      "member": "set_LinkBitmapExternally",
+      "clr_signature": "Void set_LinkBitmapExternally(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/structimportoptions.linkbitmapexternally?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGStructImportOptions",
+      "member": "set_MaintainLayers",
+      "clr_signature": "Void set_MaintainLayers(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/structimportoptions.maintainlayers?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGStructImportOptions",
+      "member": "set_UseOPILinks",
+      "clr_signature": "Void set_UseOPILinks(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/structimportoptions.useopilinks?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGStructImportOptions",
+      "member": "set_ExtractICCProfile",
+      "clr_signature": "Void set_ExtractICCProfile(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/structimportoptions.extracticcprofile?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGStructImportOptions",
+      "member": "set_Mode",
+      "clr_signature": "Void set_Mode(VGCore.cdrImportMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/structimportoptions.mode?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrImportMode",
+          "optional": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "ICorelImportFilter",
+      "member": "Reset",
+      "clr_signature": "Void Reset()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/importfilter.reset?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": []
+    },
+    {
+      "interface": "ICorelImportFilter",
+      "member": "Finish",
+      "clr_signature": "Void Finish()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/importfilter.finish?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": []
+    },
+    {
+      "interface": "ICorelImportFilter",
+      "member": "get_HasDialog",
+      "clr_signature": "Boolean get_HasDialog()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/importfilter.hasdialog?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPowerClip",
+      "member": "ExtractShapes",
+      "clr_signature": "VGCore.ShapeRange ExtractShapes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/powerclip.extractshapes?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": []
+    },
+    {
+      "interface": "IVGPowerClip",
+      "member": "get_Shapes",
+      "clr_signature": "VGCore.Shapes get_Shapes()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/powerclip.shapes?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": []
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "ImportEx",
+      "clr_signature": "VGCore.ImportFilter ImportEx(System.String, VGCore.cdrFilter, VGCore.StructImportOptions)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.importex?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": [
+        {
+          "name": "FileName",
+          "type": "System.String",
+          "optional": false,
+          "default": null
+        },
+        {
+          "name": "Filter",
+          "type": "VGCore.cdrFilter",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "Options",
+          "type": "VGCore.StructImportOptions",
+          "optional": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "interface": "IVGLayer",
+      "member": "Delete",
+      "clr_signature": "Void Delete()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/layer.delete?lang=cs",
+      "live_status": "verified_stage7",
+      "parameters": []
+    },
+    {
+      "interface": "IVGShape",
+      "member": "get_Bitmap",
+      "clr_signature": "VGCore.Bitmap get_Bitmap()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/shape.bitmap?lang=cs",
+      "live_status": "verified_final_bitmap_recipe",
+      "parameters": []
+    },
+    {
+      "interface": "IVGBitmap",
+      "member": "get_Cropped",
+      "clr_signature": "Boolean get_Cropped()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/bitmap.cropped?lang=cs",
+      "live_status": "verified_final_bitmap_recipe",
+      "parameters": []
+    },
+    {
+      "interface": "IVGBitmap",
+      "member": "get_CropEnvelope",
+      "clr_signature": "VGCore.Curve get_CropEnvelope()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/bitmap.cropenvelope?lang=cs",
+      "live_status": "verified_final_bitmap_recipe",
+      "parameters": []
+    }
+  ],
+  "live_evidence": "artifacts/worker-smoke/a0abfaf0d8c848f28bbc88e552d67e67/smoke.json",
+  "unicode": {
+    "expected_code_point": "U+1F994",
+    "expected_utf16": [
+      55358,
+      56724
+    ],
+    "actual_utf16": [
+      32,
+      56724
+    ],
+    "reproduced_with": [
+      "Generated VGCore interop + .NET 10",
+      "Installed Corel.Interop.VGCore + .NET 10",
+      "Windows PowerShell 5.1 + .NET Framework"
+    ],
+    "font_probe": "Segoe UI Emoji: same corruption",
+    "resolution": "user_approved_reject_unsupported_text_before_mutation"
+  },
+  "redistribution": {
+    "verified": false,
+    "reason": "Р’ РґРѕСЃС‚СѓРїРЅС‹С… РёСЃС‚РѕС‡РЅРёРєР°С… РЅРµ РЅР°Р№РґРµРЅРѕ СЏРІРЅРѕРіРѕ СЂР°Р·СЂРµС€РµРЅРёСЏ РЅР° РїРѕСЃС‚Р°РІРєСѓ РіРµРЅРµСЂРёСЂСѓРµРјРѕР№ interop-СЃР±РѕСЂРєРё; РіРѕС‚РѕРІС‹Р№ РїР°РєРµС‚ РЅРµ РїСѓР±Р»РёРєРѕРІР°С‚СЊ."
+  },
+  "filter_contracts": [
+    {
+      "library": "FilterAI",
+      "guid": "daedea00-0cb9-11d4-b6b4-009027575a12",
+      "version": "1.0",
+      "syskind": "SYS_WIN64",
+      "source_sha256": "a273141f1d088b7f1c9e57ef52e71524f20af41b88555867282c3ce7d02d9f7c",
+      "runtime_typeinfo_guid": "daedea01-0cb9-11d4-b6b4-009027575a12",
+      "binding_iid": "00020400-0000-0000-c000-000000000046",
+      "property": "TextAsCurves",
+      "dispid": 11,
+      "variant_type": "VT_BOOL",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/aiexport.textascurves?lang=cs",
+      "live_status": "verified_static_property_binding_and_export"
+    },
+    {
+      "library": "FilterEPS",
+      "guid": "daede300-0cb9-11d4-b6b4-009027575a12",
+      "version": "1.0",
+      "syskind": "SYS_WIN64",
+      "source_sha256": "82fb8145cb9757fdfda65cc88c04bccdac12c5780fe13cbc55c2eec1c774928b",
+      "runtime_typeinfo_guid": "daede301-0cb9-11d4-b6b4-009027575a12",
+      "binding_iid": "00020400-0000-0000-c000-000000000046",
+      "property": "TextAsCurves",
+      "dispid": 14,
+      "variant_type": "VT_BOOL",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/cepsexport.textascurves?lang=cs",
+      "live_status": "verified_static_property_binding_and_export"
+    },
+    {
+      "library": "FilterHPGL",
+      "guid": "daedec00-0cb9-11d4-b6b4-009027575a12",
+      "version": "1.0",
+      "syskind": "SYS_WIN64",
+      "source_sha256": "864cdcc398d0853dc8f8c16a131c3ba1dcb6fb5053178e0fa9199be57435e184",
+      "runtime_typeinfo_guid": "daedec01-0cb9-11d4-b6b4-009027575a12",
+      "binding_iid": "00020400-0000-0000-c000-000000000046",
+      "property": "PlotterUnits",
+      "dispid": 24,
+      "variant_type": "VT_I2",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/hpglexport.plotterunits?lang=cs",
+      "live_status": "verified_static_property_binding_and_export"
+    },
+    {
+      "library": "FilterJPG",
+      "guid": "daede200-0cb9-11d4-b6b4-009027575a12",
+      "version": "1.0",
+      "syskind": "SYS_WIN64",
+      "source_sha256": "71959219c2997a3f3819e1ec3b9c8674aff2c60a6b8cb4abb4c30623bfc9d331",
+      "runtime_typeinfo_guid": "daede201-0cb9-11d4-b6b4-009027575a12",
+      "binding_iid": "00020400-0000-0000-c000-000000000046",
+      "property": "Compression",
+      "dispid": 13,
+      "variant_type": "VT_I4",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/jpgexport.compression?lang=cs",
+      "live_status": "verified_static_property_binding_and_export"
+    }
+  ],
+  "page_layer_identity": {
+    "native_key": "TreeNode.Handle",
+    "external_key": "session-scoped opaque ID",
+    "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/treenode.handle?lang=cs",
+    "live_checks": [
+      "same-name layers have distinct IDs",
+      "page reorder preserves opaque ID",
+      "deleted/replaced page is STALE_PAGE"
+    ]
+  },
+  "stage3_evidence": {
+    "dotnet_tests": "63 passed including live",
+    "npm_tests": "119 passed, 1 explicit opt-in skipped",
+    "contracts": "passed",
+    "differential": "artifacts/worker-differential/fb7ed20a-c7e3-4785-b42b-8da6fe434ca1/differential.json",
+    "differential_objects": 6,
+    "temporary_gms_remaining": 0
+  },
+  "stage4_evidence": {
+    "dotnet_tests_passed": 92,
+    "npm_passed": 131,
+    "npm_opt_in_skipped": 1,
+    "live_recipe": "artifacts/integration-drawing/0aba4a8a-07ee-4925-87de-f81b7ed95452/verification.json",
+    "fault_injection": "partial true; applied true; one observed created ID; no undo/replay",
+    "coordinate_checks": "mm/inch, shifted DrawingOrigin, ReferencePoint=top-right, explicit page origin"
+  },
+  "stage5_evidence": {
+    "dotnet_tests_passed": 114,
+    "npm_passed": 138,
+    "npm_opt_in_skipped": 1,
+    "live_recipe": "artifacts/integration-production/b02d9516-5651-49ad-873a-d8e23550f584/verification.json",
+    "curve_split": "t=.5: (5,7.5); controls (0,5)/(2.5,7.5), (7.5,7.5)/(10,5); mm/inch shifted origin",
+    "text_replace": "native ranges, unmatched bold/italic retained; partial after3 contains one current observation",
+    "read_only_checks": "find/inspect_curve/preflight preserve source; unsupported gives unknown"
+  },
+  "stage6_evidence": {
+    "dotnet_tests_passed": 130,
+    "live_recipe": "artifacts/integration-layout/400d8975-e682-4876-af17-61eaad5aba8c/verification.json",
+    "full_shape_revision": "bounded DisplayCurve; text rendered in verified owned clone; no source conversion",
+    "dry_run": "source full inspect and Dirty preserved; no BeginCommandGroup",
+    "partial_grid": "two created IDs retained after injected third mutation",
+    "bounds": "align geometry; layout/grid include outline"
+  },
+  "stage7_evidence": {
+    "dotnet_tests_passed": 158,
+    "npm_passed": 146,
+    "npm_opt_in_skipped": 1,
+    "live_recipe": "artifacts/import/3c84dafa-51bf-4b45-b71a-7da5d1c3b1e2/verification.json",
+    "native_import": "SVG/PDF selected page/PNG/JPEG, mm/inch shifted origin, source hashes unchanged, SVG z-order verified",
+    "transfer": "owned private CDR with unique root provenance markers; native cross-document CopyToLayer unsupported, no fallback",
+    "powerclip": "bitmap and nested clips, one-level extract, relative coordinates and no resize",
+    "dirty": "BeginCommandGroup changes Dirty; observed metadata mutation is applied true even if body fails",
+    "limits": "native file paths <=259 UTF-16; preflight explicit NATIVE_PATH_TOO_LONG; SVG text uses agreed BMP contract",
+    "pdf_dependency": "PDFsharp [6.2.4] MIT, packages.lock.json; password/owner-only and page validation before target mutation"
+  },
+  "stage9_evidence": {
+    "version": "0.3.0",
+    "backend": "csharp_only",
+    "catalog_tools": 37,
+    "retired_tools_reject": true,
+    "interop_rights": "unconfirmed",
+    "published": false,
+    "clean_package_install": "not_run_blocked_by_interop_rights",
+    "review": "single_fresh_context_3_important_fixed_RED_GREEN_full_suite_passed"
+  },
+  "stage10_evidence": {
+    "integration": [
+      "artifacts/integration/8b77fd5a-63bf-4101-ab3b-dfec453575b6/verification.json",
+      "artifacts/integration-drawing/2607df0b-025d-41f7-ba12-17517499cb1b/verification.json",
+      "artifacts/integration-production/0b54f970-8d24-47d6-a1ef-63a75823b11f/verification.json",
+      "artifacts/integration-layout/340c7b20-90d2-4e10-9cf0-04f12e14a4f7/verification.json",
+      "artifacts/import/482df5aa-24f4-440e-ba84-f98401c6419a/verification.json"
+    ],
+    "panel_smoke": "C:/Users/olegiy/AppData/Local/CorelMcp_Smoke_17c537d8/CorelMcp-panel-smoke-c5fd16ef-a958-4876-b884-01f3a0ca2046/verification.json",
+    "performance": "artifacts/performance/ffa061e1/performance.json",
+    "final_suite": {
+      "dotnet_passed": 160,
+      "node_passed": 141,
+      "node_opt_in_skipped": 1,
+      "host_passed": 395,
+      "host_skipped": 2,
+      "host_live_deselected": 1,
+      "browser_passed": 70,
+      "contracts": "passed",
+      "ruff": "passed",
+      "openapi": "passed",
+      "codegen": "passed",
+      "ui_build": "passed",
+      "source_verify_exit_code": 0
+    },
+    "release_ready": false
+  },
+  "hybrid_runtime": {
+    "catalog_tools": 39,
+    "interop_rights": "unconfirmed",
+    "runtime_vbe_calls": 0,
+    "default_execution_mode": "csharp",
+    "route_policy": "hybrid-v1",
+    "version": "0.4.0",
+    "native_sources": "worker/vba",
+    "status": "implementation_under_final_verification",
+    "fresh_corel_gate": "pending_foreign_dirty_gms",
+    "public_arbitrary_code": false,
+    "tests": {
+      "dotnet_nonlive_passed": 166,
+      "native_combined_live_before_review": 13,
+      "review_fix_live_passed": 7,
+      "showcase_tests_passed": 2,
+      "dotnet_live_skipped": 52,
+      "node_passed": 150,
+      "node_skipped": 2
+    },
+    "execution_backend": "csharp",
+    "batch_limits": {
+      "jsonl_bytes": 4194304,
+      "payload_bytes": 1048576,
+      "items": 1000,
+      "aggregate_text_utf16": 100000
+    },
+    "native_manifest": "worker/native/module-manifest.json"
+  }
+}

@@ -16,7 +16,7 @@ def smoke():
     return importlib.import_module('panel_smoke')
 
 
-@pytest.mark.parametrize('change', ['approved', 'consent', 'code_digest', 'extra_field'])
+@pytest.mark.parametrize('change', ['approved', 'consent', 'operation_digest', 'extra_field'])
 def test_live_fixture_requires_exact_reviewed_scope(tmp_path, change):
     module = smoke()
     data = module.fixture_template(str(tmp_path))
@@ -25,8 +25,8 @@ def test_live_fixture_requires_exact_reviewed_scope(tmp_path, change):
         data['approved'] = False
     elif change == 'consent':
         data['discard_created_documents'] = False
-    elif change == 'code_digest':
-        data['vba_sha256']['geometry'] = '0' * 64
+    elif change == 'operation_digest':
+        data['operations_sha256']['geometry'] = '0' * 64
     else:
         data['document_id'] = 'user-drawing'
     path = tmp_path / 'fixture.json'
@@ -116,18 +116,18 @@ async def test_fixture_template_cli_works_without_install_or_corel(tmp_path):
     template = json.loads(output)
     assert template['approved'] is False
     assert template['output_directory'] == str(tmp_path)
-    assert len(template['vba_sha256']) == 2
+    assert len(template['operations_sha256']) == 1
     assert not list(tmp_path.iterdir())
 
 
-@pytest.mark.parametrize('mode', ['success', 'bad_png', 'vba_failure', 'cleanup_failure', 'unknown_creation',
+@pytest.mark.parametrize('mode', ['success', 'bad_png', 'drawing_failure', 'cleanup_failure', 'unknown_creation',
                                   'retained_gms', 'baseline_failure', 'localized_version', 'wrong_version'])
 async def test_http_smoke_preserves_baseline_and_closes_only_created_documents(tmp_path, mode):
     module = smoke()
     transports = []
 
     def mcp_factory(directory):
-        args = [str(ROOT / 'webhost/tests/fixtures/panel-server.mjs'), '--panel-smoke']
+        args = [str(ROOT / 'webhost/tests/fixtures/panel-server.mjs'), '--panel-smoke', '--typed']
         if mode != 'success':
             args.append('--smoke-' + mode)
         transport = OwnedStdio(command=shutil.which('node'), args=args,
@@ -154,7 +154,7 @@ async def test_http_smoke_preserves_baseline_and_closes_only_created_documents(t
         assert proof['unresolved_creations'] and proof['cleanup_state'] == 'blocked'
         calls = [json.loads(line) for line in (transports[0].marker.path.parent / 'runs/calls.jsonl').read_text().splitlines()]
         assert [call['tool'] for call in calls].count('corel_create_document') == 1
-        assert not any(call['tool'] in {'corel_close_document', 'corel_execute_vba'} for call in calls)
+        assert not any(call['tool'] in {'corel_close_document', 'corel_create_shapes'} for call in calls)
         assert transports[0].returncode == 0
         return
     assert len(proof['created_document_ids']) == 2
@@ -165,14 +165,14 @@ async def test_http_smoke_preserves_baseline_and_closes_only_created_documents(t
         assert any(row['status'] == 'halted' for row in proof['runs'])
         calls = [json.loads(line) for line in (transports[0].marker.path.parent / 'runs/calls.jsonl').read_text().splitlines()]
         assert not any(call['tool'] == 'corel_close_document' for call in calls)
-        assert len([call for call in calls if call['tool'] == 'corel_execute_vba']) == 1
+        assert len([call for call in calls if call['tool'] == 'corel_create_shapes']) == 1
         return
     if mode == 'cleanup_failure':
         assert proof['remaining_document_ids'] == proof['created_document_ids']
         assert proof['failure_code'] and proof['documents_after'] is None
         calls = [json.loads(line) for line in (transports[0].marker.path.parent / 'runs/calls.jsonl').read_text(encoding='utf-8').splitlines()]
         assert not any(call['tool'] == 'corel_close_document' for call in calls)
-        assert len([call for call in calls if call['tool'] == 'corel_execute_vba']) == 1
+        assert len([call for call in calls if call['tool'] == 'corel_create_shapes']) == 1
         return
     assert proof['remaining_document_ids'] == []
     assert proof['documents_before'] == proof['documents_after']
@@ -183,11 +183,10 @@ async def test_http_smoke_preserves_baseline_and_closes_only_created_documents(t
     calls = [json.loads(line) for line in (transports[0].marker.path.parent / 'runs/calls.jsonl').read_text(encoding='utf-8').splitlines()]
     assert [call['args']['document_id'] for call in calls if call['tool'] == 'corel_close_document'] == list(reversed(proof['created_document_ids']))
     assert all(call['args']['document_id'] in proof['created_document_ids'] for call in calls
-               if call['tool'] == 'corel_execute_vba')
+               if call['tool'] == 'corel_create_shapes')
     if mode in {'success', 'localized_version'}:
-        assert len(proof['previews']) == 4
+        assert len(proof['previews']) == 2
         assert proof['empty_selection_code'] == 'EMPTY_SELECTION'
-        assert proof['gms_before'] == proof['gms_after'] == ['CorelMcp_previous_diagnostic', 'UserGMS_keep']
         assert proof['baseline_inspections_before'] == proof['baseline_inspections_after']
     else:
         assert proof['failure_code']
@@ -207,7 +206,7 @@ async def test_repeated_cancellation_drains_native_and_retains_failure_evidence(
 
     def factory(directory):
         transport = OwnedStdio(command=shutil.which('node'),
-            args=[str(ROOT / 'webhost/tests/fixtures/panel-server.mjs'), '--panel-smoke', '--slow'],
+            args=[str(ROOT / 'webhost/tests/fixtures/panel-server.mjs'), '--panel-smoke', '--typed', '--slow'],
             directory=directory, env={'CORELDRAW_MCP_RUNS': str(directory / 'runs')})
         transports.append(transport)
         return CorelMcp(transport=transport, poll_interval=0.01)
@@ -217,7 +216,7 @@ async def test_repeated_cancellation_drains_native_and_retains_failure_evidence(
         while True:
             if transports:
                 log = transports[0].marker.path.parent / 'runs/calls.jsonl'
-                if log.exists() and 'corel_execute_vba' in log.read_text(encoding='utf-8'):
+                if log.exists() and 'corel_create_shapes' in log.read_text(encoding='utf-8'):
                     break
             await asyncio.sleep(0.01)
     task.cancel()

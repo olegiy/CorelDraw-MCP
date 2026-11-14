@@ -46,8 +46,8 @@ class FixtureProvider:
         if key_only:
             if self.turn == 1:
                 assert self.export_path.read_bytes() == b'sentinel'
-                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_execute_vba',
-                    arguments={'code': 'key-only fixture'}),))
+                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_edit_text',
+                    arguments={'page_index': 1, 'static_ids': [1001], 'action': 'set_text', 'text': 'key-only fixture'}),))
             images = [part['image_url']['url'] for item in history if isinstance(item.get('content'), list)
                       for part in item['content'] if part.get('type') == 'image_url']
             assert images and all(url.startswith('data:image/png;base64,') for url in images)
@@ -58,7 +58,7 @@ class FixtureProvider:
             return Completion(content='Проверенный PNG передан модели; файл заменён.')
         if self.turn == 1:
             if any(item.get('role') == 'user' and item.get('content') == 'fixture:cleanup-failure' for item in history):
-                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_execute_vba', arguments={'code': 'cleanup fail'}),))
+                return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_edit_text', arguments={'page_index': 1, 'static_ids': [1001], 'action': 'set_text', 'text': 'cleanup fail'}),))
             return Completion(tool_calls=(NativeToolCall(id=new_id(), name='corel_preview', arguments={'target': 'page'}),))
         return Completion(content='Превью получено; операция завершена.')
     async def aclose(self):
@@ -86,7 +86,7 @@ async def main():
         else:
             loop.default_exception_handler(context)
     loop.set_exception_handler(exception_handler)
-    transport = OwnedStdio(command=shutil.which('node'), args=[str(root / 'webhost/tests/fixtures/panel-server.mjs'), '--slow'],
+    transport = OwnedStdio(command=shutil.which('node'), args=[str(root / 'webhost/tests/fixtures/panel-server.mjs'), '--slow', '--typed'],
                            directory=directory, env={'CORELDRAW_MCP_RUNS': str(directory / 'runs')})
     mcp = CorelMcp(transport=transport, poll_interval=0.02)
     store = Store(directory)

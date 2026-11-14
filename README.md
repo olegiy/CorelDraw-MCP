@@ -1,112 +1,113 @@
 # corel-mcp
 
-Локальный MCP-сервер для **CorelDRAW 27**: документы CDR, ограниченная инспекция объектов, измерения геометрии, экспорт, VBA и безопасное чтение typelib. Все пользовательские сообщения и отчёты — на русском.
+Локальный MCP-сервер и скилл для CorelDRAW **27**, Node.js **24**, Windows x64.
+TypeScript ведёт задания/артефакты и вычисляет геометрию; C# .NET 10 выполняет
+готовые типизированные операции на одном STA-потоке. В разработке гибридного режима
+фиксированный готовый VBA-модуль применяет пакеты внутри Corel. VBE/компиляция и
+PowerShell COM во время запросов не используются; произвольный код не принимается.
 
-## Установка
+Гибрид 0.4.0 находится в исходниках и проходит итоговые испытания. Режим по умолчанию — `csharp` до завершения всех gates; для локального гибрида задайте `CORELDRAW_MCP_EXECUTION_MODE=hybrid`.
+Выпуск распространяемого готового пакета
+заблокирован до подтверждения прав на interop: [статус и подготовленный запрос](worker/INTEROP-DISTRIBUTION.md).
+Установка в пользовательское окружение этой работой не выполнялась.
 
-Требуются Windows с интерактивной сессией, Node.js 24, Codex CLI, CorelDRAW 27 с VBA и Windows PowerShell 5.1. Из корня проекта выполните:
+## Сборка и установка
 
-```powershell
-powershell -NoProfile -File .\scripts\Install-CorelMcp.ps1
-```
-
-Установщик выполнит `npm ci --ignore-scripts`, сборку, регистрацию `coreldraw` и junction глобального скилла `coreldraw-automation`. Перед изменением Codex config создаётся резервная копия. Несвязанные MCP-записи и чужой каталог скилла не перезаписываются. Удаление выполняется тем же скриптом с `-Uninstall`; исходники, документы и артефакты сохраняются.
-
-## 18 инструментов
-
-Инструкция по установке, запуску и работе: [docs/launch-and-use.md](docs/launch-and-use.md). Краткая памятка: [docs/quick-start.md](docs/quick-start.md).
-
-| Группа | Инструменты |
-| --- | --- |
-| CorelDRAW | `corel_status`, `corel_inspect_document`, `corel_create_document`, `corel_open_document`, `corel_save_document`, `corel_close_document` |
-| Экспорт | `corel_export` (PNG/SVG/PDF/JPG/TIFF/AI/EPS/DXF/PLT), `corel_preview` |
-| VBA/API | `corel_build_vba`, `corel_execute_vba`, `corel_describe_api`, `corel_measure_shapes` |
-| Локальные операции | `corel_add_note`, `corel_export_diagnostics`, `corel_list_artifacts`, `corel_prune_artifacts` |
-| Отчёты и справка | `corel_get_job`, `corel_guide`; ресурсы `coreldraw://guide/<topic>` |
-
-Все COM-вызовы возвращают `job_id`. Используйте `corel_get_job` с `wait_seconds` до 20; polling не вызывает COM. Схемы и ограничения доступны через MCP `tools/list` и [справочник инструментов](skills/coreldraw-automation/references/tools.md).
-
-## Исполнение
-
-Сервер публикует все 18 инструментов без разрешительного config и подтверждений.
-Старый `%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается, не изменяется и не
-удаляется; исторический `tool_policy` в прежних отчётах остаётся данными.
-`readOnlyHint`/`destructiveHint` описывают действия, а не предоставляют разрешение.
-Внешний MCP-клиент может использовать собственные подтверждения.
-
-Пользовательские абсолютные Windows-пути не требуют регистрации или включения
-в разрешённый каталог. Проверки схем, точной цели, внутренних служебных путей,
-идемпотентности и cleanup сохраняются. VBA имеет полный доступ к системе и
-не является sandbox. [Панель агента](docs/agent-panel.md) исполняет команды
-сразу; контекст и доступный проверенный PNG передаются выбранному provider
-автоматически, без permission-checkbox. Защита API-ключей остаётся обязательной.
-
-## Повтор, cleanup и unknown
-
-Изменения требуют `request_id`; одинаковый ID с другими параметрами отклоняется. `timed_out` и `unknown` не разрешают повтор мутации. Если `succeeded` сопровождается `cleanup.completed=false`, действие уже применено, но восстановление состояния неполно; сохранены основная ошибка, `cleanup.errors`, предупреждения и артефакты. Проверьте документ и состояние приложения, затем исправьте cleanup без повторного изменения.
-
-Артефакты находятся в `%LOCALAPPDATA%\CorelDrawMcp\runs` либо `CORELDRAW_MCP_RUNS`. `corel_list_artifacts` возвращает bytes/возраст/защиту и `prune_token`. `corel_prune_artifacts` удаляет только внутренние файлы с неизменённым токеном; unknown, timed_out, незавершённые, cleanup с ошибкой и retained GMS защищены. Перед удалением сохраняется компактный report с `details_pruned=true`; reservation/request ID остаётся, поэтому повтор не запускается. Внешние CDR/экспорты сохраняются. `corel_export_diagnostics` пишет внешний атомарный allowlist-отчёт без кода, путей, имён, request ID, result и raw error text.
-
-## Измерения и экспорт
-
-`corel_measure_shapes` измеряет векторные фигуры в изолированной копии: per-object и aggregate minimum-area rectangle в мм. `boundary_error_mm=tolerance_mm`, `dimension_error_mm≤2*tolerance_mm`; лимит 200000 точек. PowerClip, bitmap, lens, transparency и live effects возвращают явную ошибку. Группы считаются одним объектом, occlusion не учитывается.
-
-`corel_export` поддерживает девять форматов, страницы/выделение и PDF-документ. JPG/TIFF принимают RGB/CMYK, DPI и профиль; JPG compression, TIFF LZW/none и transparency. AI/EPS сохраняют текст или используют кривые. PNG ограничен 40 МП. Save As и экспорт автоматически заменяют существующий файл; параметра `overwrite` у этих tools нет. Экспорт публикуется через staging после успешного Finish. Атомарность нативного SaveAs не обещается; путь, открытый в другом документе, отклоняется.
-
-## VBA и документация
-
-Независимый наблюдатель VBA включён по умолчанию в режиме `observe`. Он
-публикует безопасную сводку `vba_observer` через `corel_get_job`, пока COM
-заблокирован, и не закрывает окна. Для отключения задайте
-`$env:CORELDRAW_MCP_VBA_OBSERVER='off'` перед запуском сервера/панели.
-Значение `compile-errors` пока отклоняется: подтверждённых профилей нет.
-Настройка применяется к новому процессу и не разрешает replay текущего job.
-При `requires_operator` осмотрите соответствующее окно вручную и продолжайте
-опрос того же задания. Сырой локальный `vba-observer.jsonl` автоматически
-модели не передаётся. Подробности — в [справке VBA](skills/coreldraw-automation/references/vba.md#наблюдение-блокирующих-окон).
-
-Адресные рецепты используют общий helper без Main; константы StaticID заменяются
-только на проверенные числа. `error.applied=false` у recipe validation означает
-отказ до изменяющего вызова, true означает возможное частичное действие.
-Ошибка recipe cleanup отмечается отдельно. Произвольный VBA может менять любые
-документы: передача document_id и post-call TARGET_DOCUMENT_CHANGED не являются
-изоляцией или запретом побочных действий.
-
-У `corel_export_diagnostics` путь необязателен: без path создаётся уникальный
-JSON в каталоге diagnostics рядом с runs, вне reservation/job directory.
-Никакие данные не отправляются наружу. Расширенные подробности доступны только
-явным чтением исходного job report/log; краткий отчёт не является гарантией
-полного обезличивания произвольных данных.
-
-VBA выполняется в отдельном временном GMS с внешней Undo-группой, восстановлением настроек и событий. Это не sandbox: код имеет полный доступ к CorelDRAW и ОС. Установленные GMS не редактируются. Используйте `Option Explicit`, `Main() As String`, валидный JSON, `Err.Raise`, точные document ID и StaticID. Не вызывайте `Application.Quit`, shell, диалоги или вложенный Undo.
-
-- [Скилл](skills/coreldraw-automation/SKILL.md)
-- [Инструменты](skills/coreldraw-automation/references/tools.md)
-- [VBA](skills/coreldraw-automation/references/vba.md)
-- [API 27](skills/coreldraw-automation/references/api-v27.md)
-- [Рецепты](skills/coreldraw-automation/references/recipes.md)
-- [Подводные камни](skills/coreldraw-automation/references/pitfalls.md)
-- [Архитектура](docs/architecture.md)
-
-## Проверка
+Из исходников нужны SDK **10.0.404**, официально установленная VGCore 27 type library
+и Windows PowerShell 5.1/.NET Framework только для build-time генерации interop.
 
 ```powershell
 npm ci --ignore-scripts
-npm test
-npm run test:integration
-node test/integration-extended.mjs
-npm run test:integration:observer
+npm run build
+powershell -NoProfile -File scripts/build-worker.ps1 -DotnetPath '<путь к dotnet.exe SDK 10.0.404>'
 ```
 
-`npm test` проверяет stdio, схемы, idempotency, mutex, отчёты и синтетический worker. `npm run test:integration` использует только временные документы и сохраняет диагностику. После живых тестов удаляйте только временные CorelDRAW GMS/проекты `CorelMcp_*`; установленные сторонние GMS и пользовательские документы не трогайте. Не утверждайте live-проверку CorelDRAW, пока не просмотрен фактический `verification.json`.
+Для разработки задайте `CORELDRAW_MCP_CSHARP_WORKER` абсолютным путём к построенному EXE.
+Для framework-dependent сборки нужен `DOTNET_ROOT_X64`, указывающий на локальный SDK/runtime 10.
+Единственный backend — csharp; старый powershell отклоняется без fallback.
 
-`test:integration:observer` без `CORELDRAW_MCP_LIVE_OBSERVER=1` явно пропускает
-живой запуск до подключения к CorelDRAW. При включении создаёт только свой
-документ, проверяет метаданные HWND и успешные VBA-операции в observe.
-`CORELDRAW_MCP_LIVE_OBSERVER_INTERACTIVE=1` дополнительно включает Err.Raise
-с присутствующим оператором; Error Trapping не меняется. Неизвестный исход
-сохраняется в отчёте, транспорт не убивает COM-процесс. Модальные профили
-Compile/MsgBox и сохранность всех shape/selection/page пользовательских
-документов требуют отдельного исследования и этим smoke не подтверждаются.
+Готовая поставка должна содержать self-contained `worker/publish/win-x64/CorelMcp.Worker.exe`
+с зависимостями и проверенным manifest; получателю не нужны SDK, глобальный .NET runtime или VBA.
+До закрытия лицензионного gate такой пакет не публикуется. Инсталляторы должны пройти
+read-only pre-upgrade и version handshake перед регистрацией/активацией. Они сохраняют
+историю, чужие MCP-записи, пользовательские рисунки и несвязанные скиллы.
 
-Результаты версии 0.2.0: [отчёт проверки](docs/verification-0.2.0.md). Векторный PLT использует 1000 единиц/дюйм для согласованного физического масштаба при повторном импорте; это не настройка оборудования.
+```powershell
+powershell -NoProfile -File scripts/Install-CorelMcp.ps1
+```
+
+Отдельная [панель агента](docs/agent-panel.md) использует Python 3.12 и собранный React UI;
+установка панели не запускает CorelDRAW и не регистрирует Codex автоматически.
+[Запуск](docs/launch-and-use.md), [краткая памятка](docs/quick-start.md).
+
+## 39 инструментов
+
+| Группа | Возможности |
+| --- | --- |
+| Документы | status, inspect, create/open/save/close точного документа |
+| Рисование | create_shapes, transform, duplicate, style, layers, group, boolean, create_text, convert_to_curves |
+| Производство | inspect/create/edit curve, find/edit text, preflight |
+| Раскладка | align_shapes, grid_duplicate, layout_shapes dry_run/apply |
+| Сборка | import SVG/PDF/PNG/JPEG, add/resize pages, PowerClip place/extract |
+| Экспорт/API | export PNG/PDF/SVG/JPEG/TIFF/AI/EPS/DXF/PLT, preview, describe_api, measure_shapes |
+| Локальные данные | add_note, export_diagnostics, list/prune artifacts, get_job, guide |
+
+Полные строгие схемы: MCP tools/list и [справочник](skills/coreldraw-automation/references/tools.md).
+[Скилл](skills/coreldraw-automation/SKILL.md), [готовые операции](skills/coreldraw-automation/references/operations.md),
+[JSON-рецепты](skills/coreldraw-automation/references/recipes.md), [API 27](skills/coreldraw-automation/references/api-v27.md).
+
+## Задания и состояние
+
+COM-операции возвращают job_id; corel_get_job читает сохранённый отчёт без COM.
+Новой мутации нужен уникальный request_id. Повтор принятого запроса возвращает прежний Job,
+изменённые аргументы дают конфликт. Deadline не прерывает COM и не освобождает слот.
+После timed_out/unknown/partial нет автоматического replay, undo или переключения backend.
+Проверяйте фактические IDs, error.applied, cleanup.completed, warnings и артефакты.
+
+Цели выбираются по точному document_id и StaticID; page/layer IDs непрозрачны и принадлежат сеансу.
+Координаты _mm идут от нижнего левого угла страницы независимо от Unit/origin/refpoint.
+Настройки, активная страница и живое выделение восстанавливаются отдельно от основной ошибки.
+Dirty не сбрасывается для маскировки изменений. Даже BeginCommandGroup может изменить Dirty.
+
+Текст вне BMP, NUL и одиночные суррогаты отклоняются до мутации; кириллица поддерживается.
+Шрифты не подменяются автоматически. Preflight unknown — неполная проверка, не passed.
+Layout — прямоугольный shelf без фигурного nesting. Измеритель PowerClip не поддерживает.
+Native import не является sandbox; внешние SVG resources и PDF с паролем отклоняются.
+
+Нет разрешительного config и новых UI-переключателей разрешений. Старый config не читается
+и не удаляется. Save As/export заменяют назначение без поля overwrite; экспорт использует staging,
+нативный SaveAs не обещает атомарности. Панель отправляет контекст и проверенный PNG выбранному
+provider автоматически; ключи остаются в Credential Manager и не должны попадать в аргументы.
+
+Исторические отчёты, compiler/observer metadata и retained GMS читаются как данные.
+Старый код не переисполняется. Активный owner, pending/unknown и неподтверждённая очистка
+блокируют обновление. Их исход разрешается прежней версией/оператором без переписывания отчётов.
+Prune защищает незавершённые и retained записи, внешние CDR/экспорты не удаляет.
+CorelDRAW не завершается через Application.Quit; чужие рисунки и GMS не затрагиваются.
+
+## Проверки
+
+```powershell
+& '<dotnet.exe SDK 10.0.404>' test worker/CorelMcp.Worker.Tests -c Release
+npm test
+npm run check:contracts
+powershell -NoProfile -File scripts/Verify-CorelAgent.ps1
+$env:CORELDRAW_WORKER_LIVE = '1'
+npm run test:integration
+```
+
+Проверка исходников до выпуска пакета: `Verify-CorelAgent.ps1 -SourceOnly -DotnetPath '<dotnet.exe SDK 10.0.404>'`.
+Она выполняет C#, Node, host и browser suites, но не заменяет приёмку готового комплекта.
+Публикация через `scripts/Publish-CorelWorker.ps1` сначала требует проверенную запись
+прав на interop; текущий статус и проект запроса — в [INTEROP-DISTRIBUTION.md](worker/INTEROP-DISTRIBUTION.md).
+
+Live suites запускаются последовательно и создают только собственные временные документы.
+Отчёты/PNG сохраняются в artifacts. Отдельный panel live smoke требует
+CORELDRAW_AGENT_LIVE=1 и проверенный CORELDRAW_AGENT_LIVE_FIXTURE; обычный Verify его не заменяет.
+Подробности: [архитектура](docs/architecture.md), [worker](worker/README.md).
+Отчёт [0.2.0](docs/verification-0.2.0.md) является историческим и не подтверждает новый релиз.
+Результаты предыдущей миграции: [проверка исходников 0.3.0](docs/verification-0.3.0.md). Текущий ход гибрида: [план 0.4.0](.kilo/plans/2026-11-13-corel-hybrid-runtime.md).
+
+### Разработка гибридного исполнения
+
+Новые `corel_create_batch` / `corel_update_batch` принимают до 1000 элементов и требуют `CORELDRAW_MCP_EXECUTION_MODE=hybrid` в окружении сервера. Режим фиксируется при запуске worker; в ходе внедрения default остаётся `csharp`. Маршрут и версия модуля возвращаются в диагностике. До вызова проверяется готовый GMS/manifest; отсутствие или несовпадение дают отказ до мутации, без fallback. Новая версия ещё проходит реализацию и финальные gates; это не сообщение о выпуске/установке готового пакета.

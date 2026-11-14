@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from conftest import command, wait_run
+from conftest import command, drawing_arguments, wait_run
 
 
 def calls(store, tool):
@@ -15,7 +15,7 @@ async def prime(runtime, store):
     await wait_run(store, run.id)
 
 
-@pytest.mark.parametrize('tool,args', [('corel_execute_vba', {'code': 'fixture code'}),
+@pytest.mark.parametrize('tool,args', [('corel_edit_text', drawing_arguments('fixture code')),
                                      ('corel_close_document', {'discard_changes': True})])
 async def test_mutation_runs_without_permission_or_approval(runtime, store, tool, args):
     await prime(runtime, store)
@@ -40,10 +40,10 @@ async def test_existing_export_destination_is_replaced_without_confirmation(runt
 
 async def test_insufficient_postcheck_budget_prevents_mutation(runtime, store):
     await prime(runtime, store)
-    run = await runtime.start(command(tool='corel_execute_vba', max_calls=1,
-                                     document_id='fixture-b', arguments={'code': 'fixture code'}))
+    run = await runtime.start(command(tool='corel_edit_text', max_calls=1,
+                                     document_id='fixture-b', arguments=drawing_arguments('fixture code')))
     assert (await wait_run(store, run.id)).status == 'limit_reached'
-    assert calls(store, 'corel_execute_vba') == []
+    assert calls(store, 'corel_edit_text') == []
 
 
 @pytest.mark.parametrize('mutation', ['arguments', 'document', 'version', 'context', 'barrier', 'budget'])
@@ -55,7 +55,7 @@ async def test_changed_prepared_binding_is_rejected_immediately_before_dispatch(
         nonlocal changed
         await verify()
         def corrupt(db):
-            row = db.execute("SELECT * FROM operations WHERE state='prepared' AND json_extract(prepared,'$.tool')='corel_execute_vba'").fetchone()
+            row = db.execute("SELECT * FROM operations WHERE state='prepared' AND json_extract(prepared,'$.tool')='corel_edit_text'").fetchone()
             if not row:
                 return False
             if mutation == 'barrier':
@@ -73,7 +73,7 @@ async def test_changed_prepared_binding_is_rejected_immediately_before_dispatch(
             else:
                 operation = json.loads(row['prepared'])
                 if mutation == 'arguments':
-                    operation['arguments']['code'] = 'changed code'
+                    operation['arguments']['text'] = 'changed code'
                 elif mutation == 'document':
                     operation['document_id'] = 'fixture-a'
                 else:
@@ -83,10 +83,10 @@ async def test_changed_prepared_binding_is_rejected_immediately_before_dispatch(
         if not changed:
             changed = await store._db(corrupt, write=True)
     monkeypatch.setattr(runtime.mcp.transport, 'verify_owner', owner_check)
-    run = await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b',
-                                     arguments={'code': 'fixture code'}))
+    run = await runtime.start(command(tool='corel_edit_text', document_id='fixture-b',
+                                     arguments=drawing_arguments('fixture code')))
     assert (await wait_run(store, run.id)).status == ('limit_reached' if mutation == 'budget' else 'failed')
-    assert changed and calls(store, 'corel_execute_vba') == []
+    assert changed and calls(store, 'corel_edit_text') == []
 
 
 async def test_stop_before_dispatch_keeps_stopped_and_does_not_send(runtime, store, monkeypatch):
@@ -95,11 +95,11 @@ async def test_stop_before_dispatch_keeps_stopped_and_does_not_send(runtime, sto
     async def stop_after_proposal():
         await verify()
         pending = await store._db(lambda db: db.execute(
-            "SELECT run_id FROM operations WHERE state='prepared' AND json_extract(prepared,'$.tool')='corel_execute_vba'").fetchone())
+            "SELECT run_id FROM operations WHERE state='prepared' AND json_extract(prepared,'$.tool')='corel_edit_text'").fetchone())
         if pending:
             await runtime.stop(pending[0])
     monkeypatch.setattr(runtime.mcp.transport, 'verify_owner', stop_after_proposal)
-    run = await runtime.start(command(tool='corel_execute_vba', document_id='fixture-b',
-                                     arguments={'code': 'fixture code'}))
+    run = await runtime.start(command(tool='corel_edit_text', document_id='fixture-b',
+                                     arguments=drawing_arguments('fixture code')))
     assert (await wait_run(store, run.id)).status == 'stopped'
-    assert calls(store, 'corel_execute_vba') == []
+    assert calls(store, 'corel_edit_text') == []

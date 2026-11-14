@@ -11,10 +11,11 @@ from corel_agent.contracts import (
 
 def operation(run):
     from corel_agent.policy import Policy
-    result = PreparedOperation(operation_id=new_id(), run_id=run.id, tool="corel_execute_vba",
+    result = PreparedOperation(operation_id=new_id(), run_id=run.id, tool="corel_edit_text",
                              document_id="fixture", corel_request_id="web:fixture",
-                             arguments={"document_id": "fixture", "code": "delay",
-                                         "request_id": "web:fixture"}, digest="0" * 64, policy_version=2)
+                             arguments={"document_id": "fixture", "page_index": 1, "static_ids": [1001],
+                                         "action": "set_text", "text": "delay",
+                                         "request_id": "web:fixture"}, digest="0" * 64, policy_version=3)
     return result.model_copy(update={'digest': Policy.operation_digest(result)})
 
 

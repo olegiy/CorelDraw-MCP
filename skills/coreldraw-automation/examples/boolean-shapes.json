@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "title": "Булевы операции",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_boolean_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "weld",
+        "left_id": 1001,
+        "right_id": 1002,
+        "keep_left": true,
+        "keep_right": true
+      }
+    },
+    {
+      "tool": "corel_boolean_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "trim",
+        "left_id": 1001,
+        "right_id": 1002,
+        "keep_left": true,
+        "keep_right": true
+      }
+    },
+    {
+      "tool": "corel_boolean_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "action": "intersect",
+        "left_id": 1001,
+        "right_id": 1002,
+        "keep_left": true,
+        "keep_right": true
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Перед каждым шагом получить актуальные ID; пример сохраняет оба исходника. trim: LEFT вырезает RIGHT."
+  ]
+}

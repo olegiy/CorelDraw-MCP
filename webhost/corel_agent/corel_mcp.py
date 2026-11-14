@@ -71,7 +71,7 @@ class CorelMcp:
             raise AgentError("MCP_INCOMPATIBLE", "MCP не предоставляет обязательный Job/guide контракт.", 503)
         self.catalog = tuple(catalog)
         pages = []
-        for topic in ("skill", "tools", "vba", "pitfalls"):
+        for topic in ("tools", "pitfalls"):
             offset = 0
             for _ in range(64):
                 result = await self.session.call_tool("corel_guide", {"topic": topic, "offset": offset, "limit": 8000})

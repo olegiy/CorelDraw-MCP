@@ -1,7 +1,7 @@
 import json
 
 import httpx
-from conftest import command, implementation, wait_run
+from conftest import command, drawing_arguments, implementation, wait_run
 from test_manual_api import HarnessAccess
 from test_readiness import fault
 
@@ -27,8 +27,8 @@ async def test_confirmed_fault_is_released_at_new_admission_without_review(runti
     old = await store.get_snapshot(old_id)
     app = implementation('app').create_app(runtime=runtime, store=store, assets=runtime.assets, access=HarnessAccess())
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://127.0.0.1:8878') as client:
-        response = await client.post('/api/v1/actions', json=command(tool='corel_execute_vba',
-            document_id='fixture-b', arguments={'code': 'fixture'}).model_dump())
+        response = await client.post('/api/v1/actions', json=command(tool='corel_edit_text',
+            document_id='fixture-b', arguments=drawing_arguments('fixture')).model_dump())
         assert response.status_code == 202
         assert (await wait_run(store, response.json()['id'])).status == 'completed'
     assert await store.get_barrier() is None
