@@ -16,6 +16,7 @@ from .app import create_app
 from .assets import Assets
 from .contracts import AgentError
 from .corel_mcp import CorelMcp
+from .http_server import LocalHttpServer
 from .launcher import (
     ControlEvents,
     HostOwner,
@@ -134,7 +135,7 @@ async def serve(directory, *, no_browser=False):
         if not (build / "index.html").is_file():
             raise AgentError("UI_BUILD_MISSING", "Сначала соберите webui через отдельный install script.", 503)
         app.mount("/", StaticFiles(directory=build, html=True), name="webui")
-        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8878,
+        server = LocalHttpServer(uvicorn.Config(app, host="127.0.0.1", port=8878,
             access_log=False, log_config=None, timeout_graceful_shutdown=None, proxy_headers=False))
         task = asyncio.create_task(run_controls(server, events, access, log, no_browser=no_browser))
         log.write("host_started", code="READY")

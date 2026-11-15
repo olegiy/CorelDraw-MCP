@@ -106,6 +106,7 @@ internal static class Export
                 if (format == "jpg") { ExportFilterTypes.Require(filter, "daede201-0cb9-11d4-b6b4-009027575a12"); ((IJpgExportOptions)filter).Compression = args?.JpegCompression ?? 80; }
                 filter.Finish();
             }
+            if (!pdfCaptured) exportScope.Dispose();
             if (!File.Exists(temporaryPath) || new FileInfo(temporaryPath).Length == 0) throw new OperationFailure("EXPORT_NOT_CREATED", "CorelDRAW не создал непустой файл экспорта.");
             context.Stage("committing_export"); context.Mutating();
             if (File.Exists(destination)) File.Replace(temporaryPath, destination, null); else File.Move(temporaryPath, destination);

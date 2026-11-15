@@ -8,6 +8,7 @@ internal sealed class StateScope : IDisposable
     private readonly OperationContext context;
     private readonly VGCore.Document target;
     private readonly VGCore.Document? previous;
+    private readonly VGCore.Window? previousWindow;
     private readonly VGCore.Page page;
     private readonly VGCore.Page? previousPage;
     private readonly VGCore.cdrUnit unit;
@@ -19,6 +20,7 @@ internal sealed class StateScope : IDisposable
         this.context = context; this.verifyDirty = verifyDirty;
         target = context.Target!.Document;
         previous = context.Track(context.App.Documents).Count > 0 ? context.Track(context.App.ActiveDocument) : null;
+        previousWindow = previous is null || context.App.ActiveWindow is not { } window ? null : context.Track(window);
         previousPage = previous is null ? null : context.Track(previous.ActivePage);
         page = context.Track(target.ActivePage);
         unit = target.Unit; reference = target.ReferencePoint; preserve = target.PreserveSelection;
@@ -37,7 +39,13 @@ internal sealed class StateScope : IDisposable
         cleanup.Try("state.events_enabled", () => { if (context.App.EventsEnabled != events) context.App.EventsEnabled = events; });
         cleanup.Try("state.active_document", () =>
         {
-            if (previous is not null && ComScope.Identity(context.Track(context.App.ActiveDocument)) != ComScope.Identity(previous)) previous.Activate();
+            if (previous is not null && ComScope.Identity(context.Track(context.App.ActiveDocument)) != ComScope.Identity(previous))
+            {
+                previous.Activate();
+                previousWindow?.Activate();
+                if (ComScope.Identity(context.Track(context.App.ActiveDocument)) != ComScope.Identity(previous))
+                    throw new OperationFailure("ORIGINAL_STATE_CHANGED", "Исходный активный документ не восстановлен по точной COM-идентичности.", null);
+            }
             if (previousPage is not null && context.Track(context.Track(previous!.ActivePage).TreeNode).Handle != context.Track(previousPage.TreeNode).Handle) previousPage.Activate();
         });
         if (verifyDirty || !context.MutationStarted) cleanup.Try("state.source_dirty", () =>

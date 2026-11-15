@@ -61,6 +61,9 @@ public sealed class LiveSmokeTests
         Assert.True(root.GetProperty("control_document_unchanged").GetBoolean(), directory);
         Assert.True(root.GetProperty("unsupported_text_rejected_before_mutation").GetBoolean(), directory);
         Assert.Equal(2, root.GetProperty("created_documents").GetInt32());
+        var activation = root.GetProperty("activation_diagnostics");
+        Assert.Equal(activation.GetProperty("expected").GetInt64(), activation.GetProperty("active").GetInt64());
+        Assert.Equal(2, activation.GetProperty("owned").GetArrayLength());
         foreach (var item in root.GetProperty("documents").EnumerateArray())
         {
             Assert.True(item.GetProperty("rectangle_static_id").GetInt32() > 0);

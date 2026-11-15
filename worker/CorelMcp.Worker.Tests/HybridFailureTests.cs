@@ -21,7 +21,7 @@ public sealed class HybridFailureTests : IDisposable
     }
     private sealed class FaultRuntime(bool loseReply,bool updateOnly=false,bool geometryFail=false,string fault=""):INativeVbaRuntime
     {
-        private readonly NativeVbaRuntime actual=new(Path.Combine(AppContext.BaseDirectory,"native"));
+        private readonly NativeVbaRuntime actual=new(LiveDrawingTests.DrawingClient.NativeDirectory);
         public NativeModuleIdentity? LastIdentity=>actual.LastIdentity;
         public string ExtractGeometry(OperationContext c,VGCore.Document doc,VGCore.ShapeRange targets,int[] ids,double mm,string nonce)=>geometryFail
             ?throw new OperationFailure("TEST_NATIVE_GEOMETRY","Тестовый отказ private geometry.")

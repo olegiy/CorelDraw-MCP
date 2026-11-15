@@ -211,7 +211,9 @@ public sealed class LiveGeometryExportTests
         {
             this.mode=mode;
             System.IO.Directory.CreateDirectory(Directory);
-            host = new StaHost(() => fixture = new FixtureDispatcher(new WorkerSession(mode)));
+            host = new StaHost(() => fixture = new FixtureDispatcher(new WorkerSession(mode,
+                mode == CorelMcp.Worker.Hybrid.ExecutionMode.Hybrid
+                    ? () => new CorelMcp.Worker.Hybrid.NativeVbaRuntime(LiveDrawingTests.DrawingClient.NativeDirectory) : null)));
             host.Ready.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
         }
         public async Task<string> Create() => (await Ok("corel_create_document", new { request_id = Guid.NewGuid().ToString(), width_mm = 200, height_mm = 150 })).GetProperty("document_id").GetString()!;

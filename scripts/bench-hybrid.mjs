@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { connect, operation } from '../test/helpers.mjs';
 import {decodePng} from './benchmark-artifacts.mjs';
-import {verifyCopies} from './benchmark-correctness.mjs';
+import {verifyCopies,requireCompleteBenchmark} from './benchmark-correctness.mjs';
 
 const allowed=['tiles20','tiles100','tiles1000','text20','text100','style100','move100','duplicate100','geometry100','png100','inspect100'];
 const near=(actual,expected)=>assert(Math.abs(actual-expected)<=.001,`${actual} != ${expected}`);
@@ -24,33 +24,51 @@ function checkTiles(shapes,ids) {
   });
 }
 class BudgetStop extends Error {}
+function validateOptions({cases,samples,budgetMs}) {
+  assert(Array.isArray(cases)&&cases.length>0&&cases.every(c=>allowed.includes(c))&&new Set(cases).size===cases.length,'Нужны уникальные известные сценарии');
+  assert(Number.isInteger(samples)&&samples>=1&&samples<=5,'Нужны 1–5 измерений');
+  assert(Number.isInteger(budgetMs)&&budgetMs>=1&&budgetMs<=1800000,'Бюджет должен быть целым числом 1–1800000 мс');
+}
+export function parseBenchmarkOptions(argv) {
+  assert([0,1,2,4].includes(argv.length),'Неизвестные аргументы benchmark');
+  if(argv.length>=2)assert(/^[1-5]$/.test(argv[1]),'Нужны 1–5 измерений');
+  if(argv.length===4)assert(argv[2]==='--budget-ms'&&/^[1-9][0-9]*$/.test(argv[3]),'Нужен --budget-ms с целым положительным числом');
+  const options={cases:argv.length?argv[0].split(','):[...allowed],samples:argv.length>=2?Number(argv[1]):3,budgetMs:argv.length===4?Number(argv[3]):300000};
+  validateOptions(options);return options;
+}
+export function createBenchmarkBudget(budgetMs,now=()=>performance.now()) {
+  assert(Number.isInteger(budgetMs)&&budgetMs>=1&&budgetMs<=1800000);
+  const started=now();
+  return ()=>{if(now()-started>budgetMs)throw new BudgetStop('Остановлено между завершёнными командами: исчерпан бюджет сценария.');};
+}
 export async function benchmark({cases=allowed,samples=3,budgetMs=300000}={}) {
   if(process.env.CORELDRAW_WORKER_LIVE!=='1')throw new Error('Нужен CORELDRAW_WORKER_LIVE=1.');
-  assert(cases.every(c=>allowed.includes(c)));assert(Number.isInteger(samples)&&samples>=1&&samples<=5);assert(budgetMs>0&&budgetMs<=300000);
+  validateOptions({cases,samples,budgetMs});
   const directory=fileURLToPath(new URL(`../artifacts/hybrid-benchmark/${randomUUID()}/`,import.meta.url));mkdirSync(directory,{recursive:true});
   const manifest=readFileSync(new URL('../worker/native/module-manifest.json',import.meta.url));
   const assembly=process.env.CORELDRAW_MCP_CSHARP_WORKER?.replace(/\.exe$/i,'.dll')??fileURLToPath(new URL('../worker/publish/win-x64/CorelMcp.Worker.dll',import.meta.url));
   const report={completed:false,full_pairs_completed:false,scope:'Полные последовательности публичных MCP-команд; подготовка fixture исключена только для geometry/style/move/duplicate/PNG/inspection.',worker_assembly_sha256:createHash('sha256').update(readFileSync(assembly)).digest('hex'),manifest_sha256:createHash('sha256').update(manifest).digest('hex'),native:JSON.parse(manifest),samples:[],stopped:[],cleanup:[]};
   const save=()=>writeFileSync(join(directory,'benchmark.json'),JSON.stringify(report,null,2));
   const sessions={};
+  Object.assign(report,{requested_cases:[...cases],requested_samples:samples,budget_ms:budgetMs});
   try {
     for(const mode of ['csharp','hybrid'])sessions[mode]=await connect({executionMode:mode,runs:join(directory,mode,'runs')});
     for(const name of cases) {
       const stoppedModes=new Set();
       for(let iteration=-1;iteration<samples;iteration++)for(const mode of iteration%2===0?['hybrid','csharp']:['csharp','hybrid']) {
         if(stoppedModes.has(mode))continue;
-        const session=sessions[mode],phases={},row={case:name,mode,warmup:iteration===-1,iteration,phases_ms:phases,operations:[],worker_stages_ms:{}};let doc,started=0;
+        const session=sessions[mode],phases={},row={case:name,mode,warmup:iteration===-1,iteration,phases_ms:phases,operations:[],worker_stages_ms:{}};let doc,started=0,checkBudget;
         async function ok(tool,args={}) {
           const job=await operation(session,tool,args,360000);
-          assert.equal(job.status,'succeeded',JSON.stringify(job.error));assert.equal(job.cleanup?.completed,true);
+          assert.equal(job.status,'succeeded',JSON.stringify(job.error));assert.equal(job.cleanup?.completed,true);assert.deepEqual(job.cleanup.errors,[]);
           row.versions=job.versions;row.operations.push({tool,job_id:job.job_id,versions:job.versions});
           const events=readFileSync(job.log_path,'utf8').trim().split('\n').map(line=>{const split=line.indexOf(' ');return {time:Date.parse(line.slice(0,split)),stage:line.slice(split+1)};});
           for(let i=0;i+1<events.length;i++)if(Number.isFinite(events[i].time)&&Number.isFinite(events[i+1].time))
             row.worker_stages_ms[events[i].stage]=(row.worker_stages_ms[events[i].stage]??0)+events[i+1].time-events[i].time;
           return job.result;
         }
-        async function phase(key,action) {const t=performance.now();try{return await action();}finally{phases[key]=(phases[key]??0)+performance.now()-t;}}
-        const guard=()=>{if(started&&performance.now()-started>budgetMs)throw new BudgetStop('Остановлено между завершёнными командами по бюджету сценария.');};
+        async function phase(key,action) {checkBudget?.();const t=performance.now();try{const value=await action();checkBudget?.();return value;}finally{phases[key]=(phases[key]??0)+performance.now()-t;}}
+        const guard=()=>checkBudget?.();
         const draw=(tool,args)=>{guard();return ok(tool,{request_id:randomUUID(),document_id:doc,page_index:1,...args});};
         async function inspect() {
           const first=await ok('corel_inspect_document',{document_id:doc,page_index:1,recursive:true,include_text:true,limit:500});
@@ -60,13 +78,14 @@ export async function benchmark({cases=allowed,samples=3,budgetMs=300000}={}) {
         }
         try {
           const setup=performance.now();doc=(await ok('corel_create_document',{request_id:randomUUID(),width_mm:760,height_mm:490})).document_id;
+          row.document_id=doc;
           const layer_id=(await inspect()).layers.find(l=>!l.is_special_layer).layer_id;
           const count=Number(name.match(/\d+$/)[0]);let ids=[],geometry,copyIds=[];
           if(!name.startsWith('tiles')&&!name.startsWith('text')) {
             ids=(await draw('corel_create_shapes',{layer_id,items:Array.from({length:count},(_,i)=>({...rectangle(i),...(name==='geometry100'&&i%2?{kind:'ellipse'}:{})}))})).created_static_ids;
             await draw('corel_style_shapes',{static_ids:ids,fill:fill(0),outline:{kind:'uniform',width_mm:.2,color:{model:'rgb',r:0,g:0,b:0}}});
           }
-          const before=await inspect();row.setup_ms=performance.now()-setup;started=performance.now();
+          const before=await inspect();row.setup_ms=performance.now()-setup;started=performance.now();checkBudget=createBenchmarkBudget(budgetMs);
           if(name.startsWith('tiles')) {
             if(mode==='hybrid')ids=(await phase('create_style_rotate',()=>draw('corel_create_batch',{layer_id,items:Array.from({length:count},(_,i)=>({...rectangle(i),item_key:'c'+i,fill:fill(i),outline:{kind:'none'},rotation_deg:i%360}))}))).created_static_ids;
             else {
@@ -87,7 +106,7 @@ export async function benchmark({cases=allowed,samples=3,budgetMs=300000}={}) {
           else if(name==='png100')await phase('png',()=>ok('corel_export',{request_id:randomUUID(),document_id:doc,format:'png',path:join(directory,`${name}-${mode}-${iteration}.png`),dpi:96}));
           else if(name==='inspect100')await phase('inspection',inspect);
           if(name.startsWith('tiles')||name.startsWith('text'))await phase('save',()=>ok('corel_save_document',{request_id:randomUUID(),document_id:doc,path:join(directory,`${name}-${mode}-${iteration}.cdr`)}));
-          row.total_ms=performance.now()-started;started=0;
+          guard();row.total_ms=performance.now()-started;started=0;checkBudget=undefined;
           await phase('postcheck',async()=>{
             const after=await inspect();
             if(name.startsWith('tiles'))checkTiles(after.shapes,ids);
@@ -122,10 +141,11 @@ export async function benchmark({cases=allowed,samples=3,budgetMs=300000}={}) {
           console.log(`${name} ${mode} ${iteration===-1?'прогрев':iteration+1}: ${row.total_ms.toFixed(1)} мс`);
         } catch(error) {
           if(error instanceof BudgetStop) {row.elapsed_ms=performance.now()-started;row.reason=error.message;report.stopped.push(row);stoppedModes.add(mode);
+            checkBudget=undefined;
             await ok('corel_save_document',{request_id:randomUUID(),document_id:doc,path:join(directory,`${name}-${mode}-partial.cdr`)});
           } else throw error;
         } finally {
-          if(doc&&session.pending.size===0) {await ok('corel_close_document',{request_id:randomUUID(),document_id:doc,discard_changes:true});report.cleanup.push({case:name,mode,iteration,closed:true});}
+          if(doc&&session.pending.size===0) {await ok('corel_close_document',{request_id:randomUUID(),document_id:doc,discard_changes:true});report.cleanup.push({case:name,mode,iteration,document_id:doc,closed:true});}
           else if(doc)report.cleanup.push({case:name,mode,iteration,closed:false,reason:'native_pending_or_unknown',document_id:doc,pending_job_ids:[...session.pending]});
           save();
         }
@@ -142,8 +162,8 @@ export async function benchmark({cases=allowed,samples=3,budgetMs=300000}={}) {
     report.full_pairs_completed=cases.every(name=>['csharp','hybrid'].every(mode=>report.samples.filter(row=>row.case===name&&row.mode===mode&&!row.warmup).length===samples));
   } catch(error) {report.error=String(error);throw error;}
   finally {save();for(const session of Object.values(sessions))await session.close();}
-  console.log(`Отчёт: ${directory}`);return {directory,report};
+  console.log(`Отчёт: ${directory}`);requireCompleteBenchmark(report);return {directory,report};
 }
-if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]) {
-  const selected=process.argv[2]?.split(',')??allowed;await benchmark({cases:selected,samples:process.argv[3]?Number(process.argv[3]):3});
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href) {
+  await benchmark(parseBenchmarkOptions(process.argv.slice(2)));
 }

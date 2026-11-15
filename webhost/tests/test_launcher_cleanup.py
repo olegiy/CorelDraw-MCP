@@ -96,7 +96,7 @@ async def test_real_serve_releases_singleton_and_socket_after_cancelled_drain(tm
     monkeypatch.setattr(module, 'ControlEvents', Resource)
     monkeypatch.setattr(module, 'TechnicalLog', Resource)
     monkeypatch.setattr(module, 'prepare_runtime', prepare)
-    monkeypatch.setattr(module.uvicorn, 'Server', Server)
+    monkeypatch.setattr(module, 'LocalHttpServer', Server)
     task = asyncio.create_task(module.serve(tmp_path, no_browser=True))
     await asyncio.wait_for(started.wait(), 5)
     task.cancel()

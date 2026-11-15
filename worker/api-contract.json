@@ -228,6 +228,46 @@
     },
     {
       "interface": "IVGApplication",
+      "member": "get_ActiveWindow",
+      "clr_signature": "VGCore.Window get_ActiveWindow()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.activewindow",
+      "live_status": "verified_full_live_gate_20261114",
+      "parameters": []
+    },
+    {
+      "interface": "IVGDocument",
+      "member": "get_Windows",
+      "clr_signature": "VGCore.Windows get_Windows()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/document.windows",
+      "live_status": "verified_full_live_gate_20261114",
+      "parameters": []
+    },
+    {
+      "interface": "IVGWindow",
+      "member": "Activate",
+      "clr_signature": "Void Activate()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/window.activate",
+      "live_status": "verified_full_live_gate_20261114",
+      "parameters": []
+    },
+    {
+      "interface": "IVGWindows",
+      "member": "get_Count",
+      "clr_signature": "Int32 get_Count()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/windows.count",
+      "live_status": "verified_full_live_gate_20261114",
+      "parameters": []
+    },
+    {
+      "interface": "IVGWindows",
+      "member": "get_Item",
+      "clr_signature": "VGCore.Window get_Item(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/windows.item",
+      "live_status": "verified_full_live_gate_20261114",
+      "parameters": [{ "name": "Index", "type": "Int32", "optional": false, "default": "<none>" }]
+    },
+    {
+      "interface": "IVGApplication",
       "member": "get_Documents",
       "clr_signature": "VGCore.Documents get_Documents()",
       "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/application.documents?lang=cs",

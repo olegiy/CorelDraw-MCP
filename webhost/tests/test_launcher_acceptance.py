@@ -23,10 +23,12 @@ async def until(predicate):
             await asyncio.sleep(0.01)
 
 
-async def finish_browser_host(task, *, timeout=10, primary=None):
+async def finish_browser_host(task, *, timeout=10, primary=None, diagnostics=None):
     try:
         await asyncio.wait_for(asyncio.shield(task), timeout)
     except TimeoutError as timeout_error:
+        if diagnostics is not None:
+            diagnostics()
         # Cancel only this test-owned HTTP wait. serve's production finally
         # still shields the fixture MCP drain and exact owner release.
         task.cancel()
@@ -90,7 +92,7 @@ def launcher_harness(tmp_path, monkeypatch):
     module = implementation('__main__')
     launcher = implementation('launcher')
     state = {'urls': [], 'mcps': [], 'servers': [], 'listeners': []}
-    server_class = module.uvicorn.Server
+    server_class = module.LocalHttpServer
 
     def listener():
         sock = launcher.reserve_port(0)
@@ -99,7 +101,8 @@ def launcher_harness(tmp_path, monkeypatch):
 
     def mcp_factory(*, directory):
         transport = OwnedStdio(command=shutil.which('node'),
-            args=[str(ROOT / 'webhost/tests/fixtures/panel-server.mjs'), '--slow'],
+            args=[str(ROOT / 'webhost/tests/fixtures/panel-server.mjs'), '--slow',
+                *(['--release-file', str(state['release_file'])] if 'release_file' in state else [])],
             directory=directory, env={'CORELDRAW_MCP_RUNS': str(directory / 'runs')})
         mcp = CorelMcp(transport=transport, poll_interval=0.01)
         state['mcps'].append(mcp)
@@ -119,7 +122,7 @@ def launcher_harness(tmp_path, monkeypatch):
 
     monkeypatch.setattr(module, 'reserve_port', listener)
     monkeypatch.setattr(module, 'CorelMcp', mcp_factory)
-    monkeypatch.setattr(module.uvicorn, 'Server', server_factory)
+    monkeypatch.setattr(module, 'LocalHttpServer', server_factory)
     monkeypatch.setattr(module.webbrowser, 'open', open_browser)
     return module, launcher, state
 
@@ -292,6 +295,18 @@ async def test_fixed_port_launcher_serves_compiled_ui_and_real_browser_without_c
     directory = tmp_path / 'production port fixture'
     task = asyncio.create_task(module.serve(directory))
     primary = None
+    def shutdown_diagnostics():
+        server = state['servers'][0]
+        evidence = {
+            'should_exit': server.should_exit,
+            'connections': len(server.server_state.connections),
+            'http_tasks': len(server.server_state.tasks),
+            'mcp_returncode': state['mcps'][0].transport.returncode,
+            'pending_tasks': [[{'file': frame.f_code.co_filename, 'function': frame.f_code.co_name,
+                               'line': frame.f_lineno} for frame in pending.get_stack()]
+                              for pending in asyncio.all_tasks() if not pending.done()],
+        }
+        (tmp_path / 'shutdown-diagnostics.json').write_text(json.dumps(evidence, indent=2), encoding='utf-8')
     try:
         await until(lambda: task.done() or (state['servers'] and state['servers'][0].started))
         if task.done():
@@ -336,7 +351,64 @@ async def test_fixed_port_launcher_serves_compiled_ui_and_real_browser_without_c
     finally:
         if state['servers'] and not task.done():
             launcher.signal_existing(directory, 'stop')
-        await finish_browser_host(task, primary=primary)
+        await finish_browser_host(task, primary=primary, diagnostics=shutdown_diagnostics)
     assert state['mcps'][0].transport.returncode == 0
     assert not (directory / 'runtime.json').exists()
     assert not (directory / 'mcp-owner.json').exists()
+
+
+async def test_stop_with_open_sse_keeps_both_owners_until_mutation_cleanup(tmp_path, launcher_harness):
+    module, launcher, state = launcher_harness
+    release = tmp_path / 'release-mutation'
+    state['release_file'] = release
+    directory = tmp_path / 'sse-mutation-host'
+    task = asyncio.create_task(module.serve(directory))
+    try:
+        await until(lambda: state['urls'])
+        port = state['listeners'][0].getsockname()[1]
+        headers = {'Host': '127.0.0.1:8878', 'Origin': 'http://127.0.0.1:8878'}
+        async with httpx.AsyncClient(base_url=f'http://127.0.0.1:{port}', headers=headers, trust_env=False) as client:
+            token = parse_qs(urlsplit(state['urls'][0]).fragment)['bootstrap'][0]
+            access = await client.post('/api/v1/access/bootstrap', headers={'X-Corel-Bootstrap': token})
+            client.headers['X-Corel-CSRF'] = access.json()['csrf_token']
+            refreshed = await client.post('/api/v1/documents/refresh', json=command().model_dump(mode='json'))
+            assert refreshed.status_code == 202
+            refresh_id = refreshed.json()['id']
+            async with asyncio.timeout(10):
+                while (await client.get(f'/api/v1/runs/{refresh_id}')).json()['status'] != 'completed':
+                    await asyncio.sleep(.01)
+            mutation = await client.post('/api/v1/actions', json=command(tool='corel_edit_text', document_id='fixture-a',
+                arguments={'page_index': 1, 'static_ids': [1001], 'action': 'set_text', 'text': 'fixture-held-mutation'}).model_dump(mode='json'))
+            assert mutation.status_code == 202
+            run_id = mutation.json()['id']
+            calls_file = directory / 'runs/calls.jsonl'
+            await until(lambda: calls_file.exists() and 'fixture-held-mutation' in calls_file.read_text())
+            async with client.stream('GET', f'/api/v1/runs/{run_id}/events') as stream:
+                assert stream.status_code == 200
+                launcher.signal_existing(directory, 'stop')
+                await until(lambda: state['servers'][0].should_exit)
+                assert not task.done()
+                assert (directory / 'runtime.json').exists() and (directory / 'mcp-owner.json').exists()
+                release.write_text('release')
+                async for line in stream.aiter_lines():
+                    if line.startswith('data: ') and json.loads(line[6:]).get('type') == 'run_finished':
+                        break
+        await finish_browser_host(task)
+        assert state['mcps'][0].transport.returncode == 0
+        assert not (directory / 'runtime.json').exists() and not (directory / 'mcp-owner.json').exists()
+        store = Store(directory)
+        await store.open()
+        try:
+            operations = await store.get_operations(run_id)
+            mutations = [op for op in operations if op['prepared']['tool'] == 'corel_edit_text']
+            assert len(mutations) == 1 and mutations[0]['result']['outcome'] == 'succeeded'
+            assert mutations[0]['result']['cleanup'] == {'completed': True, 'errors': []}
+        finally:
+            await store.aclose()
+        calls = [json.loads(line) for line in calls_file.read_text().splitlines()]
+        assert sum(call['tool'] == 'corel_edit_text' for call in calls) == 1
+    finally:
+        release.write_text('release')
+        if state['servers'] and not task.done():
+            launcher.signal_existing(directory, 'stop')
+        await finish_browser_host(task)

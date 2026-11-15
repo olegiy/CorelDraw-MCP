@@ -1,3 +1,6 @@
 # Native module manifests bind the exact source bytes, including line endings.
 worker/vba/*.bas -text
 worker/third-party/dotnet-*.TXT -text
+# Schema checks compare generated files byte-for-byte on Windows too.
+webhost/openapi.json text eol=lf
+webui/src/api.generated.d.ts text eol=lf

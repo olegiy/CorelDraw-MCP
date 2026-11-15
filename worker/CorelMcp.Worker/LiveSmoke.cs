@@ -26,6 +26,7 @@ internal static class LiveSmoke
         public List<string> cleanup_errors { get; } = [];
         public List<string> compatibility_errors { get; } = [];
         public int user_document_count { get; set; }
+        public object? activation_diagnostics { get; set; }
     }
 
     private sealed record DocumentState(long identity, bool dirty, int page_count, int active_page,
@@ -104,7 +105,16 @@ internal static class LiveSmoke
             }
             // Restore the first temporary drawing explicitly while the second still exists.
             owned[0].Activate();
-            if (ComScope.Identity(scope.Track(application.ActiveDocument)) != ComScope.Identity(owned[0]))
+            var targetWindows = scope.Track(owned[0].Windows);
+            if (targetWindows.Count != 1) throw new InvalidOperationException("Ожидалось одно окно собственного тестового документа.");
+            scope.Track(targetWindows[1]).Activate();
+            var expectedIdentity = ComScope.Identity(owned[0]);
+            var activeIdentity = ComScope.Identity(scope.Track(application.ActiveDocument));
+            report.activation_diagnostics = new { expected = expectedIdentity, active = activeIdentity,
+                owned = owned.Select(document => ComScope.Identity(document)).ToArray(),
+                current = Snapshot(application, scope), optimization = application.Optimization, events_enabled = application.EventsEnabled,
+                visible = application.Visible, windows = owned.Select(document => scope.Track(document.Windows).Count).ToArray() };
+            if (activeIdentity != expectedIdentity)
                 throw new InvalidOperationException("CorelDRAW не активировал точный временный документ.");
             report.success = report.compatibility_errors.Count == 0 && report.unsupported_text_rejected_before_mutation && report.control_document_unchanged;
         }

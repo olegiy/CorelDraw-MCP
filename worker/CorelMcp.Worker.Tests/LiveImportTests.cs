@@ -78,7 +78,7 @@ public sealed class LiveImportTests
     {
         foreach(var unit in new[]{"mm","inch"})
         {
-        using var c=new DrawingClient();var doc=await c.Create();var layer=Layer(await c.Inspect(doc));var control=await c.Create();var controlBefore=(await c.Inspect(control)).GetRawText();
+        using var c=new DrawingClient();var baseline=(await c.Ok("corel_status",new{})).GetProperty("documents").GetArrayLength();var doc=await c.Create();var layer=Layer(await c.Inspect(doc));var control=await c.Create();var controlBefore=(await c.Inspect(control)).GetRawText();
         await c.Ok("test_configure",new{document_id=doc,unit});
         var directory=Path.Combine(c.Directory,"fixtures");Directory.CreateDirectory(directory);
         var svg=Path.Combine(directory,"Кириллица с пробелами.svg");File.WriteAllText(svg,"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40mm\" height=\"20mm\" viewBox=\"0 0 40 20\"><rect width=\"40\" height=\"20\" fill=\"#ff0000\"/><rect x=\"20\" width=\"20\" height=\"20\" fill=\"#0000ff\"/></svg>");
@@ -111,12 +111,13 @@ public sealed class LiveImportTests
         Assert.Equal(before,(await c.Inspect(doc)).GetRawText());Assert.Equal(controlBefore,(await c.Inspect(control)).GetRawText());
         var container=await c.Draw(doc,"corel_create_shapes",new{layer_id=layer,items=new[]{new{kind="rectangle",x_mm=0,y_mm=0,width_mm=100,height_mm=100}}});
         await c.Draw(doc,"corel_powerclip",new{action="place",container_id=container.GetProperty("created_static_ids")[0].GetInt32(),static_ids=new[]{bitmapId!.Value},center=false});
-        Assert.Equal(2,(await c.Ok("corel_status",new{})).GetProperty("documents").GetArrayLength());
+        Assert.Equal(baseline+2,(await c.Ok("corel_status",new{})).GetProperty("documents").GetArrayLength());
         }
     }
     [LiveCorelFact]
     public async Task ImportPreparationDocumentClosesAfterUndoStartsButDrawingBodyFails()
     {
+        using var observer=new DrawingClient();var baseline=(await observer.Ok("corel_status",new{})).GetProperty("documents").GetArrayLength();
         using var c=new DrawingClient();var doc=await c.Create();var layer=Layer(await c.Inspect(doc));
         await c.Ok("corel_save_document",new{request_id=Guid.NewGuid().ToString(),document_id=doc,path=Path.Combine(c.Directory,"before.cdr")});
         var control=await c.Create();var before=(await c.Inspect(doc)).GetRawText();
@@ -125,7 +126,7 @@ public sealed class LiveImportTests
         Assert.True(rejected.Error!.Applied);Assert.Equal(true,rejected.Cleanup!["completed"]);
         var expected=System.Text.Json.Nodes.JsonNode.Parse(before)!;expected["document"]!["dirty"]=true;
         Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(expected,System.Text.Json.Nodes.JsonNode.Parse((await c.Inspect(doc)).GetRawText())));
-        var status=await c.Ok("corel_status",new{});Assert.Equal(2,status.GetProperty("documents").GetArrayLength());Assert.Equal(control,status.GetProperty("active_document_id").GetString());
+        var status=await c.Ok("corel_status",new{});Assert.Equal(baseline+2,status.GetProperty("documents").GetArrayLength());Assert.Equal(control,status.GetProperty("active_document_id").GetString());
     }
     private static Dictionary<string,object?> Args(string path,string format,string layer,double x,double y)=>new()
     { ["path"]=path,["format"]=format,["sha256"]=Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path))),["size_bytes"]=new FileInfo(path).Length,["layer_id"]=layer,["x_mm"]=x,["y_mm"]=y,["fit"]=new{width_mm=20,height_mm=20} };

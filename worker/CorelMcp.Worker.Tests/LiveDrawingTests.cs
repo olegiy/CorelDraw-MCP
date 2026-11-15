@@ -243,12 +243,21 @@ public sealed class LiveDrawingTests
     }
     internal sealed class DrawingClient : IDisposable
     {
+        internal static string NativeDirectory => Environment.GetEnvironmentVariable("CORELDRAW_TEST_NATIVE_DIRECTORY") is { } path
+            ? Path.GetFullPath(path) : Path.Combine(AppContext.BaseDirectory, "native");
         private readonly StaHost host; private DrawingAdapter? adapter;
         public bool FailAfterMutation { set => adapter!.FailAfterMutations = value ? 1 : 0; }
         public int FailAfterMutations { set => adapter!.FailAfterMutations = value; }
         public bool FailBeforeDrawing { set => adapter!.FailBeforeDrawing = value; }
         public string Directory { get; } = Path.Combine(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../..")), "artifacts", "worker-drawing", Guid.NewGuid().ToString("N"));
-        public DrawingClient(CorelMcp.Worker.Hybrid.ExecutionMode? mode=null,Func<CorelMcp.Worker.Hybrid.INativeVbaRuntime>? nativeFactory=null) { System.IO.Directory.CreateDirectory(Directory); host = new StaHost(() => adapter = new(mode,nativeFactory)); host.Ready.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult(); }
+        public DrawingClient(CorelMcp.Worker.Hybrid.ExecutionMode? mode=null,Func<CorelMcp.Worker.Hybrid.INativeVbaRuntime>? nativeFactory=null)
+        {
+            if (mode == CorelMcp.Worker.Hybrid.ExecutionMode.Hybrid && nativeFactory is null)
+                nativeFactory = () => new CorelMcp.Worker.Hybrid.NativeVbaRuntime(NativeDirectory);
+            System.IO.Directory.CreateDirectory(Directory);
+            host = new StaHost(() => adapter = new(mode,nativeFactory));
+            host.Ready.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        }
         public async Task<string> Create() => (await Ok("corel_create_document", new { request_id = Guid.NewGuid().ToString(), width_mm = 200, height_mm = 150 })).GetProperty("document_id").GetString()!;
         public Task<JsonElement> Inspect(string doc) => Ok("corel_inspect_document", new { document_id = doc, recursive = true, include_text = true });
         private static Dictionary<string, object?> Bind(string doc, object args)

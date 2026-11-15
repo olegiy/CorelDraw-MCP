@@ -1,5 +1,5 @@
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { JobManager } from '../../../dist/jobs.js';
@@ -8,6 +8,7 @@ import { createServer } from '../../../dist/server.js';
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAFklEQVR4nGP8//8/A27AhEeOYeRKAwCl4wMRx3ocVQAAAABJRU5ErkJggg==', 'base64');
 const documents = ['a', 'b'].map(letter => ({ document_id: `fixture-${letter}`, name: `Рисунок ${letter.toUpperCase()}`, path: '', dirty: false, pages: 1, active_page: 1, unit: 3, preserve_selection: true }));
 const smoke = process.argv.includes('--panel-smoke');
+const releaseFile = process.argv[process.argv.indexOf('--release-file') + 1];
 const temporaryProjects = { complete: !process.argv.includes('--inventory-incomplete'),
   idle: !process.argv.includes('--inventory-busy'), gms: [], vbe_names: [] };
 const retainedName = 'CorelMcp_a1b2c3d4e5f6';
@@ -22,6 +23,8 @@ const executor = {
   async run(job, args, progress) {
     appendFileSync(join(process.env.CORELDRAW_MCP_RUNS, 'calls.jsonl'), JSON.stringify({ tool: job.tool, args }) + '\n');
     progress('fixture_running');
+    if (args.text === 'fixture-held-mutation' && process.argv.includes('--release-file'))
+      while (!existsSync(releaseFile)) await delay(10);
     await delay(process.argv.includes('--slow') ? 450 : 50);
     const cleanup = { completed: true, errors: [] };
     if (args.document_id && !documents.some(doc => doc.document_id === args.document_id))

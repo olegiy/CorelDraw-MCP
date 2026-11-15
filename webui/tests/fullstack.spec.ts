@@ -51,7 +51,7 @@ test('two tabs observe one accepted run and explicit Stop prevents next native s
   await context.close();
 });
 
-test('minimal profile executes VBA, delivers PNG to model and replaces export without permissions', async ({ browser }) => {
+test('minimal profile executes typed text editing, delivers PNG to model and replaces export without permissions', async ({ browser }) => {
   const context = await browser.newContext(); const page = await context.newPage();
   let forbidden = 0;
   page.on('request', request => { if (/\/confirm$|\/files\/register$|\/recovery\/review$/.test(new URL(request.url()).pathname)) forbidden++; });
@@ -78,7 +78,7 @@ test('minimal profile executes VBA, delivers PNG to model and replaces export wi
   expect(run.read_only).toBeUndefined();
   const operations = (await (await context.request.get(`http://127.0.0.1:18880/api/v1/runs/${runId}/operations`)).json()).items;
   const tools = operations.map((item: { prepared: { tool: string } }) => item.prepared.tool);
-  expect(tools).toContain('corel_execute_vba'); expect(tools).toContain('corel_inspect_document');
+  expect(tools).toContain('corel_edit_text'); expect(tools).not.toContain('corel_execute_vba'); expect(tools).toContain('corel_inspect_document');
   expect(tools).toContain('corel_preview'); expect(tools).toContain('corel_export');
   const exported = operations.find((item: { prepared: { tool: string } }) => item.prepared.tool === 'corel_export');
   expect(exported.prepared.arguments.overwrite).toBeUndefined(); expect(exported.result.outcome).toBe('succeeded');
