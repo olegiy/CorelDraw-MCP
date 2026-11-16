@@ -1,6 +1,6 @@
 # Дизайн: нативные заливки и эффекты CorelDRAW в corel-mcp (fountain / transparency / drop shadow)
 
-Дата: 2026-11-16 · Статус: черновик до builder-check и утверждения · Ветка: 14-11-2026
+Дата: 2026-11-16 · Статус: утверждён пользователем 2026-11-16 (после builder-check) · Ветка: native-fills (worktree native-fills-wt), base 14-11-2026
 
 ## Intent и why
 
@@ -22,8 +22,9 @@ CorelDRAW и оставалась редактируемой в UI, без SVG-�
   `cdrDropShadowGroupShape`), по образцу `corel_convert_to_curves`.
 - Полная валидация целей/значений до первой мутации, включая BeginCommandGroup; отчёты job с
   affected/created/deleted, cleanup, warnings — как у существующих операций.
-- Синхронность: MCP-схемы, worker DTO, api-contract.json, скилл, references/tools.md + operations.md + recipes.md,
-  host capability table, docs, installer probes, тесты.
+- Синхронность: MCP-схемы, worker DTO, api-contract.json, скилл, references/tools.md + operations.md + recipes.md + api-v27.md,
+  host capability table, docs, тесты. Installer probes правок не требуют (tool-agnostic, проверяются
+  `test/worker-package.test.mjs` в Task 7); меняются только при изменении native-manifest, чего здесь нет.
 
 ## Non-goals / anti-goals
 

@@ -23,7 +23,7 @@
 - Стопы fountain: крайние 0/100 фиксированы, промежуточные 1..99 строго возрастают/уникальны; 2..16 стопов.
 - Цели тени v1: одиночные фигуры types 1/2/3/4 + текст 6; группы — отказ (limitation v1).
 - Счётчик инструментов синхронно в трёх местах при каждом добавлении: `skills/coreldraw-automation/references/tools.md:5`, `webhost/tests/test_transport_compatibility.py:12`, `worker/api-contract.json:3097` (39→40→41).
-- `scripts/check-contracts.mjs` сверяет dist-zod ↔ tools.md (строки таблицы, JSON-описания, jsonl-метаданные) и все `examples/*.json` → эти поверхности правятся В ТОМ ЖЕ задании, что и схема.
+- `scripts/check-contracts.mjs` сверяет dist-zod ↔ tools.md (строки таблицы, JSON-описания, jsonl-метаданные) и хардкод-список из 12 рецептов; валидация всех `examples/*.json` по каталогу живёт в `test/recipe-contract.test.mjs` → обе поверхности правятся В ТОМ ЖЕ задании, что и схема (новые examples добавляются и в хардкод-список check-contracts).
 - **Коммиты и установка в пользовательское окружение ЗАПРЕЩЕНЫ без отдельного разрешения пользователя.** Шаги «Commit» заменены на «Checkpoint»: зелёные тесты + отметка в плане; git-коммиты не делать. В конце execution спросить разрешение на коммит отдельным сообщением.
 - Live suites последовательно; `test/mutex.test.mjs` не параллелить с live COM.
 
@@ -50,7 +50,7 @@
 - Modify `test/integration-drawing.mjs`, `test/integration-hybrid.mjs` — fountain live-кейсы.
 - Modify `skills/coreldraw-automation/references/tools.md` (3 блока + счётчик), `references/operations.md`, `references/pitfalls.md`, `SKILL.md`; Create `skills/coreldraw-automation/examples/fountain-fill.json`, `examples/transparency-shadow.json`; Modify `references/recipes.md`.
 - Modify `webhost/corel_agent/policy.py` (DRAWING_MUTATIONS), `webhost/tests/test_transport_compatibility.py`, `webhost/tests/test_typed_policy.py`; regen `webhost/tests/fixtures/catalog.mjs`.
-- Modify `docs/architecture.md`, `worker/README.md`.
+- Modify `docs/architecture.md`, `worker/README.md`, `skills/coreldraw-automation/references/api-v27.md`, `scripts/check-contracts.mjs` (хардкод-список рецептов).
 
 ---
 
@@ -60,8 +60,8 @@
 **Interfaces:** Produces: worktree-каталог для всех следующих задач; baseline-отчёт.
 
 - [ ] **Step 1:** Создать worktree через superpowers:using-git-worktrees от ветки `14-11-2026` (имя `native-fills`); сделать его рабочей директорией сессии (opencode session_move).
-- [ ] **Step 2:** Baseline: `npm ci --ignore-scripts`; `npm test`; `npm run check:contracts`; `dotnet test worker/CorelMcp.Worker.Tests -c Release` (non-live). Expected: всё зелёно, 39 инструментов.
-- [ ] **Step 3:** Checkpoint: зафиксировать baseline-числа тестов в плане; НЕ коммитить.
+- [ ] **Step 2:** Baseline: `npm ci --ignore-scripts`; `npm test`; `npm run check:contracts`; `dotnet test worker/CorelMcp.Worker.Tests -c Release` (non-live). Expected: всё зелёно, 39 инструментов. Фактический baseline (commit 17efbdf): node 170 = 168 pass / 0 fail / 2 skip; contracts ok; dotnet 250 = 180 pass / 0 fail / 70 skip (live/COM). Prerequisite окружения: `pwsh -File scripts/build-worker.ps1 -GenerateInteropOnly` (генерация VGCore.Interop) до первого dotnet build.
+- [ ] **Step 3:** Checkpoint: зафиксировать baseline-числа тестов в плане; коммит docs разрешён пользователем (ветка native-fills).
 
 ### Task 2: Fountain-схема TS + барьер batch-схемы
 
@@ -99,10 +99,10 @@
 ### Task 5: corel_set_transparency (схема → DTO → COM → read-back → sync 40)
 
 **Files:** Modify `src/drawing-tools.ts` (определение + описание); Create `test/effects-tools.test.mjs`; Modify `Operations/DrawingContracts.cs` (whitelist/switch/валидация); Create `Operations/Transparency.cs`; Modify `Operations/DrawingOperation.cs:29`; Modify `CorelMcp.Worker.Tests/DrawingContractsTests.cs`; Extend `LiveNativeFillsTests.cs`; Modify `skills/.../references/tools.md` (:5→40, строка, JSON, jsonl), `webhost/corel_agent/policy.py:23–30`, `webhost/tests/test_transport_compatibility.py:12`, `worker/api-contract.json:3097`; regen `webhost/tests/fixtures/catalog.mjs`; Modify `webhost/tests/test_typed_policy.py`.
-**Interfaces:** Produces: zod-инструмент `corel_set_transparency` {…common, static_ids, kind: none|uniform|fountain, value?: int 0..100, start?/end?: int 0..100, type?, angle_deg?, center_offset_*_percent?, applied_to: fill|outline|fill_and_outline, merge_mode whitelist, freeze?: bool} refine по kind; C# `TransparencyCommand(int[] StaticIds, string Kind, int? Value, int? Start, int? End, string? Type, double? AngleDeg, double? CenterOffsetXPercent, double? CenterOffsetYPercent, string AppliedTo, string MergeMode, bool? Freeze)`; отчёт items с наблюдаемым transparency (переиспользовать `Inspection.EffectInfo`).
+**Interfaces:** Produces: zod-инструмент `corel_set_transparency` {…common, static_ids, kind: none|uniform|fountain, value?: int 0..100, start?/end?: int 0..100, type?, angle_deg?, center_offset_*_percent?, applied_to: fill|outline|fill_and_outline, merge_mode whitelist, freeze?: bool} refine по kind; C# `TransparencyCommand(int[] StaticIds, string Kind, int? Value, int? Start, int? End, string? Type, double? AngleDeg, double? CenterOffsetXPercent, double? CenterOffsetYPercent, string AppliedTo, string MergeMode, bool? Freeze)`; отчёт items с наблюдаемым transparency (переиспользовать `Inspection.EffectInfo`). Цели: векторные фигуры/текст; **группа допускается только если все потомки поддержаны (иначе отказ до мутации)** — правило спека, обязательно в валидации и тестах.
 
 - [ ] **Step 1:** Failing node tests: валидные uniform/fountain/none проходят; value 101, freeze без kind, angle при radial, неизвестный merge_mode → throw; catalog listTools == 40.
-- [ ] **Step 2:** Failing worker contract tests + live test: uniform 40 на rect → EffectInfo transparency type uniform value 40; fountain linear 0→100 applied_to outline → read-back applied_to==1; none снимает; frozen lens/locked/special layer → отказ до мутации; style на прозрачной цели по-прежнему отказ (барьер).
+- [ ] **Step 2:** Failing worker contract tests + live test: uniform 40 на rect → EffectInfo transparency type uniform value 40; fountain linear 0→100 applied_to outline → read-back applied_to==1; none снимает; frozen lens/locked/special layer → отказ до мутации; группа с неподдержанным потомком (bitmap) → отказ до мутации, группа из поддержанных фигур → применяется ко всем потомкам; style на прозрачной цели по-прежнему отказ (барьер).
 - [ ] **Step 3:** Запустить оба набора → FAIL.
 - [ ] **Step 4:** Реализовать zod/DTO/Transparency.cs (`Shape.Transparency.ApplyUniformTransparency/ApplyFountainTransparency/ApplyNoTransparency`, AppliedTo/MergeMode до применения, Freeze после; проверки Frozen/locked/effects до мутации); sync-поверхности (tools.md 3 блока, policy.py, счётчики 40, catalog fixture, typed policy tests).
 - [ ] **Step 5:** `npm test`, `check:contracts`, `dotnet test` non-live, live filter, `webhost` pytest non-live → PASS.
@@ -130,7 +130,7 @@
 
 ### Task 8: Скилл/рецепты/доки + limitation-записи
 
-**Files:** Create `skills/coreldraw-automation/examples/fountain-fill.json`, `examples/transparency-shadow.json`; Modify `references/recipes.md:12`, `references/operations.md:9,21,23–25`, `references/pitfalls.md:10–13`, `SKILL.md:20,35`, `docs/architecture.md:54–66,87–89`, `worker/README.md:60–67,96–100`.
+**Files:** Create `skills/coreldraw-automation/examples/fountain-fill.json`, `examples/transparency-shadow.json`; Modify `references/recipes.md:12`, `references/operations.md:9,21,23–25`, `references/pitfalls.md:10–13`, `references/api-v27.md`, `SKILL.md:20,35`, `docs/architecture.md:54–66,87–89`, `worker/README.md:60–67,96–100` (+ примечание про prerequisite `build-worker.ps1 -GenerateInteropOnly`), `scripts/check-contracts.mjs` (хардкод-список рецептов += новые examples).
 **Interfaces:** Consumes: финальные схемы Tasks 2–6; результат снятия тени Task 6.
 
 - [ ] **Step 1:** Failing: `test/recipe-contract.test.mjs` (новые examples не существуют/не парсятся) и `test/documentation-contracts.test.mjs`.
