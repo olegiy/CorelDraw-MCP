@@ -56,6 +56,10 @@ internal sealed class DrawingTarget
     public DrawingTarget(OperationContext context, int pageIndex)
     {
         Context = context; Page = context.Registry.Page(context.Target!, context.Scope, pageIndex);
+        if (context.Track(context.Track(Document.ActivePage).TreeNode).Handle != context.Track(Page.TreeNode).Handle)
+        {
+            Document.Activate(); Page.Activate();
+        }
         unitPerMm = context.App.ConvertUnits(1, VGCore.cdrUnit.cdrMillimeter, Document.Unit);
         left = Page.LeftX; bottom = Page.BottomY;
         if (!double.IsFinite(unitPerMm) || unitPerMm <= 0 || !double.IsFinite(left) || !double.IsFinite(bottom))

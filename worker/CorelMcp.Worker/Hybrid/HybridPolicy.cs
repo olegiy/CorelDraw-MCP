@@ -32,7 +32,7 @@ internal static class HybridPolicy
         int? expected = command switch
         {
             CreateShapesCommand c => c.Items.Length, TransformCommand c => c.StaticIds.Length,
-            StyleCommand c => c.StaticIds.Length, DuplicateCommand c => c.StaticIds.Length,
+            StyleCommand c => c.StaticIds.Length, DuplicateCommand c => c.StaticIds.Length, GridCommand c => c.StaticIds.Length,
             EditTextCommand c => c.StaticIds.Length, ConvertCommand c => c.StaticIds.Length,
             CreateBatchCommand c => c.Items.Length, UpdateBatchCommand c => c.Items.Length,
             _ => null
@@ -48,12 +48,12 @@ internal static class HybridPolicy
         string operation = command switch
         {
             CreateShapesCommand => "create_shapes", StyleCommand => "style", MoveCommand => "move",
-            DuplicateCommand => "duplicate", ReplaceLiteralCommand => "replace_literal",
+            DuplicateCommand or GridCommand => "duplicate", ReplaceLiteralCommand => "replace_literal",
             SetTextCommand => "set_text", FormatTextCommand => "format_text", ConvertCommand => "convert_text",
             _ => "csharp"
         };
         bool eligible = targets.SupportedLeaves && operation != "csharp"
-            && (command is DuplicateCommand ? targets.NewCopies >= 20 : targets.Count >= 20)
+            && (command is DuplicateCommand or GridCommand ? targets.NewCopies >= 20 : targets.Count >= 20)
             && (command is not (EditTextCommand or ConvertCommand) || targets.AllText);
         return new(mode == ExecutionMode.Hybrid && eligible ? ExecutionEngine.Vba : ExecutionEngine.CSharp, operation, Version);
     }

@@ -4,7 +4,7 @@ namespace CorelMcp.Worker.Hybrid;
 
 internal static class NativeDrawing
 {
-    public static Action Prepare(DrawingTarget target,IDrawingCommand command,VGCore.Shape[]? prevalidated=null)
+    public static Action Prepare(DrawingTarget target,IDrawingCommand command,VGCore.Shape[]? prevalidated=null,Action<NativeBatchReply>? postcheck=null)
     {
         var c=target.Context;
         if(c.Session.ExecutionMode!=ExecutionMode.Hybrid)throw new OperationFailure("HYBRID_REQUIRED","Пакет требует включённого проверенного VBA runtime.");
@@ -64,6 +64,15 @@ internal static class NativeDrawing
             c.Stage("native_applying");
             var reply=runtime.Apply(batch);
             if(reply.Applied is null)c.Session.MarkNativeOutcomeUnknown();
+            if(postcheck is not null)
+            {
+                try {postcheck(reply);}
+                catch(Exception error)
+                {
+                    c.Session.MarkNativeOutcomeUnknown();
+                    throw new OperationFailure("NATIVE_OUTCOME_UNKNOWN","Независимая проверка созданных копий не завершена; известные ID сохранены, повтор запрещён: "+error.Message,null);
+                }
+            }
             if(reply.Applied==true)
             {
                 c.RecordMutation(reply.KnownBeforeStaticIds,reply.AffectedStaticIds);

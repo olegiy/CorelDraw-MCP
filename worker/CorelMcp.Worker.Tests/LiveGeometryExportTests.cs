@@ -69,6 +69,41 @@ public sealed class LiveGeometryExportTests
         Assert.Equal(before.GetRawText(), (await client.Ok("corel_inspect_document", new { document_id = doc, recursive = true, include_text = true })).GetRawText());
     }
 
+    [LiveCorelFact]
+    public async Task PreviewSecondResizedPageUsesItsBoundsAndPreservesAllDocuments()
+    {
+        using var client = new FixtureClient();
+        var baseline = await client.Ok("corel_status", new { });
+        var source = (await client.Ok("corel_create_document", new { request_id = Guid.NewGuid().ToString(), width_mm = 760, height_mm = 490 })).GetProperty("document_id").GetString()!;
+        await client.Ok("corel_manage_pages", new { request_id = "add-preview-page", document_id = source, page_index = 1, action = "add", count = 1, width_mm = 120, height_mm = 90 });
+        var page = await client.Ok("corel_inspect_document", new { document_id = source, page_index = 2 });
+        var layer = await client.Ok("corel_manage_layers", new { request_id = "create-preview-layer", document_id = source, page_index = 2, action = "create", page_id = page.GetProperty("page_id").GetString(), name = "Preview" });
+        var created = await client.Ok("corel_create_shapes", new { request_id = "create-preview-rectangle", document_id = source, page_index = 2,
+            layer_id = layer.GetProperty("layer").GetProperty("layer_id").GetString(),
+            items = new[] { new { kind = "rectangle", x_mm = 5, y_mm = 5, width_mm = 40, height_mm = 30 } } });
+        await client.Ok("corel_style_shapes", new { request_id = "style-preview-rectangle", document_id = source, page_index = 2,
+            static_ids = new[] { created.GetProperty("created_static_ids")[0].GetInt32() },
+            fill = new { kind = "uniform", color = new { model = "rgb", r = 0, g = 0, b = 255 } }, outline = new { kind = "none" } });
+        var control = await client.Create();
+        var before = await client.Ok("corel_inspect_document", new { document_id = source, page_index = 2, recursive = true });
+        var controlBefore = await client.Ok("corel_inspect_document", new { document_id = control });
+        var preview = await client.Ok("corel_preview", new { document_id = source, page_index = 2, max_size = 600 });
+        using (var image = new System.Drawing.Bitmap(preview.GetProperty("path").GetString()!))
+        {
+            Assert.Equal(600, image.Width); Assert.Equal(450, image.Height);
+            var pixel = image.GetPixel(125, 350);
+            Assert.True(pixel.B > 240 && pixel.R < 15 && pixel.G < 15);
+        }
+        Assert.Equal(before.GetRawText(), (await client.Ok("corel_inspect_document", new { document_id = source, page_index = 2, recursive = true })).GetRawText());
+        Assert.Equal(controlBefore.GetRawText(), (await client.Ok("corel_inspect_document", new { document_id = control })).GetRawText());
+        Assert.Equal(control, (await client.Ok("corel_status", new { })).GetProperty("active_document_id").GetString());
+        await client.Ok("corel_close_document", new { request_id = "close-preview-control", document_id = control, discard_changes = true });
+        await client.Ok("corel_close_document", new { request_id = "close-preview-source", document_id = source, discard_changes = true });
+        var final = await client.Ok("corel_status", new { });
+        Assert.Equal(baseline.GetProperty("documents").GetRawText(), final.GetProperty("documents").GetRawText());
+        Assert.Equal(baseline.GetProperty("application_state").GetRawText(), final.GetProperty("application_state").GetRawText());
+    }
+
     private sealed class CultureScope : IDisposable
     {
         private readonly CultureInfo culture = CultureInfo.CurrentCulture, ui = CultureInfo.CurrentUICulture;

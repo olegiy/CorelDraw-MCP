@@ -275,7 +275,13 @@ public sealed class LiveDrawingTests
         internal async Task<WorkerResult> Call(string tool, object args)
         {
             var completion = new TaskCompletionSource<WorkerResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Assert.True(host.TrySubmit(new(Guid.NewGuid().ToString(), tool, JsonSerializer.SerializeToElement(args), Directory), _ => { }, value => completion.SetResult(value)));
+            var request = new WorkerRequest(Guid.NewGuid().ToString(), tool, JsonSerializer.SerializeToElement(args), Directory);
+            var journal = Environment.GetEnvironmentVariable("CORELDRAW_TEST_PROGRESS_JOURNAL") == "1" ? Path.Combine(Directory, "progress.jsonl") : null;
+            if (journal is not null) File.AppendAllText(journal, JsonSerializer.Serialize(new { job_id = request.JobId, tool, args, stage = "submitting" }, Protocol.JsonOptions) + "\n");
+            Assert.True(host.TrySubmit(request, stage =>
+            {
+                if (journal is not null) File.AppendAllText(journal, JsonSerializer.Serialize(new { job_id = request.JobId, tool, stage }, Protocol.JsonOptions) + "\n");
+            }, value => completion.SetResult(value)));
             var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(60)); while (host.ActiveJobId is not null) await Task.Delay(1);
             File.AppendAllText(Path.Combine(Directory, "results.jsonl"), JsonSerializer.Serialize(new { tool, args, result }, Protocol.JsonOptions) + "\n"); return result;
         }

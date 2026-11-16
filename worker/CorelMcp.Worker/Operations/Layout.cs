@@ -27,12 +27,24 @@ internal static class Layout
         var offsets=LayoutPlanner.Grid(new(cell,args.Rows,args.Columns,args.GapXMm,args.GapYMm,args.AnchorXMm,args.AnchorYMm,count));
         c.DrawingDetails["bounds_mode"]="outline"; c.DrawingDetails["cell_bounds"]=cell;
         List<Placement> actual=[]; c.DrawingDetails["actual_bounds"]=actual;
+        var native=Hybrid.NativeDuplicate.TryPrepare(target,args,shapes,offsets,copies=>
+        {
+            for(int i=0;i<copies.Length;i++)
+            {
+                var box=boxes[i%shapes.Length];var offset=offsets[i/shapes.Length+1];var b=Bounds(target,copies[i],true);
+                if(Math.Abs(b.LeftMm-box.LeftMm-offset.XMm)>.001||Math.Abs(b.BottomMm-box.BottomMm-offset.YMm)>.001
+                    ||Math.Abs(b.WidthMm-box.WidthMm)>.001||Math.Abs(b.HeightMm-box.HeightMm)>.001)
+                    throw new OperationFailure("PLACEMENT_MISMATCH","Фактические outline bounds копии не совпали с планом сетки.",true);
+                actual.Add(new(copies[i].StaticID,b.LeftMm,b.BottomMm,b.WidthMm,b.HeightMm));
+            }
+        });
         return () =>
         {
             for(int index=0;index<shapes.Length;index++)
             {
                 var b=boxes[index]; Move(target,shapes[index],new(b.StaticId,b.LeftMm+offsets[0].XMm,b.BottomMm+offsets[0].YMm,b.WidthMm,b.HeightMm),true,actual);
             }
+            if(native is not null){native();return;}
             for(int cellIndex=1;cellIndex<offsets.Length;cellIndex++) foreach(var source in shapes)
             {
                 c.Mutating(); var copy=c.Track(source.Duplicate(target.U(offsets[cellIndex].XMm-offsets[0].XMm),target.U(offsets[cellIndex].YMm-offsets[0].YMm)));

@@ -27,4 +27,16 @@ public sealed class NativeRowsTests
         Assert.Equal(42,rows[0,26]);Assert.Equal(2,rows[0,21]);Assert.Equal(25d,rows[0,22]);
         Assert.Equal(120d,rows[0,24]);Assert.Equal(240d,rows[0,25]);Assert.Equal(0,rows[0,10]);
     }
+    [Fact] public void CloneRowsKeepRelativeOffsetsAndOneBasedSourceOrder()
+    {
+        var batch=new CreateBatchCommand("layer",[
+            new("copy-0",new NativeCloneCommand(0,42,25.4,-12.7),null,null,0),
+            new("copy-1",new NativeCloneCommand(1,77,25.4,-12.7),null,null,0),
+            new("copy-2",new NativeCloneCommand(0,42,0,50.8),null,null,0)]);
+        var rows=NativeRowBuilder.Create(batch,100,200,1/25.4);
+        Assert.Equal(5,rows[0,1]);Assert.Equal(42,rows[0,26]);Assert.Equal(1,rows[0,39]);
+        Assert.Equal(1d,Assert.IsType<double>(rows[0,2]),10);Assert.Equal(-.5d,Assert.IsType<double>(rows[0,3]),10);
+        Assert.Equal(77,rows[1,26]);Assert.Equal(2,rows[1,39]);
+        Assert.Equal(0d,rows[2,2]);Assert.Equal(2d,Assert.IsType<double>(rows[2,3]),10);Assert.Equal(1,rows[2,39]);
+    }
 }

@@ -35,6 +35,21 @@ public sealed class HybridPolicyTests
         Assert.Equal("hybrid-v1", decision.PolicyVersion);
     }
 
+    [Theory]
+    [InlineData(19, false)]
+    [InlineData(20, true)]
+    [InlineData(95, true)]
+    public void GridUsesCopyThresholdOnlyInHybrid(int newShapes, bool native)
+    {
+        var command = new GridCommand([1], 1, newShapes + 1, 0, 0);
+        var summary = new TargetSummary(1, true, false, newShapes);
+        var decision = HybridPolicy.Select(command, summary, ExecutionMode.Hybrid);
+        Assert.Equal(native ? ExecutionEngine.Vba : ExecutionEngine.CSharp, decision.Engine);
+        Assert.Equal("duplicate", decision.Operation);
+        Assert.Equal(ExecutionEngine.CSharp, HybridPolicy.Select(command, summary, ExecutionMode.CSharp).Engine);
+        Assert.Equal(ExecutionEngine.CSharp, HybridPolicy.Select(command, new(1, false, false, newShapes), ExecutionMode.Hybrid).Engine);
+    }
+
     [Fact]
     public void TextConversionRequiresTextLeaves()
     {
@@ -73,5 +88,6 @@ public sealed class HybridPolicyTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new TargetSummary(-1, true, false));
         Assert.Throws<ArgumentOutOfRangeException>(() => new TargetSummary(1, true, false, -1));
         Assert.Throws<ArgumentException>(() => HybridPolicy.Select(new MoveCommand([1], 1, 1), new(20, true, false), ExecutionMode.Hybrid));
+        Assert.Throws<ArgumentException>(() => HybridPolicy.Select(new GridCommand([1], 1, 21, 0, 0), new(2, true, false, 20), ExecutionMode.Hybrid));
     }
 }
