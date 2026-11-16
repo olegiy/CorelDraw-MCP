@@ -68,6 +68,7 @@ internal static class Inspection
             var fill=context.Track(shape.Fill);var outline=context.Track(shape.Outline);
             var details=Dto.Of(("fill_type",(int)fill.Type),("outline_type",(int)outline.Type),("outline_width_mm",outline.Width*factor));
             if((int)fill.Type==1)details["fill_color"]=Styles.ColorInfo(context,context.Track(fill.UniformColor));
+            if((int)fill.Type==2)details["fountain"]=Styles.FountainInfo(context,context.Track(fill.Fountain));
             if((int)outline.Type!=0)details["outline_color"]=Styles.ColorInfo(context,context.Track(outline.Color));
             appearance=details;
         } catch { }

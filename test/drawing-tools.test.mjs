@@ -120,17 +120,20 @@ test('fountain fill accepts the 16-stop boundary and rejects 17', () => {
 });
 
 test('fill and batchFill keep field-level parity for the shared none/uniform branches', () => {
-  const branch = (union, kind) => {
+  const options = union => {
     const json = z.toJSONSchema(union, { io: 'input' });
-    const options = json.anyOf ?? json.oneOf;
-    assert.ok(Array.isArray(options), 'union branches not found');
-    const match = options.find(option => option.properties?.kind?.const === kind);
+    const branches = json.anyOf ?? json.oneOf;
+    assert.ok(Array.isArray(branches), 'union branches not found');
+    return branches;
+  };
+  const branch = (union, kind) => {
+    const match = options(union).find(option => option.properties?.kind?.const === kind);
     assert.ok(match, `branch ${kind} not found`);
     return match;
   };
   for (const kind of ['none', 'uniform']) {
     assert.deepEqual(branch(drawingFields.fill, kind), branch(drawingFields.batchFill, kind), kind);
   }
-  assert.equal(z.toJSONSchema(drawingFields.fill, { io: 'input' }).oneOf.length, 3);
-  assert.equal(z.toJSONSchema(drawingFields.batchFill, { io: 'input' }).oneOf.length, 2);
+  assert.equal(options(drawingFields.fill).length, 3);
+  assert.equal(options(drawingFields.batchFill).length, 2);
 });

@@ -142,6 +142,16 @@ public sealed class DrawingContractsTests
         Assert.Equal(VGCore.cdrFountainFillBlendType.cdrRainbowCCWFountainFillBlend, DrawingContracts.FountainBlendType("rainbow_ccw"));
         Assert.Equal(VGCore.cdrFountainFillBlendType.cdrCustomFountainFillBlend, DrawingContracts.FountainBlendType("custom"));
         Assert.Equal(0, (int)DrawingContracts.FountainBlendType("direct"));
+        Assert.Equal(1, (int)DrawingContracts.FountainBlendType("rainbow_cw"));
+        Assert.Equal(2, (int)DrawingContracts.FountainBlendType("rainbow_ccw"));
+        Assert.Equal(3, (int)DrawingContracts.FountainBlendType("custom"));
+        Assert.Equal(1, (int)DrawingContracts.FountainType("linear"));
+        Assert.Equal(2, (int)DrawingContracts.FountainType("radial"));
+        Assert.Equal(3, (int)DrawingContracts.FountainType("conical"));
+        Assert.Equal(4, (int)DrawingContracts.FountainType("square"));
+        Assert.Equal(0, (int)DrawingContracts.FountainSpread("pad"));
+        Assert.Equal(1, (int)DrawingContracts.FountainSpread("reflect"));
+        Assert.Equal(2, (int)DrawingContracts.FountainSpread("repeat"));
         Assert.Throws<OperationFailure>(() => DrawingContracts.FountainBlendType("rainbow"));
     }
     private static string Envelope(string payload) => "{\"request_id\":\"once\",\"document_id\":\"exact\",\"page_index\":1," + payload + "}";

@@ -152,6 +152,23 @@ internal static class DrawingContracts
         "custom" => VGCore.cdrFountainFillBlendType.cdrCustomFountainFillBlend,
         _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый blend_type fountain-заливки.")
     };
+    // linear→cdrLinearFountainFill(1), radial→cdrRadialFountainFill(2), conical→cdrConicalFountainFill(3), square→cdrSquareFountainFill(4); verified via installed typelib describe_api.
+    internal static VGCore.cdrFountainFillType FountainType(string type) => type switch
+    {
+        "linear" => VGCore.cdrFountainFillType.cdrLinearFountainFill,
+        "radial" => VGCore.cdrFountainFillType.cdrRadialFountainFill,
+        "conical" => VGCore.cdrFountainFillType.cdrConicalFountainFill,
+        "square" => VGCore.cdrFountainFillType.cdrSquareFountainFill,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый тип fountain-заливки.")
+    };
+    // pad→cdrFountainFillSpreadMethodPad(0), reflect→cdrFountainFillSpreadMethodReflect(1), repeat→cdrFountainFillSpreadMethodRepeat(2).
+    internal static VGCore.cdrFountainFillSpreadMethod FountainSpread(string spread) => spread switch
+    {
+        "pad" => VGCore.cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodPad,
+        "reflect" => VGCore.cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodReflect,
+        "repeat" => VGCore.cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodRepeat,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый spread fountain-заливки.")
+    };
     private static void Validate(IDrawingCommand value)
     {
         if(value is ImportCommand or PageCommand or ClipCommand){AssemblyContracts.Validate(value);return;}

@@ -151,6 +151,7 @@ internal sealed class DrawingTarget
             ("bounds_mm", Inspection.Bounds(shape.LeftX - left, shape.BottomY - bottom, shape.SizeWidth, shape.SizeHeight, 1 / unitPerMm)),
             ("rotation_deg", shape.RotationAngle), ("fill_type", (int)fill.Type), ("outline_type", (int)outline.Type), ("outline_width_mm", outline.Width / unitPerMm));
         if ((int)fill.Type == 1) value["fill_color"] = Styles.ColorInfo(Context, Context.Track(fill.UniformColor));
+        if ((int)fill.Type == 2) value["fountain"] = Styles.FountainInfo(Context, Context.Track(fill.Fountain));
         if ((int)outline.Type != 0) value["outline_color"] = Styles.ColorInfo(Context, Context.Track(outline.Color));
         if (shape.Type == VGCore.cdrShapeType.cdrTextShape)
         {

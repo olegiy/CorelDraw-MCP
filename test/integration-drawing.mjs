@@ -36,6 +36,28 @@ try {
   const [rect, ellipse, line] = created.created_static_ids;
   const style = await draw('corel_style_shapes', { static_ids: [rect, ellipse], fill: { kind: 'uniform', color: { model: 'rgb', r: 40, g: 120, b: 210 } }, outline: { kind: 'uniform', width_mm: 0.2, color: { model: 'cmyk', c: 0, m: 0, y: 0, k: 100 } } });
   assert.equal(style.items[0].fill_color.b, 210);
+  const gradientStops = [
+    { position: 0, color: { model: 'rgb', r: 255, g: 0, b: 0 } },
+    { position: 50, color: { model: 'rgb', r: 0, g: 200, b: 0 } },
+    { position: 100, color: { model: 'rgb', r: 0, g: 0, b: 255 } },
+  ];
+  const gradient = await draw('corel_style_shapes', { static_ids: [rect, ellipse], fill: { kind: 'fountain', type: 'linear', angle_deg: 45, stops: gradientStops } });
+  for (const item of gradient.items) {
+    assert.equal(item.fill_type, 2);
+    assert.equal(item.fountain.type, 'linear');
+    assert.equal(item.fountain.angle_deg, 45);
+    assert.deepEqual(item.fountain.stops, gradientStops);
+  }
+  const gradientState = await ok('corel_inspect_document', { document_id: doc });
+  const gradientAppearance = gradientState.shapes.find(shape => shape.static_id === rect).appearance;
+  assert.equal(gradientAppearance.fill_type, 2);
+  assert.deepEqual(gradientAppearance.fountain.stops, gradientStops);
+  const radial = await draw('corel_style_shapes', { static_ids: [ellipse], fill: { kind: 'fountain', type: 'radial',
+    stops: [{ position: 0, color: { model: 'rgb', r: 255, g: 0, b: 0 } }, { position: 100, color: { model: 'rgb', r: 0, g: 0, b: 255 } }],
+    center_offset_x_percent: 20, center_offset_y_percent: -30 } });
+  assert.equal(radial.items[0].fountain.type, 'radial');
+  assert.equal(radial.items[0].fountain.center_offset_x_percent, 20);
+  assert.equal(radial.items[0].fountain.center_offset_y_percent, -30);
   const copies = await draw('corel_duplicate_shapes', { static_ids: [rect], copies: 2, step_x_mm: 40, step_y_mm: 0 });
   assert.equal(copies.created_static_ids.length, 2);
   await draw('corel_transform_shapes', { static_ids: [line], action: 'rotate', angle_deg: 30, anchor_x_mm: 10, anchor_y_mm: 60 });

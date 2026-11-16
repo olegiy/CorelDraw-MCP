@@ -6,6 +6,8 @@ internal static class NativeExisting
     public static Action? TryPrepare(DrawingTarget target,IDrawingCommand command)
     {
         var c=target.Context;if(c.Session.ExecutionMode!=ExecutionMode.Hybrid)return null;
+        // Fountain fills have no VBA row encoding: they stay on the C# path regardless of target count (barrier before routing).
+        if(command is StyleCommand { Fill: FountainFill })return null;
         if(command is CreateShapesCommand create)
         {
             var decision=HybridPolicy.Select(command,new(create.Items.Length,true,false),ExecutionMode.Hybrid);
