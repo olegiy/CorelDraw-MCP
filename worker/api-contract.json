@@ -3051,6 +3051,48 @@
     },
     "release_ready": false
   },
+  "raster_sticker_assembly": {
+    "verified_at": "2026-11-16",
+    "coreldraw": "27.2.0.135",
+    "scope": ["duplicate", "grid_duplicate", "move", "rotate", "group", "ungroup", "move_to_layer"],
+    "engine": "csharp_including_hybrid_mode",
+    "supported_transparency": ["cdrUniformTransparency", "cdrFountainTransparency"],
+    "preconditions": "single cdrLens on a supported leaf, not frozen, no lens viewpoint; effects on group roots and other effects denied",
+    "typed_api": {
+      "Shape.Effects": "VGCore.Effects get_Effects()",
+      "Effects.Count": "Int32 get_Count()",
+      "Effects.Item": "VGCore.Effect get_Item(Int32)",
+      "Effect.Type": "VGCore.cdrEffectType get_Type()",
+      "Effect.Lens": "VGCore.EffectLens get_Lens()",
+      "EffectLens.Type": "VGCore.cdrLensType get_Type()",
+      "EffectLens.Frozen": "Boolean get_Frozen()",
+      "EffectLens.UseViewPoint": "Boolean get_UseViewPoint()",
+      "Transparency.Type": "VGCore.cdrTransparencyType get_Type()",
+      "Transparency.Frozen": "Boolean get_Frozen()",
+      "Transparency.MergeMode": "VGCore.cdrMergeMode get_MergeMode()",
+      "Transparency.AppliedTo": "VGCore.cdrTransparencyAppliedTo get_AppliedTo()",
+      "Transparency.Uniform": "Int32 get_Uniform()"
+    },
+    "api_validation": "SDK27 Context7, installed type library27.2, static reflection of generated VGCore.Interop.dll, compilation and live fixtures",
+    "sdk_urls": [
+      "https://community.coreldraw.com/sdk/api/draw/27/p/shape.effects",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/effects",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/effect",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/effectlens",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/transparency"
+    ],
+    "live_test": "CorelMcp.Worker.Tests.LiveEffectsTests",
+    "live_regression_filter": "FullyQualifiedName~LiveEffectsTests|FullyQualifiedName~LiveImportTests|FullyQualifiedName~LiveLayoutTests",
+    "live_tests_passed": 15,
+    "nonlive_policy_cases_passed": 10,
+    "nonlive_dotnet_passed": 180,
+    "nonlive_dotnet_skipped": 70,
+    "node_passed": 168,
+    "node_skipped": 2,
+    "evidence": "artifacts/worker-drawing/<fixture>/results.jsonl and PNG previews; fixtures owned by tests",
+    "limitations": "not arbitrary live-effect support or full visual-equivalence proof; scale/flip/align/shelf/update_batch stay denied for transparency",
+    "unsafe_fixture": "Synthetic UseViewPoint=true crashed CorelDRAW27.2 during owned-document Close; removed from live suite, predicate checked without COM. User CDR reopened from disk with explicit approval; no overwrite."
+  },
   "hybrid_runtime": {
     "catalog_tools": 39,
     "interop_rights": "unconfirmed",

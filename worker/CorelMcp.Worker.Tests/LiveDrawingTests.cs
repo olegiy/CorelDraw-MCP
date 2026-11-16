@@ -205,6 +205,21 @@ public sealed class LiveDrawingTests
                         {return new(true,Dto.Of(("status","unsupported"),("hresult",error.HResult)),Cleanup:cleanup.Snapshot());}
                     }
                 }
+                else if (request.Tool is "test_uniform_transparency" or "test_fountain_transparency")
+                {
+                    var ids = request.Args.GetProperty("static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+                    foreach (var shape in ShapeTraversal.Resolve(context, context.Track(doc.ActivePage), ids))
+                    {
+                        var transparency = context.Track(shape.Transparency);
+                        if (request.Tool == "test_uniform_transparency") transparency.ApplyUniformTransparency(request.Args.GetProperty("value").GetInt32());
+                        else context.Track(transparency.ApplyFountainTransparency(0, 100, VGCore.cdrFountainFillType.cdrLinearFountainFill, 0));
+                    }
+                }
+                else if (request.Tool == "test_magnify_lens")
+                {
+                    var shape = ShapeTraversal.Resolve(context, context.Track(doc.ActivePage), [request.Args.GetProperty("static_id").GetInt32()])[0];
+                    context.Track(shape.CreateLens(VGCore.cdrLensType.cdrLensMagnify, 2));
+                }
                 else if (request.Tool is "test_text_mixed" or "test_text_character")
                 {
                     var inspectedPage=request.Args.TryGetProperty("page_index",out var pageIndex)
@@ -291,7 +306,7 @@ public sealed class LiveDrawingTests
             foreach (var doc in adapter!.Owned.ToArray())
                 try { var result = Call("corel_close_document", new { request_id = Guid.NewGuid().ToString(), document_id = doc, discard_changes = true }).GetAwaiter().GetResult(); if (!result.Ok) failures.Add(JsonSerializer.Serialize(result, Protocol.JsonOptions)); } catch (Exception error) { failures.Add(error.Message); }
             File.WriteAllText(Path.Combine(Directory, "cleanup.json"), JsonSerializer.Serialize(new { completed = failures.Count == 0, failures }));
-            host.CompleteInput(); host.Completion.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult(); Assert.Empty(failures);
+            host.CompleteInput(); host.Completion.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult(); Assert.True(failures.Count == 0, Directory + "\n" + string.Join("\n", failures));
         }
     }
 }

@@ -16,7 +16,7 @@ internal static class NativeExisting
         int[] ids=command switch {StyleCommand style=>style.StaticIds,MoveCommand move=>move.StaticIds,_=>[]};
         if(ids.Length<20)return null;
         var shapes=target.Resolve(ids,bitmap:command is MoveCommand);
-        bool supported=shapes.All(s=>(int)s.Type is 1 or 2 or 3 or 4 or 6);
+        bool supported=shapes.All(s=>(int)s.Type is 1 or 2 or 3 or 4 or 6 && c.Track(s.Effects).Count==0);
         long textUnits=0;
         foreach(var shape in shapes)if(shape.Type==VGCore.cdrShapeType.cdrTextShape)
         {

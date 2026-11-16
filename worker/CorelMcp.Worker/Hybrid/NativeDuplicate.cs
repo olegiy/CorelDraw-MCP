@@ -43,6 +43,7 @@ internal static class NativeDuplicate
                 int type=(int)shape.Type;
                 nodes[i]=new(type,tree[i].ParentId is { } id?indices[id]:-1,ComScope.Identity(c.Track(shape.Layer)),bounds,shape.RotationAngle,Content(target,shape,type));
                 supported&=nodes[i].Type is 1 or 2 or 3 or 4 or 6 or 7;
+                supported&=c.Track(shape.Effects).Count==0;
                 if(nodes[i].Type!=7)supported&=(int)c.Track(shape.Fill).Type is 0 or 1 && (int)c.Track(shape.Outline).Type is 0 or 1;
                 if(shape.Type==VGCore.cdrShapeType.cdrTextShape)
                 {

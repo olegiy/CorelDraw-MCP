@@ -73,7 +73,8 @@ internal static class Inspection
         } catch { }
         var result = Dto.Of(("static_id", shape.StaticID), ("name", shape.Name), ("type", (int)shape.Type), ("layer", context.Track(shape.Layer).Name),
             ("selected", selected), ("depth", depth), ("parent_static_id", parent), ("bounds", Bounds(shape.LeftX, shape.BottomY, shape.SizeWidth, shape.SizeHeight, 1)),
-            ("bounds_mm", Bounds(shape.LeftX, shape.BottomY, shape.SizeWidth, shape.SizeHeight, factor)), ("rotation", shape.RotationAngle), ("appearance", appearance));
+            ("bounds_mm", Bounds(shape.LeftX, shape.BottomY, shape.SizeWidth, shape.SizeHeight, factor)), ("rotation", shape.RotationAngle), ("appearance", appearance),
+            ("effects", EffectInfo(context, shape)));
         if (args.IncludeText)
         {
             string? text = null;
@@ -88,5 +89,39 @@ internal static class Inspection
             result["text"] = text; result["text_truncated"] = truncated;
         }
         return result;
+    }
+    private static object EffectInfo(OperationContext context, VGCore.Shape shape)
+    {
+        int? count = null; List<object> items = [];
+        try
+        {
+            var effects = context.Track(shape.Effects); count = effects.Count;
+            for (int index = 1; index <= Math.Min(count.Value, 32); index++)
+            {
+                var effect = context.Track(effects[index]); var type = effect.Type;
+                var item = Dto.Of(("type", (int)type), ("name", type.ToString()));
+                if (type == VGCore.cdrEffectType.cdrLens)
+                {
+                    var lens = context.Track(effect.Lens);
+                    item["lens"] = Dto.Of(("type", (int)lens.Type), ("name", lens.Type.ToString()), ("frozen", lens.Frozen), ("uses_viewpoint", lens.UseViewPoint));
+                    var transparency = context.Track(shape.Transparency); var transparencyType = transparency.Type;
+                    var properties = Dto.Of(("type", (int)transparencyType), ("name", transparencyType.ToString()));
+                    if (transparencyType != VGCore.cdrTransparencyType.cdrNoTransparency)
+                    {
+                        properties["frozen"] = transparency.Frozen;
+                        properties["merge_mode"] = (int)transparency.MergeMode;
+                        properties["applied_to"] = (int)transparency.AppliedTo;
+                    }
+                    if (transparencyType == VGCore.cdrTransparencyType.cdrUniformTransparency) properties["uniform"] = transparency.Uniform;
+                    item["transparency"] = properties;
+                }
+                items.Add(item);
+            }
+            return Dto.Of(("count", count), ("items", items), ("complete", count >= 0 && count == items.Count));
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            return Dto.Of(("count", count), ("items", items), ("complete", false), ("reason", "effect_read_failed"));
+        }
     }
 }

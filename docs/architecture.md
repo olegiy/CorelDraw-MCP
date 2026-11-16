@@ -56,6 +56,15 @@ Revision bitmap использует полный CropEnvelope и матрицу
 Boolean/convert/style не получают bitmap. Import diagnostics возвращает наблюдаемые шрифты/effects,
 но font/effect/source fidelity остаются unknown; доступность семейства в Windows не доказывает отсутствие подмены.
 
+Сборка наклеек дополнительно допускает единственный local cdrLens, представляющий обычную или градиентную
+прозрачность отдельного объекта: duplicate/grid, move/rotate, group/ungroup и move-to-layer. Frozen, отдельный
+viewpoint, эффекты самой группы и прочие эффекты остаются preflight-отказом. Scale/flip, align/shelf-layout,
+style/convert/boolean и публичный update_batch это разрешение не наследуют. NativeExisting и NativeDuplicate
+исключают effects из VBA-маршрута; bitmap/прозрачность обрабатываются C# до первой мутации без удаления эффекта.
+Inspection возвращает ограниченный список effects с complete=false при COM-ошибке или превышении лимита32;
+это наблюдаемые параметры, не доказательство полного сходства. Live-регрессия сверяет цвета JPEG и копии в PNG,
+структуру/границы/прозрачность, исходник и контрольный документ; unsafe viewpoint guard проверяется без COM.
+
 ## Host, история и обновление
 
 Policy v3 пересекает явную capability table с MCP-каталогом. Системные поля скрыты во всех корневых

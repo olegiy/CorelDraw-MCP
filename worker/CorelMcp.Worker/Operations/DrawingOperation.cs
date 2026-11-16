@@ -5,7 +5,7 @@ internal static class DrawingOperation
     public static object Execute(OperationContext context, DrawingArguments args)
     {
         context.Stage("drawing_preflight");
-        var target = new DrawingTarget(context, args.PageIndex);
+        var target = new DrawingTarget(context, args.PageIndex, args.Command);
         Action execute = Hybrid.NativeExisting.TryPrepare(target,args.Command) ?? (args.Command switch
         {
             Hybrid.CreateBatchCommand or Hybrid.UpdateBatchCommand => Hybrid.NativeDrawing.Prepare(target,args.Command),
@@ -53,8 +53,10 @@ internal sealed class DrawingTarget
     public VGCore.Document Document => Context.Target!.Document;
     public VGCore.Page Page { get; }
     private readonly double unitPerMm, left, bottom;
-    public DrawingTarget(OperationContext context, int pageIndex)
+    private readonly bool allowTransparency;
+    public DrawingTarget(OperationContext context, int pageIndex, IDrawingCommand? command = null)
     {
+        allowTransparency = command is DuplicateCommand or GridCommand or MoveCommand or RotateCommand or MoveToLayerCommand or GroupCommand;
         Context = context; Page = context.Registry.Page(context.Target!, context.Scope, pageIndex);
         if (context.Track(context.Track(Document.ActivePage).TreeNode).Handle != context.Track(Page.TreeNode).Handle)
         {
@@ -108,11 +110,25 @@ internal sealed class DrawingTarget
         if ((type is not (1 or 2 or 3 or 4 or 6 or 7) && !(bitmap && type == 5)) || (!groups && type == 7))
             throw new OperationFailure("UNSUPPORTED_SHAPE", "Тип фигуры не поддерживается этой операцией: " + shape.StaticID);
         if (shape.Locked || !Context.Track(shape.Layer).Editable) throw new OperationFailure("LOCKED_TARGET", "Фигура или её слой заблокированы: " + shape.StaticID);
-        if (Context.Track(shape.Layer).IsSpecialLayer || Context.Track(shape.Effects).Count > 0)
-            throw new OperationFailure("UNSUPPORTED_SHAPE", "Специальный слой или live effects не поддерживаются.");
+        if (Context.Track(shape.Layer).IsSpecialLayer)
+            throw new OperationFailure("UNSUPPORTED_SHAPE", "Специальный слой не поддерживается: " + shape.StaticID);
+        var effects = Context.Track(shape.Effects);
+        if (effects.Count > 0)
+        {
+            if (!allowTransparency || type == 7 || effects.Count != 1 || Context.Track(effects[1]).Type != VGCore.cdrEffectType.cdrLens)
+                throw new OperationFailure("UNSUPPORTED_SHAPE", "Эффекты этой фигуры не поддерживаются операцией: " + shape.StaticID);
+            // CorelDRAW stores ordinary object transparency in the lens collection too.
+            var transparency = Context.Track(shape.Transparency); var lens = Context.Track(Context.Track(effects[1]).Lens);
+            if (transparency.Type is not (VGCore.cdrTransparencyType.cdrUniformTransparency or VGCore.cdrTransparencyType.cdrFountainTransparency)
+                || !IsLocalTransparency(transparency.Type, transparency.Frozen, lens.Frozen, lens.UseViewPoint))
+                throw new OperationFailure("UNSUPPORTED_SHAPE", "Поддерживается только незамороженная обычная или градиентная прозрачность без отдельной точки обзора: " + shape.StaticID);
+        }
         var clip = shape.PowerClip;
         if (clip is not null) { Context.Track(clip); throw new OperationFailure("UNSUPPORTED_SHAPE", "Для PowerClip используйте отдельную операцию."); }
     }
+    internal static bool IsLocalTransparency(VGCore.cdrTransparencyType type, bool frozen, bool lensFrozen, bool usesViewpoint)
+        => type is VGCore.cdrTransparencyType.cdrUniformTransparency or VGCore.cdrTransparencyType.cdrFountainTransparency
+            && !frozen && !lensFrozen && !usesViewpoint;
     public int[] TreeIds(VGCore.Shape shape) => new[] { shape.StaticID }.Concat(shape.Type == VGCore.cdrShapeType.cdrGroupShape
         ? ShapeTraversal.Walk(Context, Context.Track(shape.Shapes)).Select(item => item.Shape.StaticID) : []).ToArray();
     public void Observe(IEnumerable<int> before, params VGCore.Shape[] after)
