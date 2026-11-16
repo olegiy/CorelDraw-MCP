@@ -26,3 +26,15 @@ test('update batch requires a concrete edit and unique IDs with strict transform
  assert(schema.safeParse({...binding,items:[item]}).success);
  for(const items of [[{static_id:4}],[item,item],[{...item,transform:{action:'move',dx_mm:Infinity,dy_mm:3}}],[{...item,transform:{action:'run',macro:'Anything'}}]])assert(!schema.safeParse({...binding,items}).success);
 });
+test('batch styles remain uniform-only and reject fountain fills',()=>{
+ const fountain={kind:'fountain',type:'linear',stops:[
+  {position:0,color:{model:'rgb',r:255,g:0,b:0}},
+  {position:50,color:{model:'rgb',r:0,g:255,b:0}},
+  {position:100,color:{model:'rgb',r:0,g:0,b:255}}]};
+ const create=batchToolDefinitions.corel_create_batch.schema;
+ assert(!create.safeParse({...binding,layer_id:'layer',items:[{...rectangle,fill:fountain}]}).success);
+ assert(create.safeParse({...binding,layer_id:'layer',items:[{...rectangle,fill:{kind:'uniform',color:{model:'rgb',r:0,g:0,b:0}}}]}).success);
+ const update=batchToolDefinitions.corel_update_batch.schema;
+ assert(!update.safeParse({...binding,items:[{static_id:4,fill:fountain}]}).success);
+ assert(update.safeParse({...binding,items:[{static_id:4,fill:{kind:'none'}}]}).success);
+});

@@ -56,3 +56,44 @@ test('nested variants reject wrong fields, nulls, unsupported text and excess ou
   reject('corel_create_text', { font_size_pt: 0 });
   reject('corel_convert_to_curves', { static_ids: [] });
 });
+
+const rgb = (r, g, b) => ({ model: 'rgb', r, g, b });
+const stops = positions => positions.map(position => ({ position, color: rgb(0, 0, 0) }));
+const fountain = { kind: 'fountain', type: 'linear', stops: [
+  { position: 0, color: rgb(255, 0, 0) },
+  { position: 50, color: rgb(0, 255, 0) },
+  { position: 100, color: rgb(0, 0, 255) },
+] };
+
+test('fountain fill accepts valid gradients for every type and passes values through unchanged', () => {
+  const schema = toolDefinitions.corel_style_shapes.schema;
+  const gradients = [
+    fountain,
+    { ...fountain, stops: stops([0, 100]) },
+    { ...fountain, type: 'radial', center_offset_x_percent: 10, center_offset_y_percent: -10 },
+    { ...fountain, type: 'conical', angle_deg: 45, center_offset_x_percent: 25 },
+    { ...fountain, type: 'square', angle_deg: -30, center_offset_y_percent: 0 },
+    { ...fountain, type: 'conical', angle_deg: 0, center_offset_x_percent: -100, center_offset_y_percent: 100,
+      spread: 'reflect', steps: 256, edge_pad: 5, mid_point: 50, smooth_blend: true, blend_type: 'direct' },
+  ];
+  for (const fill of gradients) {
+    assert.deepEqual(schema.parse({ ...common, static_ids: [1], fill }).fill, fill);
+  }
+});
+
+test('fountain fill rejects invalid stop positions and counts', () => {
+  const schema = toolDefinitions.corel_style_shapes.schema;
+  for (const positions of [[0, 101], [0, 50, 50, 100], [0, 70, 30, 100], [0], [0, ...Array.from({ length: 15 }, (_, i) => i + 1), 100]]) {
+    const fill = { ...fountain, stops: stops(positions) };
+    assert.equal(schema.safeParse({ ...common, static_ids: [1], fill }).success, false, JSON.stringify(positions));
+  }
+});
+
+test('fountain fill rejects angle on radial and center offsets on linear', () => {
+  const schema = toolDefinitions.corel_style_shapes.schema;
+  for (const fill of [
+    { ...fountain, type: 'radial', angle_deg: 45 },
+    { ...fountain, type: 'linear', center_offset_x_percent: 10 },
+    { ...fountain, type: 'linear', center_offset_y_percent: -10 },
+  ]) assert.equal(schema.safeParse({ ...common, static_ids: [1], fill }).success, false, JSON.stringify(fill));
+});

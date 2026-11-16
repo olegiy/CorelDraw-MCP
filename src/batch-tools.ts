@@ -2,9 +2,9 @@ import * as z from 'zod';
 import type { Definition } from './tools.js';
 import { drawingFields } from './drawing-tools.js';
 
-const {id,coord,dimension,fill,outline,safeText}=drawingFields;
+const {id,coord,dimension,batchFill,outline,safeText}=drawingFields;
 const common={request_id:z.string().min(1).max(200),document_id:id,page_index:z.number().int().positive(),deadline_seconds:z.number().int().min(1).max(3600).default(600)};
-const styles={fill:fill.optional(),outline:outline.optional()};
+const styles={fill:batchFill.optional(),outline:outline.optional()};
 const itemCommon={item_key:safeText.min(1).max(100),...styles,rotation_deg:z.number().min(-360000).max(360000).optional()};
 const rectangle={x_mm:coord,y_mm:coord,width_mm:dimension,height_mm:dimension};
 const createItem=z.discriminatedUnion('kind',[

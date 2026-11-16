@@ -27,9 +27,29 @@ const color = z.discriminatedUnion('model', [
   z.strictObject({ model: z.literal('rgb'), r: z.number().int().min(0).max(255), g: z.number().int().min(0).max(255), b: z.number().int().min(0).max(255) }),
   z.strictObject({ model: z.literal('cmyk'), c: z.number().int().min(0).max(100), m: z.number().int().min(0).max(100), y: z.number().int().min(0).max(100), k: z.number().int().min(0).max(100) }),
 ]);
-const fill = z.discriminatedUnion('kind', [z.strictObject({ kind: z.literal('none') }), z.strictObject({ kind: z.literal('uniform'), color })]);
+const fountainFill = z.strictObject({
+  kind: z.literal('fountain'),
+  type: z.enum(['linear', 'radial', 'conical', 'square']),
+  stops: z.array(z.strictObject({ position: z.number().int(), color })).min(2).max(16),
+  angle_deg: z.number().min(-360).max(360).optional(),
+  center_offset_x_percent: z.number().min(-100).max(100).optional(),
+  center_offset_y_percent: z.number().min(-100).max(100).optional(),
+  spread: z.enum(['pad', 'reflect', 'repeat']).optional(),
+  steps: z.number().int().min(2).max(999).optional(),
+  edge_pad: z.number().int().min(0).max(100).optional(),
+  mid_point: z.number().int().min(0).max(100).optional(),
+  smooth_blend: z.boolean().optional(),
+  blend_type: z.enum(['direct']).optional(),
+})
+  .refine(value => value.stops.at(0)?.position === 0 && value.stops.at(-1)?.position === 100, 'Крайние стопы fountain должны иметь позиции 0 и 100.')
+  .refine(value => value.stops.every((stop, index) => index === 0 || stop.position > value.stops[index - 1]!.position), 'Позиции стопов fountain должны строго возрастать и быть уникальными.')
+  .refine(value => value.stops.slice(1, -1).every(stop => stop.position >= 1 && stop.position <= 99), 'Промежуточные стопы fountain должны быть в диапазоне 1..99.')
+  .refine(value => value.angle_deg === undefined || value.type !== 'radial', 'angle_deg применим только к fountain linear/conical/square.')
+  .refine(value => value.type !== 'linear' || value.center_offset_x_percent === undefined && value.center_offset_y_percent === undefined, 'center_offset_*_percent применимы только к fountain radial/square/conical.');
+const fill = z.discriminatedUnion('kind', [z.strictObject({ kind: z.literal('none') }), z.strictObject({ kind: z.literal('uniform'), color }), fountainFill]);
 const outline = z.discriminatedUnion('kind', [z.strictObject({ kind: z.literal('none') }), z.strictObject({ kind: z.literal('uniform'), color, width_mm: dimension })]);
-export const drawingFields = { id, coord, dimension, fill, outline, safeText };
+const batchFill = z.discriminatedUnion('kind', [z.strictObject({ kind: z.literal('none') }), z.strictObject({ kind: z.literal('uniform'), color })]);
+export const drawingFields = { id, coord, dimension, fill, batchFill, outline, safeText };
 const anchor = { anchor_x_mm: coord, anchor_y_mm: coord };
 const transform = z.discriminatedUnion('action', [
   z.strictObject({ ...common, static_ids: ids, action: z.literal('move'), dx_mm: coord, dy_mm: coord }),
@@ -138,7 +158,7 @@ export const drawingToolDefinitions: Record<string, Definition> = {
   corel_duplicate_shapes: tool(z.strictObject({ ...common, static_ids: ids, copies: z.number().int().min(1).max(1000), step_x_mm: coord, step_y_mm: coord })
     .refine(value => value.static_ids.length * value.copies <= 1000, 'Допустимо до 1000 новых фигур, включая содержимое групп.'), 'Дублировать точные StaticID с заданным шагом в мм, сохраняя исходники. До 1000 новых фигур с учётом групп. Возвращает job_id.'),
   corel_style_shapes: tool(z.strictObject({ ...common, static_ids: ids, fill: fill.optional(), outline: outline.optional() })
-    .refine(value => value.fill !== undefined || value.outline !== undefined, 'Укажите fill или outline.'), 'Задать явную заливку и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.'),
+    .refine(value => value.fill !== undefined || value.outline !== undefined, 'Укажите fill или outline.'), 'Задать явную заливку (uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.'),
   corel_manage_layers: tool(layers, 'Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id.'),
   corel_group_shapes: tool(z.discriminatedUnion('action', [
     z.strictObject({ ...common, action: z.literal('group'), static_ids: ids.min(2) }),
