@@ -29,10 +29,13 @@ internal abstract record ColorSpec;
 internal sealed record RgbSpec(int R, int G, int B) : ColorSpec;
 internal sealed record CmykSpec(int C, int M, int Y, int K) : ColorSpec;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
-[JsonDerivedType(typeof(NoFill), "none"), JsonDerivedType(typeof(UniformFill), "uniform")]
+[JsonDerivedType(typeof(NoFill), "none"), JsonDerivedType(typeof(UniformFill), "uniform"), JsonDerivedType(typeof(FountainFill), "fountain")]
 internal abstract record FillSpec;
 internal sealed record NoFill : FillSpec;
 internal sealed record UniformFill(ColorSpec Color) : FillSpec;
+internal sealed record FountainStop(int Position, ColorSpec Color);
+internal sealed record FountainFill(string Type, FountainStop[] Stops, double? AngleDeg = null, double? CenterOffsetXPercent = null, double? CenterOffsetYPercent = null,
+    string? Spread = null, int? Steps = null, int? EdgePad = null, int? MidPoint = null, bool? SmoothBlend = null, string? BlendType = null) : FillSpec;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(NoOutline), "none"), JsonDerivedType(typeof(UniformOutline), "uniform")]
 internal abstract record OutlineSpec;
@@ -118,6 +121,37 @@ internal static class DrawingContracts
             case CmykSpec cmyk: foreach (var n in new[] { cmyk.C, cmyk.M, cmyk.Y, cmyk.K }) OperationContracts.Range(n, 0, 100, "CMYK"); break;
         }
     }
+    internal static void ValidateFountain(FountainFill fountain)
+    {
+        Check(fountain.Type is "linear" or "radial" or "conical" or "square");
+        Check(fountain.Stops.Length is >= 2 and <= 16);
+        Check(fountain.Stops[0].Position == 0 && fountain.Stops[^1].Position == 100);
+        for (var index = 1; index < fountain.Stops.Length; index++) Check(fountain.Stops[index].Position > fountain.Stops[index - 1].Position);
+        for (var index = 1; index < fountain.Stops.Length - 1; index++) Check(fountain.Stops[index].Position is >= 1 and <= 99);
+        foreach (var stop in fountain.Stops) Color(stop.Color);
+        if (fountain.AngleDeg is { } angle)
+        {
+            Check(fountain.Type is not "radial");
+            Check(double.IsFinite(angle) && angle is >= -360 and <= 360);
+        }
+        if (fountain.CenterOffsetXPercent is not null || fountain.CenterOffsetYPercent is not null) Check(fountain.Type is not "linear");
+        if (fountain.CenterOffsetXPercent is { } x) Check(double.IsFinite(x) && x is >= -100 and <= 100);
+        if (fountain.CenterOffsetYPercent is { } y) Check(double.IsFinite(y) && y is >= -100 and <= 100);
+        Check(fountain.Spread is null or "pad" or "reflect" or "repeat");
+        if (fountain.Steps is { } steps) OperationContracts.Range(steps, 2, 999, "steps");
+        if (fountain.EdgePad is { } edgePad) OperationContracts.Range(edgePad, 0, 100, "edge_pad");
+        if (fountain.MidPoint is { } midPoint) OperationContracts.Range(midPoint, 0, 100, "mid_point");
+        Check(fountain.BlendType is null or "direct" or "rainbow_cw" or "rainbow_ccw" or "custom");
+    }
+    // direct→cdrDirectFountainFillBlend(0), rainbow_cw→cdrRainbowCWFountainFillBlend(1), rainbow_ccw→cdrRainbowCCWFountainFillBlend(2), custom→cdrCustomFountainFillBlend(3); verified via installed typelib describe_api.
+    internal static VGCore.cdrFountainFillBlendType FountainBlendType(string blendType) => blendType switch
+    {
+        "direct" => VGCore.cdrFountainFillBlendType.cdrDirectFountainFillBlend,
+        "rainbow_cw" => VGCore.cdrFountainFillBlendType.cdrRainbowCWFountainFillBlend,
+        "rainbow_ccw" => VGCore.cdrFountainFillBlendType.cdrRainbowCCWFountainFillBlend,
+        "custom" => VGCore.cdrFountainFillBlendType.cdrCustomFountainFillBlend,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый blend_type fountain-заливки.")
+    };
     private static void Validate(IDrawingCommand value)
     {
         if(value is ImportCommand or PageCommand or ClipCommand){AssemblyContracts.Validate(value);return;}
@@ -158,6 +192,7 @@ internal static class DrawingContracts
             case StyleCommand style:
                 Ids(style.StaticIds); Check(style.Fill is not null || style.Outline is not null);
                 if (style.Fill is UniformFill fill) Color(fill.Color);
+                if (style.Fill is FountainFill fountain) ValidateFountain(fountain);
                 if (style.Outline is UniformOutline outline) { Color(outline.Color); OperationContracts.Dimension(outline.WidthMm); }
                 break;
             case CreateLayerCommand create: Id(create.PageId); Name(create.Name); break;

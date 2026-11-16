@@ -35,6 +35,9 @@ internal static class NativeBatchContracts
             }
             StyleCommand? Style(Dictionary<string,JsonElement> item,int id)
             {
+                if(item.TryGetValue("fill",out var fill)&&fill.ValueKind==JsonValueKind.Object
+                    &&fill.TryGetProperty("kind",out var kind)&&kind.ValueKind==JsonValueKind.String&&kind.GetString()=="fountain")
+                    throw new OperationFailure("BATCH_FILL_UNSUPPORTED","Пакетные операции принимают только заливки none/uniform; fountain применяется через corel_style_shapes.");
                 var payload=new Dictionary<string,object?>{{"static_ids",new[]{id}}};
                 foreach(var key in new[]{"fill","outline"})if(item.TryGetValue(key,out var value))payload.Add(key,value);
                 return payload.Count==1?null:(StyleCommand)ParseExisting("corel_style_shapes",payload);

@@ -35,7 +35,7 @@
 | `corel_boolean_shapes` | Weld/trim/intersect двух фигур с явными keep_left/keep_right. Trim: LEFT вырезает RIGHT. Возвращает фактические ID через job_id. |
 | `corel_group_shapes` | Сгруппировать фигуры одного слоя или разгруппировать ровно одну группу на один уровень. Возвращает job_id. |
 | `corel_manage_layers` | Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id. |
-| `corel_style_shapes` | Задать явную заливку (uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id. |
+| `corel_style_shapes` | Задать явную заливку (none, uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id. |
 | `corel_duplicate_shapes` | Дублировать точные StaticID с заданным шагом в мм, сохраняя исходники. До 1000 новых фигур с учётом групп. Возвращает job_id. |
 | `corel_transform_shapes` | Переместить, масштабировать, повернуть или отразить точные StaticID. Явный anchor в мм; scale только положительный. Возвращает job_id. |
 | `corel_create_shapes` | Создать до 100 прямоугольников, эллипсов или линий на точном слое. Координаты в мм от нижнего левого угла страницы. Возвращает job_id. |
@@ -146,7 +146,7 @@ placements/unplaced/layout_revision, сохраняя исходник. Apply т
   "corel_create_shapes": "Создать до 100 прямоугольников, эллипсов или линий на точном слое. Координаты в мм от нижнего левого угла страницы. Возвращает job_id.",
   "corel_transform_shapes": "Переместить, масштабировать, повернуть или отразить точные StaticID. Явный anchor в мм; scale только положительный. Возвращает job_id.",
   "corel_duplicate_shapes": "Дублировать точные StaticID с заданным шагом в мм, сохраняя исходники. До 1000 новых фигур с учётом групп. Возвращает job_id.",
-  "corel_style_shapes": "Задать явную заливку (uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.",
+  "corel_style_shapes": "Задать явную заливку (none, uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.",
   "corel_manage_layers": "Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id.",
   "corel_group_shapes": "Сгруппировать фигуры одного слоя или разгруппировать ровно одну группу на один уровень. Возвращает job_id.",
   "corel_boolean_shapes": "Weld/trim/intersect двух фигур с явными keep_left/keep_right. Trim: LEFT вырезает RIGHT. Возвращает фактические ID через job_id.",

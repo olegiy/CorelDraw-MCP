@@ -28,4 +28,24 @@ public sealed class NativeBatchTests
         var batch=Assert.IsType<UpdateBatchCommand>(Parse("corel_update_batch","\"items\":["+item+"]").Command);
         Assert.Equal(4,batch.Items[0].StaticId);Assert.IsType<MoveCommand>(batch.Items[0].Transform);
     }
+    [Fact] public void FountainFillIsRefusedBeforeBatchRouting()
+    {
+        const string valid="{\"kind\":\"fountain\",\"type\":\"linear\",\"stops\":[{\"position\":0,\"color\":{\"model\":\"rgb\",\"r\":255,\"g\":0,\"b\":0}},{\"position\":100,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":255}}]}";
+        const string invalid="{\"kind\":\"fountain\",\"type\":\"linear\",\"stops\":[{\"position\":50,\"color\":{\"model\":\"rgb\",\"r\":255,\"g\":0,\"b\":0}}]}";
+        foreach(var fill in new[]{valid,invalid})
+        {
+            var create=Assert.Throws<OperationFailure>(()=>Parse("corel_create_batch",
+                "\"layer_id\":\"layer\",\"items\":[{\"item_key\":\"r\",\"kind\":\"rectangle\",\"x_mm\":0,\"y_mm\":0,\"width_mm\":12,\"height_mm\":8,\"fill\":"+fill+"}]"));
+            Assert.Equal("BATCH_FILL_UNSUPPORTED",create.Code);Assert.False(create.Applied);
+            var update=Assert.Throws<OperationFailure>(()=>Parse("corel_update_batch","\"items\":[{\"static_id\":4,\"fill\":"+fill+"}]"));
+            Assert.Equal("BATCH_FILL_UNSUPPORTED",update.Code);Assert.False(update.Applied);
+        }
+    }
+    [Fact] public void UniformAndNoFillsStillReachBatchStyles()
+    {
+        var create=Parse("corel_create_batch","\"layer_id\":\"layer\",\"items\":[{\"item_key\":\"r\",\"kind\":\"rectangle\",\"x_mm\":0,\"y_mm\":0,\"width_mm\":12,\"height_mm\":8,\"fill\":{\"kind\":\"uniform\",\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0}}}]");
+        Assert.IsType<UniformFill>(Assert.IsType<CreateBatchCommand>(create.Command).Items[0].Fill);
+        var update=Parse("corel_update_batch","\"items\":[{\"static_id\":4,\"fill\":{\"kind\":\"none\"}}]");
+        Assert.IsType<NoFill>(Assert.IsType<UpdateBatchCommand>(update.Command).Items[0].Fill);
+    }
 }

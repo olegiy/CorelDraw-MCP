@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as z from 'zod';
 import { toolDefinitions } from '../dist/tools.js';
+import { drawingFields } from '../dist/drawing-tools.js';
 
 const common = { request_id: 'once', document_id: 'exact', page_index: 1 };
 export const examples = {
@@ -96,4 +97,40 @@ test('fountain fill rejects angle on radial and center offsets on linear', () =>
     { ...fountain, type: 'linear', center_offset_x_percent: 10 },
     { ...fountain, type: 'linear', center_offset_y_percent: -10 },
   ]) assert.equal(schema.safeParse({ ...common, static_ids: [1], fill }).success, false, JSON.stringify(fill));
+});
+
+test('fountain fill accepts every whitelisted blend_type and rejects unknown names', () => {
+  const schema = toolDefinitions.corel_style_shapes.schema;
+  for (const blend_type of ['direct', 'rainbow_cw', 'rainbow_ccw', 'custom']) {
+    const fill = { ...fountain, blend_type };
+    assert.deepEqual(schema.parse({ ...common, static_ids: [1], fill }).fill, fill, blend_type);
+  }
+  for (const blend_type of ['rainbow', 'direct ', 'DIRECT', 'linear', '']) {
+    assert.equal(schema.safeParse({ ...common, static_ids: [1], fill: { ...fountain, blend_type } }).success, false, JSON.stringify(blend_type));
+  }
+});
+
+test('fountain fill accepts the 16-stop boundary and rejects 17', () => {
+  const schema = toolDefinitions.corel_style_shapes.schema;
+  const sixteen = [0, ...Array.from({ length: 14 }, (_, i) => i + 1), 100];
+  assert.equal(sixteen.length, 16);
+  const fill = { ...fountain, stops: stops(sixteen) };
+  assert.deepEqual(schema.parse({ ...common, static_ids: [1], fill }).fill, fill);
+  assert.equal(schema.safeParse({ ...common, static_ids: [1], fill: { ...fountain, stops: stops([0, ...Array.from({ length: 15 }, (_, i) => i + 1), 100]) } }).success, false);
+});
+
+test('fill and batchFill keep field-level parity for the shared none/uniform branches', () => {
+  const branch = (union, kind) => {
+    const json = z.toJSONSchema(union, { io: 'input' });
+    const options = json.anyOf ?? json.oneOf;
+    assert.ok(Array.isArray(options), 'union branches not found');
+    const match = options.find(option => option.properties?.kind?.const === kind);
+    assert.ok(match, `branch ${kind} not found`);
+    return match;
+  };
+  for (const kind of ['none', 'uniform']) {
+    assert.deepEqual(branch(drawingFields.fill, kind), branch(drawingFields.batchFill, kind), kind);
+  }
+  assert.equal(z.toJSONSchema(drawingFields.fill, { io: 'input' }).oneOf.length, 3);
+  assert.equal(z.toJSONSchema(drawingFields.batchFill, { io: 'input' }).oneOf.length, 2);
 });
