@@ -104,7 +104,7 @@
 - [ ] **Step 1:** Failing node tests: валидные uniform/fountain/none проходят; value 101, freeze без kind, angle при radial, неизвестный merge_mode → throw; catalog listTools == 40.
 - [ ] **Step 2:** Failing worker contract tests + live test: uniform 40 на rect → EffectInfo transparency type uniform value 40; fountain linear 0→100 applied_to outline → read-back applied_to==1; none снимает; frozen lens/locked/special layer → отказ до мутации; группа с неподдержанным потомком (bitmap) → отказ до мутации, группа из поддержанных фигур → применяется ко всем потомкам; style на прозрачной цели по-прежнему отказ (барьер).
 - [ ] **Step 3:** Запустить оба набора → FAIL.
-- [ ] **Step 4:** Реализовать zod/DTO/Transparency.cs (`Shape.Transparency.ApplyUniformTransparency/ApplyFountainTransparency/ApplyNoTransparency`, AppliedTo/MergeMode до применения, Freeze после; проверки Frozen/locked/effects до мутации); sync-поверхности (tools.md 3 блока, policy.py, счётчики 40, catalog fixture, typed policy tests).
+- [ ] **Step 4:** Реализовать zod/DTO/Transparency.cs (`Shape.Transparency.ApplyUniformTransparency/ApplyFountainTransparency/ApplyNoTransparency`, AppliedTo/MergeMode до применения, Freeze после; проверки Frozen/locked/effects до мутации; группа — только если все потомки поддержаны); sync-поверхности (tools.md 3 блока, policy.py, счётчики 40, catalog fixture, typed policy tests). Плюс полиш из ревью T4: в Styles.cs кэшировать `colors.Count` один раз; комментарий «percent, never target.U()» перенести к аргументам CenterX/CenterY и переименовать/прокомментировать поля PreparedFountain так, чтобы percent-семантика была очевидна; у пинов edge_pad=15/blend=custom добавить geometry-hint комментарий; в LiveNativeFillsTests добавить live-пробу square-fountain c angle и edge_pad (наблюдаемое поведение зафиксировать в отчёте для T7/T8).
 - [ ] **Step 5:** `npm test`, `check:contracts`, `dotnet test` non-live, live filter, `webhost` pytest non-live → PASS.
 - [ ] **Step 6:** Checkpoint.
 
@@ -124,7 +124,7 @@
 **Files:** Modify `worker/api-contract.json` (signatures IVGFill.ApplyFountainFill, IVGFountainFill.*, IVGFountainColors.Add/Count/Item, IVGTransparency.Apply*, IVGShape.CreateDropShadow; enums cdrFountainFillType/SpreadMethod/TransparencyAppliedTo/DropShadowType/FeatherType/MergeMode whitelist; live_status из Tasks 4–6; catalog_tools уже 41).
 **Interfaces:** Consumes: live-результаты Tasks 4–6; typelib sha не меняется.
 
-- [ ] **Step 1:** Failing: `test/worker-package.test.mjs` + `scripts/worker-package.mjs` verify (typelib binding) и новая node-проверка полноты ledger (если существует; иначе assert вручную через describe_api-сверку скриптом `scripts/check-contracts.mjs` не читает ledger → добавить node test `test/api-contract-ledger.test.mjs`, сверяющий новые записи с `corel_describe_api`-дампом, сохранённым в fixtures). Ledger ОБЯЗАН включать enum `cdrFountainFillBlendType` (direct=0, rainbow_cw=1, rainbow_ccw=2, custom=3 — проверено typelib в T3) и observed default blend=direct из T4.
+- [ ] **Step 1:** Failing: `test/worker-package.test.mjs` + `scripts/worker-package.mjs` verify (typelib binding) и новая node-проверка полноты ledger (если существует; иначе assert вручную через describe_api-сверку скриптом `scripts/check-contracts.mjs` не читает ledger → добавить node test `test/api-contract-ledger.test.mjs`, сверяющий новые записи с `corel_describe_api`-дампом, сохранённым в fixtures). Ledger ОБЯЗАН включать enum `cdrFountainFillBlendType` (direct=0, rainbow_cw=1, rainbow_ccw=2, custom=3 — проверено typelib в T3) и observed default blend=direct из T4, а также наблюдаемые факты T4: EdgePad ренормализуется Corel для linear+ненулевой angle (0→15 @45°); multi-stop fountain читается как blend_type=custom; `IVGFountainColors.Item` 0-based; observed defaults steps=256/edge_pad=0/mid_point=50/spread=pad/smooth_blend=false.
 - [ ] **Step 2:** FAIL → заполнить ledger → PASS; `npm run check:contracts`, `dotnet test` non-live → PASS.
 - [ ] **Step 3:** Checkpoint.
 
@@ -134,7 +134,7 @@
 **Interfaces:** Consumes: финальные схемы Tasks 2–6; результат снятия тени Task 6.
 
 - [ ] **Step 1:** Failing: `test/recipe-contract.test.mjs` (новые examples не существуют/не парсятся) и `test/documentation-contracts.test.mjs`.
-- [ ] **Step 2:** Написать рецепты (fountain multi-stop; transparency uniform+fountain; shadow с id_mappings; если kind none недоступен — рецепт без него + limitation в pitfalls/operations/architecture: группы под тенью, затенённые фигуры вне allowTransparency, mesh non-goal).
+- [ ] **Step 2:** Написать рецепты (fountain multi-stop; transparency uniform+fountain; shadow с id_mappings; если kind none недоступен — рецепт без него + limitation в pitfalls/operations/architecture: группы под тенью, затенённые фигуры вне allowTransparency, mesh non-goal). В pitfalls/operations обязательно observed-факты T4: EdgePad ренормализация при linear+angle, multi-stop → blend_type=custom в read-back, 0-based Colors.Item; read-back отражает наблюдаемое, не заданное.
 - [ ] **Step 3:** `npm test`, `check:contracts` → PASS.
 - [ ] **Step 4:** Checkpoint.
 
