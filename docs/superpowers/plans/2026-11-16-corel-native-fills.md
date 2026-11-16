@@ -124,7 +124,7 @@
 **Files:** Modify `worker/api-contract.json` (signatures IVGFill.ApplyFountainFill, IVGFountainFill.*, IVGFountainColors.Add/Count/Item, IVGTransparency.Apply*, IVGShape.CreateDropShadow; enums cdrFountainFillType/SpreadMethod/TransparencyAppliedTo/DropShadowType/FeatherType/MergeMode whitelist; live_status из Tasks 4–6; catalog_tools уже 41).
 **Interfaces:** Consumes: live-результаты Tasks 4–6; typelib sha не меняется.
 
-- [ ] **Step 1:** Failing: `test/worker-package.test.mjs` + `scripts/worker-package.mjs` verify (typelib binding) и новая node-проверка полноты ledger (если существует; иначе assert вручную через describe_api-сверку скриптом `scripts/check-contracts.mjs` не читает ledger → добавить node test `test/api-contract-ledger.test.mjs`, сверяющий новые записи с `corel_describe_api`-дампом, сохранённым в fixtures).
+- [ ] **Step 1:** Failing: `test/worker-package.test.mjs` + `scripts/worker-package.mjs` verify (typelib binding) и новая node-проверка полноты ledger (если существует; иначе assert вручную через describe_api-сверку скриптом `scripts/check-contracts.mjs` не читает ledger → добавить node test `test/api-contract-ledger.test.mjs`, сверяющий новые записи с `corel_describe_api`-дампом, сохранённым в fixtures). Ledger ОБЯЗАН включать enum `cdrFountainFillBlendType` (direct=0, rainbow_cw=1, rainbow_ccw=2, custom=3 — проверено typelib в T3) и observed default blend=direct из T4.
 - [ ] **Step 2:** FAIL → заполнить ledger → PASS; `npm run check:contracts`, `dotnet test` non-live → PASS.
 - [ ] **Step 3:** Checkpoint.
 
