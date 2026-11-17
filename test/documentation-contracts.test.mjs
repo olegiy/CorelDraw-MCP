@@ -77,3 +77,34 @@ test('native fills documentation teaches fountain, transparency and drop shadow 
   assert.match(workerReadme, /BATCH_FILL_UNSUPPORTED/);
   assert.match(workerReadme, /GenerateInteropOnly/);
 });
+
+test('api-v27.md native-fills rows reproduce the pinned CLR signatures exactly', async () => {
+  const api = await readFile(new URL('../skills/coreldraw-automation/references/api-v27.md', import.meta.url), 'utf8');
+  const fixture = JSON.parse(await readFile(new URL('../test/fixtures/native-fills-describe-api.json', import.meta.url), 'utf8'));
+  const reflected = new Map(fixture.signatures.map(entry => [`${entry.interface}.${entry.member}`, entry]));
+  // Строки таблицы: | `Interface.ReturnType Member(ParamTypes)` | [Источник](sdk_url) |
+  const documented = new Map();
+  for (const row of api.matchAll(/^\| `([A-Za-z]\w*)\.([^`]+)` \| \[Источник\]\(([^)]+)\) \|\r?$/gm)) {
+    const member = row[2].match(/^(\S+)\s+([A-Za-z]\w*)\((.*)\)$/);
+    assert.ok(member, `api-v27.md: нераспознанная сигнатура ${row[2]}`);
+    documented.set(`${row[1]}.${member[2]}`, { signature: row[2], sdk_url: row[3] });
+  }
+  // Семь строк Task 8: заливки, прозрачность, тень. Пин — имя члена, тип возврата и типы параметров.
+  for (const key of [
+    'IVGFill.ApplyFountainFill',
+    'IVGFountainColors.Add',
+    'IVGTransparency.ApplyUniformTransparency',
+    'IVGTransparency.ApplyFountainTransparency',
+    'IVGTransparency.ApplyNoTransparency',
+    'IVGShape.CreateDropShadow',
+    'IVGShape.ClearEffect',
+  ]) {
+    const entry = reflected.get(key);
+    assert.ok(entry, `фикстура не отражает ${key}`);
+    const row = documented.get(key);
+    assert.ok(row, `api-v27.md: нет строки для ${key}`);
+    assert.equal(row.signature, entry.clr_signature,
+      `${key}: строка api-v27.md обязана дословно повторять CLR-сигнатуру из фикстуры (член, тип возврата, типы параметров)`);
+    assert.equal(row.sdk_url, entry.sdk_url, `${key}: строка api-v27.md обязана ссылаться на sdk_url из фикстуры`);
+  }
+});
