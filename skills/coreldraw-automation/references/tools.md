@@ -2,7 +2,7 @@
 
 Сервер возвращает `job_id` сразу после принятия вызова. Для результата вызывайте `corel_get_job(job_id, wait_seconds=20)`. Опрос читает сохранённый отчёт и не обращается к CorelDRAW. `include_preview=true` прикрепляет готовый PNG только для задания `corel_preview`. Для preview допустимы `target=page|selection` (псевдоним `range` сохраняется для совместимости); в режиме selection выделение должно быть непустым.
 
-Сервер публикует 40 инструментов. Единственный backend — C# STA; произвольный код не исполняется, runtime fallback отсутствует.
+Сервер публикует 41 инструмент. Единственный backend — C# STA; произвольный код не исполняется, runtime fallback отсутствует.
 Инструменты доступны без разрешительного config и подтверждений.
 Старый `%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается, не изменяется и
 не удаляется; прежний `tool_policy` остаётся только историческими данными.
@@ -37,6 +37,7 @@
 | `corel_manage_layers` | Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id. |
 | `corel_style_shapes` | Задать явную заливку (none, uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id. |
 | `corel_set_transparency` | Задать прозрачность точных StaticID: uniform 0–100, fountain start/end с типом linear/radial/conical/square или снять через kind none. applied_to заливка/обводка/оба, merge_mode normal/multiply/screen/overlay/behind, freeze после применения; StaticID не меняются. Возвращает job_id. |
+| `corel_apply_drop_shadow` | Наложить нативную тень на точные одиночные векторные фигуры или текст: flat/bottom/top/left/right, opacity 0–100, feather 0–100, смещения в мм, цвет RGB/CMYK, feather_type/feather_edge, merge_mode, fade только не для flat; либо снять тень kind none. Группы, bitmap, PowerClip и существующие эффекты отклоняются до мутации. StaticID цели сохраняется, появляется группа тени с новыми ID — отчёт возвращает id_mappings и created/deleted. Возвращает job_id. |
 | `corel_duplicate_shapes` | Дублировать точные StaticID с заданным шагом в мм, сохраняя исходники. До 1000 новых фигур с учётом групп. Возвращает job_id. |
 | `corel_transform_shapes` | Переместить, масштабировать, повернуть или отразить точные StaticID. Явный anchor в мм; scale только положительный. Возвращает job_id. |
 | `corel_create_shapes` | Создать до 100 прямоугольников, эллипсов или линий на точном слое. Координаты в мм от нижнего левого угла страницы. Возвращает job_id. |
@@ -149,6 +150,7 @@ placements/unplaced/layout_revision, сохраняя исходник. Apply т
   "corel_duplicate_shapes": "Дублировать точные StaticID с заданным шагом в мм, сохраняя исходники. До 1000 новых фигур с учётом групп. Возвращает job_id.",
   "corel_style_shapes": "Задать явную заливку (none, uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.",
   "corel_set_transparency": "Задать прозрачность точных StaticID: uniform 0–100, fountain start/end с типом linear/radial/conical/square или снять через kind none. applied_to заливка/обводка/оба, merge_mode normal/multiply/screen/overlay/behind, freeze после применения; StaticID не меняются. Возвращает job_id.",
+  "corel_apply_drop_shadow": "Наложить нативную тень на точные одиночные векторные фигуры или текст: flat/bottom/top/left/right, opacity 0–100, feather 0–100, смещения в мм, цвет RGB/CMYK, feather_type/feather_edge, merge_mode, fade только не для flat; либо снять тень kind none. Группы, bitmap, PowerClip и существующие эффекты отклоняются до мутации. StaticID цели сохраняется, появляется группа тени с новыми ID — отчёт возвращает id_mappings и created/deleted. Возвращает job_id.",
   "corel_manage_layers": "Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id.",
   "corel_group_shapes": "Сгруппировать фигуры одного слоя или разгруппировать ровно одну группу на один уровень. Возвращает job_id.",
   "corel_boolean_shapes": "Weld/trim/intersect двух фигур с явными keep_left/keep_right. Trim: LEFT вырезает RIGHT. Возвращает фактические ID через job_id.",
@@ -198,7 +200,8 @@ legacy range, затем page; отдельного schema-default для target
 {"tool":"corel_transform_shapes","required":[],"defaults":{},"enums":{}}
 {"tool":"corel_duplicate_shapes","required":["request_id","document_id","page_index","static_ids","copies","step_x_mm","step_y_mm"],"defaults":{"deadline_seconds":600},"enums":{}}
 {"tool":"corel_style_shapes","required":["request_id","document_id","page_index","static_ids"],"defaults":{"deadline_seconds":600},"enums":{}}
-{"tool":"corel_set_transparency","required":["request_id","document_id","page_index","static_ids","kind","applied_to","merge_mode"],"defaults":{"deadline_seconds":600},"enums":{"kind":["none","uniform","fountain"],"type":["linear","radial","conical","square"],"applied_to":["fill","outline","fill_and_outline"],"merge_mode":["normal","multiply","screen","overlay","behind"]}}
+{"tool":"corel_set_transparency","required":["request_id","document_id","page_index","static_ids","kind"],"defaults":{"deadline_seconds":600},"enums":{"kind":["none","uniform","fountain"],"type":["linear","radial","conical","square"],"applied_to":["fill","outline","fill_and_outline"],"merge_mode":["normal","multiply","screen","overlay","behind"]}}
+{"tool":"corel_apply_drop_shadow","required":["request_id","document_id","page_index","static_ids","kind"],"defaults":{"deadline_seconds":600},"enums":{"kind":["shadow","none"],"type":["flat","bottom","top","left","right"],"feather_type":["inside","middle","outside","average","gaussian"],"feather_edge":["linear","squared","flat","inverse_squared","mesa","gaussian"],"merge_mode":["normal","multiply","screen","overlay","behind"]}}
 {"tool":"corel_manage_layers","required":[],"defaults":{},"enums":{}}
 {"tool":"corel_group_shapes","required":[],"defaults":{},"enums":{}}
 {"tool":"corel_boolean_shapes","required":["request_id","document_id","page_index","action","left_id","right_id","keep_left","keep_right"],"defaults":{"deadline_seconds":600},"enums":{"action":["weld","trim","intersect"]}}

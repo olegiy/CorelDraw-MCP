@@ -117,6 +117,10 @@
 - [ ] **Step 2:** Наборы → FAIL.
 - [ ] **Step 3:** Реализовать DTO/DropShadow.cs (`Shape.CreateDropShadow(...)`; observe новых ID через `target.Observe`/TreeIds-эквивалент существующего convert-кода; refusal предков/потомков с effects); sync 41. Плюс полиш из ревью T5: applied_to/merge_mode становятся optional при kind none (дефолты fill/normal, значения игнорируются при снятии; zod refine + nullable DTO + jsonl required + тесты); убрать двойной `c.Track(c.Track(...))` в Transparency.cs; новые live-тесты transparency пинят `versions.execution_engine == "csharp"`.
 - [ ] **Step 4:** Все наборы зелёные; зафиксировать в плане найденный путь снятия тени (или его отсутствие).
+  - **Найденный typed-путь снятия (live, CorelDRAW 27.2.0.135, собственные temp-доки):** `IVGShape.ClearEffect(cdrDropShadow)` — удаляет эффект вместе со всей группой тени и возвращает цель с исходным StaticID/типом; альтернатива `IVGEffect.Clear()` проверена тем же зондом. kind none реализован.
+  - **Наблюдаемая семантика (зонд 2026-11-17, отклонение от посылки дизайна):** цель НЕ оборачивается и НЕ меняет StaticID — Corel вешает эффект cdrDropShadow на саму цель и создаёт соседнюю группу `cdrDropShadowGroupShape` (группа + один теневой потомок, ровно 2 новых ID на цель; для вложенной цели группа создаётся внутри родительской группы). `id_mappings` = `{source_static_id, result_static_ids:[цель, группа, потомок]}` (образец convert); created/deleted честные; старый ID остаётся, «old id gone» из брифа физически не воспроизводим — законтрактовано как наблюдаемое.
+  - **Defaults/round-trip:** PerspectiveAngle/PerspectiveStretch/Fade проходят 0/0/0 как есть (передаём 0 — v1 не экспонирует); fade=40 на flat читается обратно 40 (схема всё равно запрещает fade+flat); все whitelist-энумы (feather_type 0–4, feather_edge 0–5) round-trip точно.
+  - Полиш T5: applied_to/merge_mode optional при kind none (jsonl required обновлён — поля выпали из required, enums сохранены), двойной `c.Track(c.Track(...))` в Transparency.cs убран, transparency live-тесты пинят `versions.execution_engine == "csharp"`.
 - [ ] **Step 5:** Checkpoint.
 
 ### Task 7: api-contract ledger + контракты

@@ -32,7 +32,7 @@ def test_typed_catalog_excludes_code_and_strips_host_fields_from_every_union_bra
     tools = {tool.name: tool for tool in typed_policy.catalog(binding)}
     assert {'corel_create_batch', 'corel_update_batch', 'corel_create_shapes', 'corel_edit_curve', 'corel_find_text', 'corel_preflight',
             'corel_import', 'corel_manage_pages', 'corel_layout_shapes', 'corel_describe_api',
-            'corel_measure_shapes', 'corel_set_transparency'} <= tools.keys()
+            'corel_measure_shapes', 'corel_set_transparency', 'corel_apply_drop_shadow'} <= tools.keys()
     assert not {'corel_execute_vba', 'corel_build_vba', 'corel_prune_artifacts'} & tools.keys()
     for name, tool in tools.items():
         def check(schema):
@@ -53,6 +53,27 @@ def test_typed_catalog_excludes_code_and_strips_host_fields_from_every_union_bra
                     {'kind': 'uniform', 'value': 40, 'applied_to': 'fill', 'merge_mode': 'xor'}]:
         assert list(Draft202012Validator(transparency).iter_errors(
             {**invalid, 'page_index': 1, 'static_ids': [1001]})), invalid
+    # kind none needs no envelope fields; the per-kind presence rules live in the zod refines and the worker,
+    # not in the generated JSON Schema (conditional requirements are checked by schema.parse, not jsonschema).
+    assert not list(Draft202012Validator(transparency).iter_errors({
+        'page_index': 1, 'static_ids': [1001], 'kind': 'none'}))
+    assert not list(Draft202012Validator(transparency).iter_errors({
+        'page_index': 1, 'static_ids': [1001], 'kind': 'none', 'merge_mode': 'behind'}))
+    drop_shadow = tools['corel_apply_drop_shadow'].input_schema
+    valid_shadow = {'page_index': 1, 'static_ids': [1001], 'kind': 'shadow', 'type': 'bottom', 'opacity': 80,
+                    'feather': 15, 'offset_x_mm': 3, 'offset_y_mm': -4,
+                    'color': {'model': 'rgb', 'r': 0, 'g': 0, 'b': 0},
+                    'feather_type': 'outside', 'feather_edge': 'linear', 'merge_mode': 'multiply', 'fade': 30}
+    assert not list(Draft202012Validator(drop_shadow).iter_errors(valid_shadow))
+    assert not list(Draft202012Validator(drop_shadow).iter_errors(
+        {'page_index': 1, 'static_ids': [1001], 'kind': 'none'}))
+    assert not list(Draft202012Validator(drop_shadow).iter_errors(
+        {'page_index': 1, 'static_ids': [1001], 'kind': 'none', 'merge_mode': 'behind'}))
+    for overrides in [{'kind': 'remove'}, {'type': 'middle'}, {'feather_type': 'gauss'},
+                      {'feather_edge': 'inverse-squared'}, {'merge_mode': 'xor'}, {'opacity': 101},
+                      {'feather': -1}, {'offset_x_mm': 1000.5}, {'fade': 101},
+                      {'color': {'model': 'rgb', 'r': 256, 'g': 0, 'b': 0}}]:
+        assert list(Draft202012Validator(drop_shadow).iter_errors({**valid_shadow, **overrides})), overrides
 
 
 async def test_transparency_is_a_mutation_with_postchecks_and_host_binding(typed_policy, binding):
@@ -67,6 +88,24 @@ async def test_transparency_is_a_mutation_with_postchecks_and_host_binding(typed
     assert (await typed_policy.classify(operation, changed)).decision == 'deny'
     assert args == {'page_index': 1, 'static_ids': [1001], 'kind': 'fountain', 'start': 0, 'end': 100, 'type': 'radial',
                     'center_offset_x_percent': 20, 'applied_to': 'outline', 'merge_mode': 'multiply', 'freeze': True}
+
+
+async def test_drop_shadow_is_a_mutation_with_postchecks_and_kind_none_needs_no_merge_mode(typed_policy, binding):
+    args = {'page_index': 1, 'static_ids': [1001], 'kind': 'shadow', 'type': 'bottom', 'opacity': 80, 'feather': 15,
+            'offset_x_mm': 3, 'offset_y_mm': -4, 'color': {'model': 'rgb', 'r': 0, 'g': 0, 'b': 0},
+            'feather_type': 'outside', 'feather_edge': 'linear', 'merge_mode': 'multiply', 'fade': 30}
+    operation = await typed_policy.prepare('corel_apply_drop_shadow', args, binding)
+    assert operation.arguments['document_id'] == binding.document_id and operation.corel_request_id
+    assert operation.required_postchecks == ('corel_inspect_document', 'corel_preview')
+    assert (await typed_policy.classify(operation, binding)).decision == 'allow'
+    changed = binding.model_copy(update={'document_id': 'fixture-a'})
+    assert (await typed_policy.classify(operation, changed)).decision == 'deny'
+    removal = await typed_policy.prepare('corel_apply_drop_shadow',
+                                         {'page_index': 1, 'static_ids': [1001], 'kind': 'none'}, binding)
+    assert removal.required_postchecks == ('corel_inspect_document', 'corel_preview')
+    assert 'merge_mode' not in removal.arguments and 'type' not in removal.arguments
+    assert (await typed_policy.classify(removal, binding)).decision == 'allow'
+    assert args['fade'] == 30
 
 
 async def test_union_schema_keeps_geometry_and_frozen_document_with_postchecks(typed_policy, typed_catalog, binding):

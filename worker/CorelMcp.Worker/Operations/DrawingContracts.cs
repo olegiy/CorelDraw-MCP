@@ -43,8 +43,13 @@ internal sealed record NoOutline : OutlineSpec;
 internal sealed record UniformOutline(ColorSpec Color, double WidthMm) : OutlineSpec;
 internal sealed record StyleCommand(int[] StaticIds, FillSpec? Fill = null, OutlineSpec? Outline = null) : IDrawingCommand;
 // Optional fields carry JSON defaults so absent snake_case keys deserialize to null; required binding follows C# positional rules.
-internal sealed record TransparencyCommand(int[] StaticIds, string Kind, string AppliedTo, string MergeMode, int? Value = null, int? Start = null, int? End = null,
+// applied_to/merge_mode are the envelope: nullable and optional for kind none (defaults fill/normal, ignored on removal),
+// required for uniform/fountain.
+internal sealed record TransparencyCommand(int[] StaticIds, string Kind, string? AppliedTo = null, string? MergeMode = null, int? Value = null, int? Start = null, int? End = null,
     string? Type = null, double? AngleDeg = null, double? CenterOffsetXPercent = null, double? CenterOffsetYPercent = null, bool? Freeze = null) : IDrawingCommand;
+internal sealed record DropShadowCommand(int[] StaticIds, string Kind, string? Type = null, int? Opacity = null, int? Feather = null,
+    double? OffsetXMm = null, double? OffsetYMm = null, ColorSpec? Color = null, string? FeatherType = null, string? FeatherEdge = null,
+    string? MergeMode = null, int? Fade = null) : IDrawingCommand;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "action")]
 [JsonDerivedType(typeof(CreateLayerCommand), "create"), JsonDerivedType(typeof(RenameLayerCommand), "rename"), JsonDerivedType(typeof(LayerFlagsCommand), "set_flags"), JsonDerivedType(typeof(MoveToLayerCommand), "move_shapes")]
 internal abstract record LayerCommand : IDrawingCommand;
@@ -78,7 +83,7 @@ internal static class DrawingContracts
     public static bool IsDrawingTool(string tool) => tool is "corel_create_shapes" or "corel_transform_shapes" or "corel_duplicate_shapes" or "corel_style_shapes"
         or "corel_manage_layers" or "corel_group_shapes" or "corel_boolean_shapes" or "corel_create_text" or "corel_convert_to_curves"
         or "corel_align_shapes" or "corel_grid_duplicate" or "corel_layout_shapes" or "corel_import" or "corel_manage_pages" or "corel_powerclip"
-        or "corel_set_transparency";
+        or "corel_set_transparency" or "corel_apply_drop_shadow";
     public static DrawingArguments Parse(string tool, JsonElement args)
     {
         try
@@ -98,7 +103,7 @@ internal static class DrawingContracts
                 "corel_convert_to_curves" => Read<ConvertCommand>(payload), "corel_align_shapes" => Read<AlignCommand>(payload),
                 "corel_grid_duplicate" => Read<GridCommand>(payload), "corel_layout_shapes" => Read<LayoutCommand>(payload),
                 "corel_import" => Read<ImportCommand>(payload),"corel_manage_pages"=>Read<PageCommand>(payload),"corel_powerclip"=>Read<ClipCommand>(payload),
-                "corel_set_transparency" => Read<TransparencyCommand>(payload),_ => throw new JsonException()
+                "corel_set_transparency" => Read<TransparencyCommand>(payload),"corel_apply_drop_shadow" => Read<DropShadowCommand>(payload),_ => throw new JsonException()
             };
             Validate(command);
             return new(binding.RequestId, binding.DocumentId, binding.PageIndex, command, binding.DeadlineSeconds);
@@ -179,8 +184,14 @@ internal static class DrawingContracts
     {
         Ids(transparency.StaticIds);
         Check(transparency.Kind is "none" or "uniform" or "fountain");
-        Check(transparency.AppliedTo is "fill" or "outline" or "fill_and_outline");
-        Check(transparency.MergeMode is "normal" or "multiply" or "screen" or "overlay" or "behind");
+        // Optional envelope: whitelisted when present, required for apply kinds, ignored (with defaults fill/normal) on removal.
+        Check(transparency.AppliedTo is null or "fill" or "outline" or "fill_and_outline");
+        Check(transparency.MergeMode is null or "normal" or "multiply" or "screen" or "overlay" or "behind");
+        if (transparency.Kind != "none")
+        {
+            Check(transparency.AppliedTo is not null);
+            Check(transparency.MergeMode is not null);
+        }
         switch (transparency.Kind)
         {
             case "none":
@@ -227,7 +238,71 @@ internal static class DrawingContracts
         "screen" => VGCore.cdrMergeMode.cdrMergeScreen,
         "overlay" => VGCore.cdrMergeMode.cdrMergeOverlay,
         "behind" => VGCore.cdrMergeMode.cdrMergeBehind,
-        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый merge_mode прозрачности.")
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый merge_mode.")
+    };
+    // Presence matrix mirrored from the zod refines: kind shadow requires every shadow field, kind none forbids them all
+    // except the optional (ignored) merge_mode envelope. fade is rejected for flat before any COM call.
+    internal static void ValidateDropShadow(DropShadowCommand shadow)
+    {
+        Ids(shadow.StaticIds);
+        Check(shadow.Kind is "shadow" or "none");
+        Check(shadow.MergeMode is null or "normal" or "multiply" or "screen" or "overlay" or "behind");
+        if (shadow.Kind == "none")
+        {
+            Check(shadow.Type is null && shadow.Opacity is null && shadow.Feather is null && shadow.OffsetXMm is null && shadow.OffsetYMm is null
+                && shadow.Color is null && shadow.FeatherType is null && shadow.FeatherEdge is null && shadow.Fade is null);
+            return;
+        }
+        Check(shadow.Type is "flat" or "bottom" or "top" or "left" or "right");
+        Check(shadow.Opacity is not null);
+        Check(shadow.Feather is not null);
+        Check(shadow.OffsetXMm is not null);
+        Check(shadow.OffsetYMm is not null);
+        Check(shadow.Color is not null);
+        Check(shadow.FeatherType is "inside" or "middle" or "outside" or "average" or "gaussian");
+        Check(shadow.FeatherEdge is "linear" or "squared" or "flat" or "inverse_squared" or "mesa" or "gaussian");
+        Check(shadow.MergeMode is not null);
+        OperationContracts.Range(shadow.Opacity!.Value, 0, 100, "opacity");
+        OperationContracts.Range(shadow.Feather!.Value, 0, 100, "feather");
+        Check(double.IsFinite(shadow.OffsetXMm!.Value) && shadow.OffsetXMm.Value is >= -1000 and <= 1000);
+        Check(double.IsFinite(shadow.OffsetYMm!.Value) && shadow.OffsetYMm.Value is >= -1000 and <= 1000);
+        Color(shadow.Color!);
+        if (shadow.Fade is { } fade)
+        {
+            Check(shadow.Type != "flat");
+            OperationContracts.Range(fade, 0, 100, "fade");
+        }
+    }
+    // flat→cdrDropShadowFlat(0), bottom→cdrDropShadowBottom(1), top→cdrDropShadowTop(2), left→cdrDropShadowLeft(3), right→cdrDropShadowRight(4); verified via installed typelib describe_api.
+    internal static VGCore.cdrDropShadowType DropShadowType(string type) => type switch
+    {
+        "flat" => VGCore.cdrDropShadowType.cdrDropShadowFlat,
+        "bottom" => VGCore.cdrDropShadowType.cdrDropShadowBottom,
+        "top" => VGCore.cdrDropShadowType.cdrDropShadowTop,
+        "left" => VGCore.cdrDropShadowType.cdrDropShadowLeft,
+        "right" => VGCore.cdrDropShadowType.cdrDropShadowRight,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый тип тени.")
+    };
+    // inside→cdrFeatherInside(0), middle→cdrFeatherMiddle(1), outside→cdrFeatherOutside(2), average→cdrFeatherAverage(3), gaussian→cdrFeatherGaussianBlur(4); verified via installed typelib describe_api.
+    internal static VGCore.cdrFeatherType FeatherType(string featherType) => featherType switch
+    {
+        "inside" => VGCore.cdrFeatherType.cdrFeatherInside,
+        "middle" => VGCore.cdrFeatherType.cdrFeatherMiddle,
+        "outside" => VGCore.cdrFeatherType.cdrFeatherOutside,
+        "average" => VGCore.cdrFeatherType.cdrFeatherAverage,
+        "gaussian" => VGCore.cdrFeatherType.cdrFeatherGaussianBlur,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый feather_type тени.")
+    };
+    // linear→cdrEdgeLinear(0), squared→cdrEdgeSquared(1), flat→cdrEdgeFlat(2), inverse_squared→cdrEdgeInverseSquared(3), mesa→cdrEdgeMesa(4), gaussian→cdrEdgeGaussian(5); verified via installed typelib describe_api.
+    internal static VGCore.cdrEdgeType FeatherEdge(string featherEdge) => featherEdge switch
+    {
+        "linear" => VGCore.cdrEdgeType.cdrEdgeLinear,
+        "squared" => VGCore.cdrEdgeType.cdrEdgeSquared,
+        "flat" => VGCore.cdrEdgeType.cdrEdgeFlat,
+        "inverse_squared" => VGCore.cdrEdgeType.cdrEdgeInverseSquared,
+        "mesa" => VGCore.cdrEdgeType.cdrEdgeMesa,
+        "gaussian" => VGCore.cdrEdgeType.cdrEdgeGaussian,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый feather_edge тени.")
     };
     private static void Validate(IDrawingCommand value)
     {
@@ -274,6 +349,9 @@ internal static class DrawingContracts
                 break;
             case TransparencyCommand transparency:
                 ValidateTransparency(transparency);
+                break;
+            case DropShadowCommand shadow:
+                ValidateDropShadow(shadow);
                 break;
             case CreateLayerCommand create: Id(create.PageId); Name(create.Name); break;
             case RenameLayerCommand rename: Id(rename.LayerId); Name(rename.Name); break;

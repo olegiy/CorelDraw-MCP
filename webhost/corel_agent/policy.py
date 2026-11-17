@@ -26,7 +26,7 @@ DRAWING_MUTATIONS = frozenset({
     'corel_manage_layers', 'corel_group_shapes', 'corel_boolean_shapes', 'corel_create_text',
     'corel_convert_to_curves', 'corel_create_curve', 'corel_edit_curve', 'corel_edit_text',
     'corel_align_shapes', 'corel_grid_duplicate', 'corel_layout_shapes', 'corel_import',
-    'corel_manage_pages', 'corel_powerclip', 'corel_set_transparency',
+    'corel_manage_pages', 'corel_powerclip', 'corel_set_transparency', 'corel_apply_drop_shadow',
 })
 MVP_TOOLS = READ_ONLY | NEW_DOCUMENT | frozenset({
     "corel_save_document", "corel_export", "corel_close_document",

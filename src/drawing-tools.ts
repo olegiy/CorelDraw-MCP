@@ -151,10 +151,14 @@ const transparency=z.strictObject({
   angle_deg: z.number().min(-360).max(360).optional(),
   center_offset_x_percent: z.number().min(-100).max(100).optional(),
   center_offset_y_percent: z.number().min(-100).max(100).optional(),
-  applied_to: z.enum(['fill', 'outline', 'fill_and_outline']),
-  merge_mode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'behind']),
+  applied_to: z.enum(['fill', 'outline', 'fill_and_outline']).optional(),
+  merge_mode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'behind']).optional(),
   freeze: z.boolean().optional(),
 })
+  // applied_to/merge_mode are the envelope: required for apply kinds, optional (defaults fill/normal, ignored)
+  // for the removal kind none.
+  .refine(value => value.kind === 'none' || value.applied_to !== undefined && value.merge_mode !== undefined,
+    'Для kind uniform/fountain обязательны applied_to и merge_mode; для kind none они необязательны и игнорируются.')
   .refine(value => value.kind !== 'none' || ['value', 'start', 'end', 'type', 'angle_deg', 'center_offset_x_percent', 'center_offset_y_percent', 'freeze']
     .every(field => value[field as keyof typeof value] === undefined), 'Параметры прозрачности и freeze не задаются вместе с kind none.')
   .refine(value => value.kind !== 'uniform' || value.value !== undefined, 'Для kind uniform обязателен value.')
@@ -164,6 +168,29 @@ const transparency=z.strictObject({
   .refine(value => value.kind !== 'fountain' || value.start !== undefined && value.end !== undefined && value.type !== undefined, 'Для kind fountain обязательны start, end и type.')
   .refine(value => value.kind !== 'fountain' || value.type !== 'radial' || value.angle_deg === undefined, 'angle_deg применим только к fountain-прозрачности linear/conical/square.')
   .refine(value => value.kind !== 'fountain' || value.type !== 'linear' || value.center_offset_x_percent === undefined && value.center_offset_y_percent === undefined, 'center_offset_*_percent применимы только к fountain-прозрачности radial/square/conical.')
+  .meta({ type: 'object' });
+// Drop-shadow whitelists verified against the installed VGCore 27 typelib: cdrDropShadowType flat=0/bottom=1/top=2/
+// left=3/right=4; cdrFeatherType inside=0/middle=1/outside=2/average=3/gaussian(cdrFeatherGaussianBlur)=4;
+// cdrEdgeType linear=0/squared=1/flat=2/inverse_squared=3/mesa=4/gaussian=5.
+const dropShadow=z.strictObject({
+  ...common, static_ids: ids,
+  kind: z.enum(['shadow', 'none']),
+  type: z.enum(['flat', 'bottom', 'top', 'left', 'right']).optional(),
+  opacity: z.number().int().min(0).max(100).optional(),
+  feather: z.number().int().min(0).max(100).optional(),
+  offset_x_mm: z.number().min(-1000).max(1000).optional(),
+  offset_y_mm: z.number().min(-1000).max(1000).optional(),
+  color: color.optional(),
+  feather_type: z.enum(['inside', 'middle', 'outside', 'average', 'gaussian']).optional(),
+  feather_edge: z.enum(['linear', 'squared', 'flat', 'inverse_squared', 'mesa', 'gaussian']).optional(),
+  merge_mode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'behind']).optional(),
+  fade: z.number().int().min(0).max(100).optional(),
+})
+  .refine(value => value.kind === 'none' || ['type', 'opacity', 'feather', 'offset_x_mm', 'offset_y_mm', 'color', 'feather_type', 'feather_edge', 'merge_mode']
+    .every(field => value[field as keyof typeof value] !== undefined), 'Для kind shadow обязательны type, opacity, feather, offset_x_mm, offset_y_mm, color, feather_type, feather_edge и merge_mode.')
+  .refine(value => value.kind !== 'none' || ['type', 'opacity', 'feather', 'offset_x_mm', 'offset_y_mm', 'color', 'feather_type', 'feather_edge', 'fade']
+    .every(field => value[field as keyof typeof value] === undefined), 'Параметры тени не задаются вместе с kind none; merge_mode игнорируется.')
+  .refine(value => value.type !== 'flat' || value.fade === undefined, 'fade применим только к perspective-типам тени и запрещён для flat.')
   .meta({ type: 'object' });
 export const drawingToolDefinitions: Record<string, Definition> = {
   corel_import:tool(importSchema,'Импортировать один локальный SVG/PDF/PNG/JPEG до 256 МиБ по SHA-256 и размеру, на точный слой. PDF требует одну явную страницу; fit сохраняет пропорции. Без clipboard и диалогового fallback. Возвращает job_id.'),
@@ -188,6 +215,7 @@ export const drawingToolDefinitions: Record<string, Definition> = {
   corel_style_shapes: tool(z.strictObject({ ...common, static_ids: ids, fill: fill.optional(), outline: outline.optional() })
     .refine(value => value.fill !== undefined || value.outline !== undefined, 'Укажите fill или outline.'), 'Задать явную заливку (none, uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.'),
   corel_set_transparency: tool(transparency, 'Задать прозрачность точных StaticID: uniform 0–100, fountain start/end с типом linear/radial/conical/square или снять через kind none. applied_to заливка/обводка/оба, merge_mode normal/multiply/screen/overlay/behind, freeze после применения; StaticID не меняются. Возвращает job_id.'),
+  corel_apply_drop_shadow: tool(dropShadow, 'Наложить нативную тень на точные одиночные векторные фигуры или текст: flat/bottom/top/left/right, opacity 0–100, feather 0–100, смещения в мм, цвет RGB/CMYK, feather_type/feather_edge, merge_mode, fade только не для flat; либо снять тень kind none. Группы, bitmap, PowerClip и существующие эффекты отклоняются до мутации. StaticID цели сохраняется, появляется группа тени с новыми ID — отчёт возвращает id_mappings и created/deleted. Возвращает job_id.'),
   corel_manage_layers: tool(layers, 'Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id.'),
   corel_group_shapes: tool(z.discriminatedUnion('action', [
     z.strictObject({ ...common, action: z.literal('group'), static_ids: ids.min(2) }),

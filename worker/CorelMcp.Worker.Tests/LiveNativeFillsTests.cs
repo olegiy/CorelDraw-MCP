@@ -190,10 +190,16 @@ public sealed class LiveNativeFillsTests
             items = new object[] { new { kind = "rectangle", x_mm = 10, y_mm = 10, width_mm = 40, height_mm = 20 } } });
         int id = made.GetProperty("items")[0].GetProperty("static_id").GetInt32();
 
-        var uniform = await c.Draw(doc, "corel_set_transparency", new
+        // Pinned per review: transparency executes on the C# engine (no VBA row codec involved).
+        var uniformCall = await c.Call("corel_set_transparency", new
         {
+            request_id = Guid.NewGuid().ToString(), document_id = doc, page_index = 1,
             static_ids = new[] { id }, kind = "uniform", value = 40, applied_to = "fill", merge_mode = "normal"
         });
+        Assert.True(uniformCall.Ok, JsonSerializer.Serialize(uniformCall, Protocol.JsonOptions));
+        Assert.Equal(true, uniformCall.Cleanup!["completed"]);
+        Assert.Equal("csharp", uniformCall.Versions!["execution_engine"]);
+        var uniform = JsonSerializer.SerializeToElement(uniformCall.Result, Protocol.JsonOptions);
         var item = uniform.GetProperty("items")[0];
         Assert.Equal(id, item.GetProperty("static_id").GetInt32());
         Assert.Empty(uniform.GetProperty("created_static_ids").EnumerateArray());
@@ -218,7 +224,9 @@ public sealed class LiveNativeFillsTests
         Assert.False(transparency.GetProperty("frozen").GetBoolean());
         Assert.Equal(id, fountain.GetProperty("items")[0].GetProperty("static_id").GetInt32());
 
-        var removed = await c.Draw(doc, "corel_set_transparency", new { static_ids = new[] { id }, kind = "none", applied_to = "fill", merge_mode = "normal" });
+        // kind none without the envelope: applied_to/merge_mode are optional for removal (defaults fill/normal,
+        // values ignored); pinned live together with the empty effect collection read-back.
+        var removed = await c.Draw(doc, "corel_set_transparency", new { static_ids = new[] { id }, kind = "none" });
         var effects = removed.GetProperty("items")[0].GetProperty("effects");
         Assert.Equal(0, effects.GetProperty("count").GetInt32());
         Assert.Empty(effects.GetProperty("items").EnumerateArray());
@@ -392,5 +400,207 @@ public sealed class LiveNativeFillsTests
             stops = new object[] { Stop(0, Rgb(255, 0, 0)), Stop(100, Rgb(0, 0, 255)) } } });
         Assert.Equal(20, flat.GetProperty("items")[0].GetProperty("fountain").GetProperty("edge_pad").GetInt32());
         Assert.Equal(0, flat.GetProperty("items")[0].GetProperty("fountain").GetProperty("angle_deg").GetDouble());
+    }
+
+    private static object ShadowArgs(int[] staticIds, string kind = "shadow") => new
+    {
+        static_ids = staticIds, kind, type = "bottom", opacity = 80, feather = 15, offset_x_mm = 3, offset_y_mm = -4,
+        color = new { model = "cmyk", c = 0, m = 0, y = 0, k = 100 },
+        feather_type = "outside", feather_edge = "linear", merge_mode = "multiply", fade = 30
+    };
+
+    [LiveCorelFact]
+    public async Task DropShadowAppliesToRectTextAndGroupMemberAndReportsIdMappings()
+    {
+        using var c = new LiveDrawingTests.DrawingClient();
+        var doc = await c.Create();
+        string layer = NormalLayer(await c.Inspect(doc));
+        var made = await c.Draw(doc, "corel_create_shapes", new { layer_id = layer, items = new object[] {
+            new { kind = "rectangle", x_mm = 10, y_mm = 10, width_mm = 40, height_mm = 20 },
+            new { kind = "rectangle", x_mm = 60, y_mm = 10, width_mm = 15, height_mm = 10 },
+            new { kind = "ellipse", x_mm = 85, y_mm = 10, width_mm = 15, height_mm = 10 } } });
+        int[] ids = made.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("static_id").GetInt32()).ToArray();
+        int group = (await c.Draw(doc, "corel_group_shapes", new { action = "group", static_ids = new[] { ids[1], ids[2] } }))
+            .GetProperty("items")[0].GetProperty("static_id").GetInt32();
+        var text = await c.Draw(doc, "corel_create_text", new { kind = "artistic", layer_id = layer, text = "Тень",
+            x_mm = 10, y_mm = 60, font_family = "Arial", font_size_pt = 24 });
+        int textId = text.GetProperty("created_static_ids")[0].GetInt32();
+        var boundsBefore = (await c.Inspect(doc)).GetProperty("shapes").EnumerateArray()
+            .Single(s => s.GetProperty("static_id").GetInt32() == ids[0]).GetProperty("bounds_mm");
+
+        var call = await c.Call("corel_apply_drop_shadow", new
+        {
+            request_id = Guid.NewGuid().ToString(), document_id = doc, page_index = 1,
+            static_ids = new[] { ids[0], textId, ids[1] }, kind = "shadow", type = "bottom",
+            opacity = 80, feather = 15, offset_x_mm = 3, offset_y_mm = -4,
+            color = new { model = "cmyk", c = 0, m = 0, y = 0, k = 100 },
+            feather_type = "outside", feather_edge = "linear", merge_mode = "multiply", fade = 30
+        });
+        Assert.True(call.Ok, JsonSerializer.Serialize(call, Protocol.JsonOptions));
+        Assert.Equal("csharp", call.Versions!["execution_engine"]);
+        var shadowed = JsonSerializer.SerializeToElement(call.Result, Protocol.JsonOptions);
+
+        // Live-probed CorelDRAW 27 semantics (own temp docs, 2026-11-17): the target KEEPS its StaticID, type,
+        // geometry and page/group position; the cdrDropShadow effect is attached to the target itself and a NEW
+        // sibling cdrDropShadowGroupShape appears (shadow group + one shadow child). The design's wrap premise
+        // (old id disappears) is NOT what the API does — pinned here as observed. id_mappings mirrors the
+        // convert-to-curves report: source_static_id -> result_static_ids [target, group, child].
+        int[] created = shadowed.GetProperty("created_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+        Assert.Empty(shadowed.GetProperty("deleted_static_ids").EnumerateArray());
+        // Observed structure: exactly one shadow group with one shadow child per target.
+        Assert.Equal(6, created.Length);
+        var mappings = shadowed.GetProperty("id_mappings").EnumerateArray().ToArray();
+        Assert.Equal(3, mappings.Length);
+        foreach (int target in new[] { ids[0], textId, ids[1] })
+        {
+            var mapping = mappings.Single(m => m.GetProperty("source_static_id").GetInt32() == target);
+            int[] resultIds = mapping.GetProperty("result_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+            Assert.Equal(target, resultIds[0]);
+            Assert.Equal(3, resultIds.Length);
+            foreach (int createdId in resultIds.Skip(1)) Assert.Contains(createdId, created);
+        }
+        Assert.Equal(3, shadowed.GetProperty("items").GetArrayLength());
+        var rect = shadowed.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("static_id").GetInt32() == ids[0]);
+        Assert.Equal(1, rect.GetProperty("type").GetInt32());
+        Assert.Equal(boundsBefore.GetRawText(), rect.GetProperty("bounds_mm").GetRawText());
+        var effects = rect.GetProperty("effects");
+        Assert.Equal(1, effects.GetProperty("count").GetInt32());
+        var effect = effects.GetProperty("items")[0];
+        Assert.Equal((int)VGCore.cdrEffectType.cdrDropShadow, effect.GetProperty("type").GetInt32());
+        var observed = effect.GetProperty("drop_shadow");
+        Assert.Equal((int)VGCore.cdrDropShadowType.cdrDropShadowBottom, observed.GetProperty("type").GetInt32());
+        Assert.Equal(80, observed.GetProperty("opacity").GetInt32());
+        Assert.Equal(15, observed.GetProperty("feather").GetInt32());
+        Assert.InRange(observed.GetProperty("offset_x_mm").GetDouble(), 2.999, 3.001);
+        Assert.InRange(observed.GetProperty("offset_y_mm").GetDouble(), -4.001, -3.999);
+        Assert.Equal((int)VGCore.cdrFeatherType.cdrFeatherOutside, observed.GetProperty("feather_type").GetInt32());
+        Assert.Equal((int)VGCore.cdrEdgeType.cdrEdgeLinear, observed.GetProperty("feather_edge").GetInt32());
+        Assert.Equal((int)VGCore.cdrMergeMode.cdrMergeMultiply, observed.GetProperty("merge_mode").GetInt32());
+        Assert.Equal(30, observed.GetProperty("fade").GetInt32());
+        // Perspective fields are not exposed in v1; Corel round-trips the passed zeros (observed defaults).
+        Assert.Equal(0, observed.GetProperty("perspective_angle").GetDouble());
+        Assert.Equal(0, observed.GetProperty("perspective_stretch").GetDouble());
+        var textItem = shadowed.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("static_id").GetInt32() == textId);
+        Assert.Equal(6, textItem.GetProperty("type").GetInt32());
+        Assert.Equal("Тень", textItem.GetProperty("text").GetString());
+        Assert.Equal(1, textItem.GetProperty("effects").GetProperty("count").GetInt32());
+
+        var state = await c.Inspect(doc);
+        var rectState = state.GetProperty("shapes").EnumerateArray().Single(s => s.GetProperty("static_id").GetInt32() == ids[0]);
+        Assert.Equal(1, rectState.GetProperty("type").GetInt32());
+        Assert.Equal(1, rectState.GetProperty("effects").GetProperty("count").GetInt32());
+        Assert.Equal(3, state.GetProperty("shapes").EnumerateArray().Count(s => s.GetProperty("type").GetInt32() == 16));
+        // Group member: the shadow group is nested inside the parent group next to the shadowed member.
+        Assert.Contains(state.GetProperty("shapes").EnumerateArray(),
+            s => s.GetProperty("type").GetInt32() == 16 && s.GetProperty("parent_static_id").ValueKind == JsonValueKind.Number
+                && s.GetProperty("parent_static_id").GetInt32() == group);
+        var groupState = state.GetProperty("shapes").EnumerateArray().Single(s => s.GetProperty("static_id").GetInt32() == group);
+        Assert.Equal(0, groupState.GetProperty("effects").GetProperty("count").GetInt32());
+        Assert.True(state.GetProperty("document").GetProperty("dirty").GetBoolean());
+    }
+
+    [LiveCorelFact]
+    public async Task DropShadowRefusalsProtectRepeatedGroupLockedBitmapAndExistingEffects()
+    {
+        using var c = new LiveDrawingTests.DrawingClient();
+        var doc = await c.Create();
+        string layer = NormalLayer(await c.Inspect(doc));
+        var made = await c.Draw(doc, "corel_create_shapes", new { layer_id = layer, items = new object[] {
+            new { kind = "rectangle", x_mm = 10, y_mm = 10, width_mm = 30, height_mm = 15 },
+            new { kind = "rectangle", x_mm = 50, y_mm = 10, width_mm = 30, height_mm = 15 },
+            new { kind = "rectangle", x_mm = 90, y_mm = 10, width_mm = 30, height_mm = 15 },
+            new { kind = "rectangle", x_mm = 130, y_mm = 10, width_mm = 30, height_mm = 15 } } });
+        int[] ids = made.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("static_id").GetInt32()).ToArray();
+        int group = (await c.Draw(doc, "corel_group_shapes", new { action = "group", static_ids = new[] { ids[2], ids[3] } }))
+            .GetProperty("items")[0].GetProperty("static_id").GetInt32();
+        string path = Path.Combine(c.Directory, "shadow-refusal.png");
+        using (var image = new Bitmap(20, 10)) { using var graphics = Graphics.FromImage(image); graphics.Clear(Color.Blue); image.Save(path, ImageFormat.Png); }
+        var imported = await c.Draw(doc, "corel_import", new { path, format = "png",
+            sha256 = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path))), size_bytes = new FileInfo(path).Length,
+            layer_id = layer, x_mm = 170, y_mm = 10, fit = new { width_mm = 10, height_mm = 5 } });
+        int bitmap = imported.GetProperty("imported_root_static_ids")[0].GetInt32();
+
+        var applied = await c.Draw(doc, "corel_apply_drop_shadow", ShadowArgs([ids[0]]));
+        int[] shadowIds = applied.GetProperty("created_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+        Assert.Equal(2, shadowIds.Length);
+        int shadowGroup = (await c.Inspect(doc)).GetProperty("shapes").EnumerateArray()
+            .Single(s => s.GetProperty("type").GetInt32() == 16).GetProperty("static_id").GetInt32();
+
+        async Task Reject(string tool, object args, string code = "UNSUPPORTED_SHAPE")
+        {
+            var snapshot = (await c.Inspect(doc)).GetRawText();
+            var failure = await c.DrawFailure(doc, tool, args);
+            Assert.Equal(code, failure.Error!.Code);
+            Assert.False(failure.Error.Applied);
+            Assert.Equal(snapshot, (await c.Inspect(doc)).GetRawText());
+        }
+        // Re-shadowing the already-shadowed target refuses before any mutation (no double shadow).
+        await Reject("corel_apply_drop_shadow", ShadowArgs([ids[0]]));
+        // Groups are a v1 documented limitation: a group target refuses before mutation.
+        await Reject("corel_apply_drop_shadow", ShadowArgs([group]));
+        // The shadow group itself is not a valid target; kind none removes via the original shape id.
+        await Reject("corel_apply_drop_shadow", new { static_ids = new[] { shadowGroup }, kind = "none" });
+        // The shadow child inside the effect group is not resolvable by its StaticID.
+        await Reject("corel_apply_drop_shadow", ShadowArgs([shadowIds[1]]), "SHAPE_NOT_FOUND");
+        // Bitmap targets refuse.
+        await Reject("corel_apply_drop_shadow", ShadowArgs([bitmap]));
+        // Locked targets refuse before mutation.
+        await c.Ok("test_lock_shape", new { document_id = doc, static_id = ids[1], locked = true });
+        await Reject("corel_apply_drop_shadow", ShadowArgs([ids[1]]), "LOCKED_TARGET");
+        // kind none on a target without a drop shadow refuses before mutation.
+        await Reject("corel_apply_drop_shadow", new { static_ids = new[] { ids[2] }, kind = "none" }, "NOT_A_DROP_SHADOW");
+        // Existing barriers are untouched: the shadowed target keeps refusing style/transform/transparency/convert.
+        await Reject("corel_style_shapes", new { static_ids = new[] { ids[0] }, outline = new { kind = "none" } });
+        await Reject("corel_transform_shapes", new { action = "move", static_ids = new[] { ids[0] }, dx_mm = 5, dy_mm = 0 });
+        await Reject("corel_set_transparency", new { static_ids = new[] { ids[0] }, kind = "uniform", value = 20, applied_to = "fill", merge_mode = "normal" });
+        await Reject("corel_convert_to_curves", new { static_ids = new[] { ids[0] } });
+    }
+
+    [LiveCorelFact]
+    public async Task DropShadowNoneRemovesTheEffectAndRestoresTheOriginalTarget()
+    {
+        using var c = new LiveDrawingTests.DrawingClient();
+        var doc = await c.Create();
+        string layer = NormalLayer(await c.Inspect(doc));
+        var made = await c.Draw(doc, "corel_create_shapes", new { layer_id = layer,
+            items = new object[] { new { kind = "rectangle", x_mm = 10, y_mm = 10, width_mm = 40, height_mm = 20 } } });
+        int rect = made.GetProperty("items")[0].GetProperty("static_id").GetInt32();
+        var text = await c.Draw(doc, "corel_create_text", new { kind = "artistic", layer_id = layer, text = "Снять",
+            x_mm = 60, y_mm = 30, font_family = "Arial", font_size_pt = 18 });
+        int textId = text.GetProperty("created_static_ids")[0].GetInt32();
+
+        // Live-probed typed removal path: Shape.ClearEffect(cdrDropShadow) deletes the effect together with the
+        // whole shadow group and restores the target with its original StaticID and type.
+        foreach (var (id, expectedType) in new[] { (rect, 1), (textId, 6) })
+        {
+            var applied = await c.Draw(doc, "corel_apply_drop_shadow", ShadowArgs([id]));
+            int[] shadowIds = applied.GetProperty("created_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+            Assert.Equal(2, shadowIds.Length);
+            // kind none without merge_mode: the envelope is optional for removal and ignored.
+            var removed = await c.Draw(doc, "corel_apply_drop_shadow", new { static_ids = new[] { id }, kind = "none" });
+            var mapping = removed.GetProperty("id_mappings")[0];
+            Assert.Equal(id, mapping.GetProperty("source_static_id").GetInt32());
+            Assert.Equal(new[] { id }, mapping.GetProperty("result_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray());
+            Assert.Equal(shadowIds.ToHashSet(), removed.GetProperty("deleted_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToHashSet());
+            Assert.Empty(removed.GetProperty("created_static_ids").EnumerateArray());
+            var item = removed.GetProperty("items")[0];
+            Assert.Equal(id, item.GetProperty("static_id").GetInt32());
+            Assert.Equal(expectedType, item.GetProperty("type").GetInt32());
+            Assert.Equal(0, item.GetProperty("effects").GetProperty("count").GetInt32());
+            var state = await c.Inspect(doc);
+            var shape = state.GetProperty("shapes").EnumerateArray().Single(s => s.GetProperty("static_id").GetInt32() == id);
+            Assert.Equal(expectedType, shape.GetProperty("type").GetInt32());
+            Assert.Equal(0, shape.GetProperty("effects").GetProperty("count").GetInt32());
+            Assert.Equal(0, state.GetProperty("shapes").EnumerateArray().Count(s => s.GetProperty("type").GetInt32() == 16));
+        }
+        // Geometry survives the apply+remove round-trip.
+        var restored = (await c.Inspect(doc)).GetProperty("shapes").EnumerateArray()
+            .Single(s => s.GetProperty("static_id").GetInt32() == rect).GetProperty("bounds_mm");
+        Assert.InRange(restored.GetProperty("width").GetDouble(), 39.999, 40.001);
+        Assert.InRange(restored.GetProperty("height").GetDouble(), 19.999, 20.001);
+        // Removal freed the effect slot: a fresh shadow applies again with new ids.
+        var reapplied = await c.Draw(doc, "corel_apply_drop_shadow", ShadowArgs([rect]));
+        Assert.Equal(2, reapplied.GetProperty("created_static_ids").EnumerateArray().Count());
+        Assert.True((await c.Inspect(doc)).GetProperty("document").GetProperty("dirty").GetBoolean());
     }
 }

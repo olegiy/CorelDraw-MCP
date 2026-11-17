@@ -22,6 +22,11 @@ public sealed class DrawingContractsTests
         { "corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"" },
         { "corel_set_transparency", "\"static_ids\":[1,2],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"linear\",\"angle_deg\":45,\"applied_to\":\"outline\",\"merge_mode\":\"multiply\",\"freeze\":true" },
         { "corel_set_transparency", "\"static_ids\":[1],\"kind\":\"none\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"" },
+        { "corel_set_transparency", "\"static_ids\":[1],\"kind\":\"none\"" },
+        { "corel_apply_drop_shadow", "\"static_ids\":[1,2],\"kind\":\"shadow\",\"type\":\"bottom\",\"opacity\":80,\"feather\":15,\"offset_x_mm\":3,\"offset_y_mm\":-4,\"color\":{\"model\":\"cmyk\",\"c\":0,\"m\":0,\"y\":0,\"k\":100},\"feather_type\":\"outside\",\"feather_edge\":\"linear\",\"merge_mode\":\"multiply\",\"fade\":30" },
+        { "corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"" },
+        { "corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\"" },
+        { "corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"merge_mode\":\"behind\"" },
         { "corel_manage_layers", "\"action\":\"create\",\"page_id\":\"page\",\"name\":\"Резка\"" },
         { "corel_group_shapes", "\"action\":\"group\",\"static_ids\":[1,2]" },
         { "corel_boolean_shapes", "\"action\":\"trim\",\"left_id\":1,\"right_id\":2,\"keep_left\":true,\"keep_right\":false" },
@@ -88,6 +93,42 @@ public sealed class DrawingContractsTests
     [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"gradient\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
     [InlineData("corel_set_transparency", "\"static_ids\":[],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
     [InlineData("corel_set_transparency", "\"static_ids\":[1,1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\",\"fade\":30")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\",\"fade\":0")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"bottom\",\"opacity\":80,\"feather\":15,\"offset_x_mm\":3,\"offset_y_mm\":-4,\"color\":{\"model\":\"cmyk\",\"c\":0,\"m\":0,\"y\":0,\"k\":100},\"feather_type\":\"outside\",\"feather_edge\":\"linear\",\"merge_mode\":\"multiply\",\"fade\":101")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"bottom\",\"opacity\":80,\"feather\":15,\"offset_x_mm\":3,\"offset_y_mm\":-4,\"color\":{\"model\":\"cmyk\",\"c\":0,\"m\":0,\"y\":0,\"k\":100},\"feather_type\":\"outside\",\"feather_edge\":\"linear\",\"merge_mode\":\"multiply\",\"fade\":-1")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"bottom\",\"opacity\":80,\"feather\":15,\"offset_x_mm\":3,\"offset_y_mm\":-4,\"color\":{\"model\":\"cmyk\",\"c\":0,\"m\":0,\"y\":0,\"k\":100},\"feather_type\":\"outside\",\"feather_edge\":\"linear\",\"merge_mode\":\"multiply\",\"fade\":30.5")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":101,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":-1,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70.5,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":101,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":15.5,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":1000.5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":-1000.5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":256,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":null,\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"middle\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"gauss\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"inverse-squared\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"xor\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"remove\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1,1],\"kind\":\"shadow\",\"type\":\"flat\",\"opacity\":70,\"feather\":50,\"offset_x_mm\":5,\"offset_y_mm\":5,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0},\"feather_type\":\"inside\",\"feather_edge\":\"gaussian\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"type\":\"flat\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"opacity\":70")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"feather\":50")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"offset_x_mm\":5")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"offset_y_mm\":5")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0}")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"feather_type\":\"inside\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"feather_edge\":\"gaussian\"")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"fade\":30")]
+    [InlineData("corel_apply_drop_shadow", "\"static_ids\":[1],\"kind\":\"none\",\"merge_mode\":\"xor\"")]
     [InlineData("corel_manage_layers", "\"action\":\"set_flags\",\"layer_id\":\"layer\"")]
     [InlineData("corel_group_shapes", "\"action\":\"ungroup\",\"static_ids\":[1,2]")]
     [InlineData("corel_boolean_shapes", "\"action\":\"trim\",\"left_id\":1,\"right_id\":1,\"keep_left\":true,\"keep_right\":false")]
@@ -189,8 +230,7 @@ public sealed class DrawingContractsTests
     }
     private static string Transparency(string body) => "{\"request_id\":\"once\",\"document_id\":\"exact\",\"page_index\":1," + body + "}";
     [Fact]
-    public void TransparencyCommandParsesWithEveryOptionalField()
-    {
+    public void TransparencyCommandParsesWithEveryOptionalField()    {
         var payload = "\"static_ids\":[1,2],\"kind\":\"fountain\",\"start\":25,\"end\":75,\"type\":\"square\",\"angle_deg\":-45.5," +
             "\"center_offset_x_percent\":-100,\"center_offset_y_percent\":100,\"applied_to\":\"fill_and_outline\",\"merge_mode\":\"behind\",\"freeze\":true";
         var parsed = Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_set_transparency",
@@ -226,6 +266,113 @@ public sealed class DrawingContractsTests
         Assert.Equal(27, (int)DrawingContracts.MergeMode("behind"));
         Assert.Throws<OperationFailure>(() => DrawingContracts.TransparencyAppliedTo("both"));
         Assert.Throws<OperationFailure>(() => DrawingContracts.MergeMode("xor"));
+    }
+    [Fact]
+    public void TransparencyKindNoneParsesWithoutAppliedToAndMergeMode()
+    {
+        var parsed = Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_set_transparency",
+            JsonSerializer.Deserialize<JsonElement>(Transparency("\"static_ids\":[1],\"kind\":\"none\""))));
+        var command = Assert.IsType<TransparencyCommand>(parsed.Command);
+        Assert.Null(command.AppliedTo);
+        Assert.Null(command.MergeMode);
+        // Provided envelope values are still parsed (whitelisted) and ignored by the removal path.
+        var provided = Assert.IsType<TransparencyCommand>(Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_set_transparency",
+            JsonSerializer.Deserialize<JsonElement>(Transparency("\"static_ids\":[1],\"kind\":\"none\",\"applied_to\":\"outline\",\"merge_mode\":\"behind\"")))).Command);
+        Assert.Equal("outline", provided.AppliedTo);
+        Assert.Equal("behind", provided.MergeMode);
+    }
+    [Fact]
+    public void TransparencyApplyKindsRequireAppliedToAndMergeMode()
+    {
+        foreach (var body in new[]
+        {
+            "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40",
+            "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\"",
+            "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"merge_mode\":\"normal\"",
+            "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"linear\"",
+            "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"linear\",\"merge_mode\":\"normal\"",
+            "\"static_ids\":[1],\"kind\":\"none\",\"applied_to\":\"both\"",
+            "\"static_ids\":[1],\"kind\":\"none\",\"merge_mode\":\"xor\""
+        })
+        {
+            var error = Assert.Throws<OperationFailure>(() => OperationContracts.Parse("corel_set_transparency",
+                JsonSerializer.Deserialize<JsonElement>(Transparency(body))));
+            Assert.Equal("INVALID_INPUT", error.Code);
+            Assert.False(error.Applied);
+        }
+    }
+    private const string ShadowBody = "\"kind\":\"shadow\",\"type\":\"bottom\",\"opacity\":80,\"feather\":15,\"offset_x_mm\":3,\"offset_y_mm\":-4," +
+        "\"color\":{\"model\":\"cmyk\",\"c\":0,\"m\":0,\"y\":0,\"k\":100},\"feather_type\":\"outside\",\"feather_edge\":\"linear\",\"merge_mode\":\"multiply\",\"fade\":30";
+    [Fact]
+    public void DropShadowCommandParsesWithEveryOptionalField()
+    {
+        var parsed = Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_apply_drop_shadow",
+            JsonSerializer.Deserialize<JsonElement>(Envelope("\"static_ids\":[1,2]," + ShadowBody))));
+        var command = Assert.IsType<DropShadowCommand>(parsed.Command);
+        Assert.Equal([1, 2], command.StaticIds);
+        Assert.Equal("shadow", command.Kind);
+        Assert.Equal("bottom", command.Type);
+        Assert.Equal(80, command.Opacity);
+        Assert.Equal(15, command.Feather);
+        Assert.Equal(3, command.OffsetXMm);
+        Assert.Equal(-4, command.OffsetYMm);
+        Assert.IsType<CmykSpec>(command.Color);
+        Assert.Equal("outside", command.FeatherType);
+        Assert.Equal("linear", command.FeatherEdge);
+        Assert.Equal("multiply", command.MergeMode);
+        Assert.Equal(30, command.Fade);
+    }
+    [Fact]
+    public void DropShadowCommandParsesKindNoneWithAndWithoutIgnoredMergeMode()
+    {
+        var bare = Assert.IsType<DropShadowCommand>(Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_apply_drop_shadow",
+            JsonSerializer.Deserialize<JsonElement>(Envelope("\"static_ids\":[1],\"kind\":\"none\"")))).Command);
+        Assert.Equal("none", bare.Kind);
+        Assert.Null(bare.Type); Assert.Null(bare.Opacity); Assert.Null(bare.Feather);
+        Assert.Null(bare.OffsetXMm); Assert.Null(bare.OffsetYMm); Assert.Null(bare.Color);
+        Assert.Null(bare.FeatherType); Assert.Null(bare.FeatherEdge); Assert.Null(bare.MergeMode); Assert.Null(bare.Fade);
+        var provided = Assert.IsType<DropShadowCommand>(Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_apply_drop_shadow",
+            JsonSerializer.Deserialize<JsonElement>(Envelope("\"static_ids\":[1],\"kind\":\"none\",\"merge_mode\":\"behind\"")))).Command);
+        Assert.Equal("behind", provided.MergeMode);
+    }
+    [Fact]
+    public void DropShadowEnumsMapWhitelistedNamesToTypelibValues()
+    {
+        Assert.Equal(VGCore.cdrDropShadowType.cdrDropShadowFlat, DrawingContracts.DropShadowType("flat"));
+        Assert.Equal(VGCore.cdrDropShadowType.cdrDropShadowBottom, DrawingContracts.DropShadowType("bottom"));
+        Assert.Equal(VGCore.cdrDropShadowType.cdrDropShadowTop, DrawingContracts.DropShadowType("top"));
+        Assert.Equal(VGCore.cdrDropShadowType.cdrDropShadowLeft, DrawingContracts.DropShadowType("left"));
+        Assert.Equal(VGCore.cdrDropShadowType.cdrDropShadowRight, DrawingContracts.DropShadowType("right"));
+        Assert.Equal(0, (int)DrawingContracts.DropShadowType("flat"));
+        Assert.Equal(1, (int)DrawingContracts.DropShadowType("bottom"));
+        Assert.Equal(2, (int)DrawingContracts.DropShadowType("top"));
+        Assert.Equal(3, (int)DrawingContracts.DropShadowType("left"));
+        Assert.Equal(4, (int)DrawingContracts.DropShadowType("right"));
+        Assert.Equal(VGCore.cdrFeatherType.cdrFeatherInside, DrawingContracts.FeatherType("inside"));
+        Assert.Equal(VGCore.cdrFeatherType.cdrFeatherMiddle, DrawingContracts.FeatherType("middle"));
+        Assert.Equal(VGCore.cdrFeatherType.cdrFeatherOutside, DrawingContracts.FeatherType("outside"));
+        Assert.Equal(VGCore.cdrFeatherType.cdrFeatherAverage, DrawingContracts.FeatherType("average"));
+        Assert.Equal(VGCore.cdrFeatherType.cdrFeatherGaussianBlur, DrawingContracts.FeatherType("gaussian"));
+        Assert.Equal(0, (int)DrawingContracts.FeatherType("inside"));
+        Assert.Equal(1, (int)DrawingContracts.FeatherType("middle"));
+        Assert.Equal(2, (int)DrawingContracts.FeatherType("outside"));
+        Assert.Equal(3, (int)DrawingContracts.FeatherType("average"));
+        Assert.Equal(4, (int)DrawingContracts.FeatherType("gaussian"));
+        Assert.Equal(VGCore.cdrEdgeType.cdrEdgeLinear, DrawingContracts.FeatherEdge("linear"));
+        Assert.Equal(VGCore.cdrEdgeType.cdrEdgeSquared, DrawingContracts.FeatherEdge("squared"));
+        Assert.Equal(VGCore.cdrEdgeType.cdrEdgeFlat, DrawingContracts.FeatherEdge("flat"));
+        Assert.Equal(VGCore.cdrEdgeType.cdrEdgeInverseSquared, DrawingContracts.FeatherEdge("inverse_squared"));
+        Assert.Equal(VGCore.cdrEdgeType.cdrEdgeMesa, DrawingContracts.FeatherEdge("mesa"));
+        Assert.Equal(VGCore.cdrEdgeType.cdrEdgeGaussian, DrawingContracts.FeatherEdge("gaussian"));
+        Assert.Equal(0, (int)DrawingContracts.FeatherEdge("linear"));
+        Assert.Equal(1, (int)DrawingContracts.FeatherEdge("squared"));
+        Assert.Equal(2, (int)DrawingContracts.FeatherEdge("flat"));
+        Assert.Equal(3, (int)DrawingContracts.FeatherEdge("inverse_squared"));
+        Assert.Equal(4, (int)DrawingContracts.FeatherEdge("mesa"));
+        Assert.Equal(5, (int)DrawingContracts.FeatherEdge("gaussian"));
+        Assert.Throws<OperationFailure>(() => DrawingContracts.DropShadowType("middle"));
+        Assert.Throws<OperationFailure>(() => DrawingContracts.FeatherType("gauss"));
+        Assert.Throws<OperationFailure>(() => DrawingContracts.FeatherEdge("inverse-squared"));
     }
     private static string Envelope(string payload) => "{\"request_id\":\"once\",\"document_id\":\"exact\",\"page_index\":1," + payload + "}";
     private static object Parse(string tool, string payload) => OperationContracts.Parse(tool, JsonSerializer.Deserialize<JsonElement>(Envelope(payload)));

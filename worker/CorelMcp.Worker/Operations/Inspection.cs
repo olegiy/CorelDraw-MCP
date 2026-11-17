@@ -91,7 +91,7 @@ internal static class Inspection
         }
         return result;
     }
-    // Reused by Operations/Transparency for the corel_set_transparency report read-back (observed state, not the request).
+    // Reused by Operations/Transparency and Operations/DropShadow for the report read-back (observed state, not the request).
     internal static object EffectInfo(OperationContext context, VGCore.Shape shape)
     {
         int? count = null; List<object> items = [];
@@ -116,6 +116,18 @@ internal static class Inspection
                     }
                     if (transparencyType == VGCore.cdrTransparencyType.cdrUniformTransparency) properties["uniform"] = transparency.Uniform;
                     item["transparency"] = properties;
+                }
+                if (type == VGCore.cdrEffectType.cdrDropShadow)
+                {
+                    // Observed read-back for the drop shadow; offsets are document lengths and are converted to mm.
+                    // Live-verified defaults when v1 does not expose them: perspective_angle=0, perspective_stretch=0.
+                    var shadow = context.Track(effect.DropShadow);
+                    var factor = context.App.ConvertUnits(1, context.Target!.Document.Unit, VGCore.cdrUnit.cdrMillimeter);
+                    item["drop_shadow"] = Dto.Of(("type", (int)shadow.Type), ("opacity", shadow.Opacity), ("feather", shadow.Feather),
+                        ("offset_x_mm", shadow.OffsetX * factor), ("offset_y_mm", shadow.OffsetY * factor),
+                        ("feather_type", (int)shadow.FeatherType), ("feather_edge", (int)shadow.FeatherEdge),
+                        ("fade", shadow.Fade), ("merge_mode", (int)shadow.MergeMode),
+                        ("perspective_angle", shadow.PerspectiveAngle), ("perspective_stretch", shadow.PerspectiveStretch));
                 }
                 items.Add(item);
             }

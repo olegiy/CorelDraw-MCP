@@ -10,8 +10,9 @@ internal static class Transparency
     {
         var c = target.Context;
         // Enum mappings are pure and resolved in preflight, like the fountain colors in Styles.PrepareFountain.
-        VGCore.cdrTransparencyAppliedTo? appliedTo = args.Kind == "none" ? null : DrawingContracts.TransparencyAppliedTo(args.AppliedTo);
-        VGCore.cdrMergeMode? mergeMode = args.Kind == "none" ? null : DrawingContracts.MergeMode(args.MergeMode);
+        // The envelope is optional for kind none (defaults fill/normal, ignored on removal).
+        VGCore.cdrTransparencyAppliedTo? appliedTo = args.Kind == "none" ? null : DrawingContracts.TransparencyAppliedTo(args.AppliedTo ?? "fill");
+        VGCore.cdrMergeMode? mergeMode = args.Kind == "none" ? null : DrawingContracts.MergeMode(args.MergeMode ?? "normal");
         VGCore.cdrFountainFillType? fountainType = args.Kind == "fountain" ? DrawingContracts.FountainType(args.Type!) : null;
         var shapes = ShapeTraversal.Resolve(c, target.Page, args.StaticIds);
         var selected = args.StaticIds.ToHashSet();
@@ -82,8 +83,9 @@ internal static class Transparency
                 // by design: it owns its target validation like PowerClip).
                 if (effects.Count != 1 || c.Track(effects[1]).Type != VGCore.cdrEffectType.cdrLens)
                     throw new OperationFailure("UNSUPPORTED_SHAPE", "Эффекты этой фигуры не поддерживаются прозрачностью: " + shape.StaticID);
+                var effect = c.Track(effects[1]);
                 var transparency = c.Track(shape.Transparency);
-                var lens = c.Track(c.Track(effects[1]).Lens);
+                var lens = c.Track(effect.Lens);
                 if (transparency.Type is not (VGCore.cdrTransparencyType.cdrUniformTransparency or VGCore.cdrTransparencyType.cdrFountainTransparency)
                     || !DrawingTarget.IsLocalTransparency(transparency.Type, transparency.Frozen, lens.Frozen, lens.UseViewPoint))
                     throw new OperationFailure("UNSUPPORTED_SHAPE", "Поддерживается только незамороженная обычная или градиентная прозрачность: " + shape.StaticID);

@@ -54,7 +54,8 @@ internal static class Styles
         if (fountain.Spread is { } spread) applied.SpreadMethod = spread;
         if (fountain.SmoothBlend is { } smooth) applied.SmoothBlend = smooth;
     }
-    private static VGCore.Color Color(OperationContext c, ColorSpec color) => c.Track(color switch
+    // Reused by Operations/DropShadow for the preflight shadow color (same "colors before the mutation closure" rule).
+    internal static VGCore.Color Color(OperationContext c, ColorSpec color) => c.Track(color switch
     {
         RgbSpec rgb => c.App.CreateRGBColor(rgb.R, rgb.G, rgb.B),
         CmykSpec cmyk => c.App.CreateCMYKColor(cmyk.C, cmyk.M, cmyk.Y, cmyk.K),
