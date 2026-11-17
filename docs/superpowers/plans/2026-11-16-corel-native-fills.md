@@ -139,7 +139,7 @@
 
 - [ ] **Step 1:** Failing: `test/recipe-contract.test.mjs` (новые examples не существуют/не парсятся) и `test/documentation-contracts.test.mjs`.
 - [ ] **Step 2:** Написать рецепты (fountain multi-stop; transparency uniform+fountain; shadow с id_mappings; если kind none недоступен — рецепт без него + limitation в pitfalls/operations/architecture: группы под тенью, затенённые фигуры вне allowTransparency, mesh non-goal). В pitfalls/operations обязательно observed-факты T4: EdgePad ренормализация при linear+angle, multi-stop → blend_type=custom в read-back, 0-based Colors.Item; read-back отражает наблюдаемое, не заданное; факты T5: порядок Apply → AppliedTo/MergeMode → Freeze (свойства недоступны до Apply), square-ренормализация EdgePad; заметки: special-layer отказ transparency покрыт non-live (общая ветка Leaves с locked/bitmap), lens на самом group-узле не валидируется (по букве спеки — только потомки), как и у style_shapes.
-- [ ] **Step 3:** `npm test`, `check:contracts` → PASS.
+- [ ] **Step 3:** `npm test`, `check:contracts` → PASS. Плюс полиш из ревью T7: в test/api-contract-ledger.test.mjs читать worker/generated/fingerprint.json внутри binding-теста (или синтезировать артефакт по прецеденту test/worker-package.test.mjs:104–105), чтобы чистое дерево без worker-build не роняло весь файл на ENOENT; заменить слабый regex цитат пином всех 12 имён live-тестов.
 - [ ] **Step 4:** Checkpoint.
 
 ### Task 9: Полные gates + нативная перекраска геймпада
