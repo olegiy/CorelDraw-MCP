@@ -35,7 +35,42 @@
     "cdrFilter.cdrCDR": 1795,
     "cdrImportMode.cdrImportFull": 0,
     "cdrTriState.cdrTrue": -1,
-    "cdrTriState.cdrFalse": 0
+    "cdrTriState.cdrFalse": 0,
+    "cdrFountainFillType.cdrLinearFountainFill": 1,
+    "cdrFountainFillType.cdrRadialFountainFill": 2,
+    "cdrFountainFillType.cdrConicalFountainFill": 3,
+    "cdrFountainFillType.cdrSquareFountainFill": 4,
+    "cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodPad": 0,
+    "cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodReflect": 1,
+    "cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodRepeat": 2,
+    "cdrFountainFillBlendType.cdrDirectFountainFillBlend": 0,
+    "cdrFountainFillBlendType.cdrRainbowCWFountainFillBlend": 1,
+    "cdrFountainFillBlendType.cdrRainbowCCWFountainFillBlend": 2,
+    "cdrFountainFillBlendType.cdrCustomFountainFillBlend": 3,
+    "cdrTransparencyAppliedTo.cdrApplyToFill": 0,
+    "cdrTransparencyAppliedTo.cdrApplyToOutline": 1,
+    "cdrTransparencyAppliedTo.cdrApplyToFillAndOutline": 2,
+    "cdrDropShadowType.cdrDropShadowFlat": 0,
+    "cdrDropShadowType.cdrDropShadowBottom": 1,
+    "cdrDropShadowType.cdrDropShadowTop": 2,
+    "cdrDropShadowType.cdrDropShadowLeft": 3,
+    "cdrDropShadowType.cdrDropShadowRight": 4,
+    "cdrFeatherType.cdrFeatherInside": 0,
+    "cdrFeatherType.cdrFeatherMiddle": 1,
+    "cdrFeatherType.cdrFeatherOutside": 2,
+    "cdrFeatherType.cdrFeatherAverage": 3,
+    "cdrFeatherType.cdrFeatherGaussianBlur": 4,
+    "cdrEdgeType.cdrEdgeLinear": 0,
+    "cdrEdgeType.cdrEdgeSquared": 1,
+    "cdrEdgeType.cdrEdgeFlat": 2,
+    "cdrEdgeType.cdrEdgeInverseSquared": 3,
+    "cdrEdgeType.cdrEdgeMesa": 4,
+    "cdrEdgeType.cdrEdgeGaussian": 5,
+    "cdrMergeMode.cdrMergeNormal": 0,
+    "cdrMergeMode.cdrMergeMultiply": 9,
+    "cdrMergeMode.cdrMergeBehind": 27,
+    "cdrMergeMode.cdrMergeScreen": 28,
+    "cdrMergeMode.cdrMergeOverlay": 29
   },
   "signatures": [
     {
@@ -2876,6 +2911,920 @@
       "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/bitmap.cropenvelope?lang=cs",
       "live_status": "verified_final_bitmap_recipe",
       "parameters": []
+    },
+    {
+      "interface": "IVGEffect",
+      "member": "Clear",
+      "clr_signature": "Void Clear()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/effect.clear?lang=cs",
+      "live_status": "probed_live_alternative_removal_path_20261117; probed live with the same result as the chosen worker path IVGShape.ClearEffect (covered by LiveNativeFillsTests.DropShadowNoneRemovesTheEffectAndRestoresTheOriginalTarget)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFill",
+      "member": "ApplyFountainFill",
+      "clr_signature": "VGCore.FountainFill ApplyFountainFill(VGCore.Color, VGCore.Color, VGCore.cdrFountainFillType, Double, Int32, Int32, Int32, VGCore.cdrFountainFillBlendType, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fill.applyfountainfill?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; observed API defaults steps=256/edge_pad=0/mid_point=50/blend=direct confirmed by LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults",
+      "parameters": [
+        {
+          "name": "StartColor",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "EndColor",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "Type",
+          "type": "VGCore.cdrFountainFillType",
+          "optional": true,
+          "default": "cdrLinearFountainFill"
+        },
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "Steps",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "EdgePad",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "MidPoint",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 50
+        },
+        {
+          "name": "BlendType",
+          "type": "VGCore.cdrFountainFillBlendType",
+          "optional": true,
+          "default": "cdrDirectFountainFillBlend"
+        },
+        {
+          "name": "CenterOffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "CenterOffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainColor",
+      "member": "get_Color",
+      "clr_signature": "VGCore.Color get_Color()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolor.color?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; fountain stop color read-back (rgb/cmyk round-trip)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColor",
+      "member": "get_Position",
+      "clr_signature": "Int32 get_Position()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolor.position?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; intermediate stop positions round-trip exactly",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "Add",
+      "clr_signature": "Void Add(VGCore.Color, Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountaincolors.add?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; intermediate stops added in ascending position order",
+      "parameters": [
+        {
+          "name": "Color",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Position",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_Count",
+      "clr_signature": "Int32 get_Count()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.count?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_First",
+      "clr_signature": "VGCore.FountainColor get_First()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.first?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_Item",
+      "clr_signature": "VGCore.FountainColor get_Item(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.item?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; observed: Item is 0-based (valid 0..Count-1), unlike the 1-based IVGShapes collection",
+      "parameters": [
+        {
+          "name": "Index",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_Last",
+      "clr_signature": "VGCore.FountainColor get_Last()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.last?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Angle",
+      "clr_signature": "Double get_Angle()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.angle?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve (45deg) and LiveNativeFillsTests.SquareFountainFillEdgePadAndAngleBehaviorIsProbedLive (0 round-trips)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_BlendType",
+      "clr_signature": "VGCore.cdrFountainFillBlendType get_BlendType()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.blendtype?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; observed: multi-stop fountains read back blend_type=custom even when direct was requested; 2-stop keep the requested blend (LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_CenterOffsetX",
+      "clr_signature": "Double get_CenterOffsetX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsetx?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.RadialFountainCenterOffsetsArePassedAsPercentInMmAndInchDocuments; center offsets are object-size percents passed through without unit conversion; read back 20/-30 in mm and inch documents",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_CenterOffsetY",
+      "clr_signature": "Double get_CenterOffsetY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsety?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.RadialFountainCenterOffsetsArePassedAsPercentInMmAndInchDocuments; center offsets are object-size percents passed through without unit conversion; read back 20/-30 in mm and inch documents",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Colors",
+      "clr_signature": "VGCore.FountainColors get_Colors()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.colors?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EdgePad",
+      "clr_signature": "Int32 get_EdgePad()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.edgepad?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve and LiveNativeFillsTests.SquareFountainFillEdgePadAndAngleBehaviorIsProbedLive; observed: Corel renormalizes EdgePad for linear and square with nonzero angle (0->15 and 20->29 at 45deg on 40x20mm; 7->19 at 30deg), angle 0 round-trips exactly (20->20), conical unaffected",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EndColor",
+      "clr_signature": "VGCore.Color get_EndColor()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endcolor?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EndX",
+      "clr_signature": "Double get_EndX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endx?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EndY",
+      "clr_signature": "Double get_EndY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endy?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_MergeMode",
+      "clr_signature": "VGCore.cdrMergeMode get_MergeMode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.mergemode?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_MidPoint",
+      "clr_signature": "Int32 get_MidPoint()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.midpoint?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults; observed default 50",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_ScaleX",
+      "clr_signature": "Double get_ScaleX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scalex?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_ScaleY",
+      "clr_signature": "Double get_ScaleY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scaley?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Skew",
+      "clr_signature": "Double get_Skew()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.skew?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_SmoothBlend",
+      "clr_signature": "Boolean get_SmoothBlend()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.smoothblend?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults; observed default false",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_SpreadMethod",
+      "clr_signature": "VGCore.cdrFountainFillSpreadMethod get_SpreadMethod()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.spreadmethod?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve (pad) and LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults (observed default pad)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_StartColor",
+      "clr_signature": "VGCore.Color get_StartColor()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startcolor?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_StartX",
+      "clr_signature": "Double get_StartX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startx?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_StartY",
+      "clr_signature": "Double get_StartY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.starty?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Steps",
+      "clr_signature": "Int32 get_Steps()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.steps?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve (128 requested) and LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults (observed default 256)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrFountainFillType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.type?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve (linear) and LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults (conical)",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "MakeOpaque",
+      "clr_signature": "Void MakeOpaque()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.makeopaque?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_BlendType",
+      "clr_signature": "Void set_BlendType(VGCore.cdrFountainFillBlendType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.blendtype?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrFountainFillBlendType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_CenterOffsetX",
+      "clr_signature": "Void set_CenterOffsetX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsetx?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.RadialFountainCenterOffsetsArePassedAsPercentInMmAndInchDocuments",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_CenterOffsetY",
+      "clr_signature": "Void set_CenterOffsetY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsety?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.RadialFountainCenterOffsetsArePassedAsPercentInMmAndInchDocuments",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_EndColor",
+      "clr_signature": "Void set_EndColor(VGCore.Color)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endcolor?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "ppVal",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_EndX",
+      "clr_signature": "Void set_EndX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endx?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_EndY",
+      "clr_signature": "Void set_EndY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endy?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_MergeMode",
+      "clr_signature": "Void set_MergeMode(VGCore.cdrMergeMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.mergemode?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrMergeMode",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_MidPoint",
+      "clr_signature": "Void set_MidPoint(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.midpoint?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_ScaleX",
+      "clr_signature": "Void set_ScaleX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scalex?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_ScaleY",
+      "clr_signature": "Void set_ScaleY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scaley?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_Skew",
+      "clr_signature": "Void set_Skew(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.skew?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_SmoothBlend",
+      "clr_signature": "Void set_SmoothBlend(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.smoothblend?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_SpreadMethod",
+      "clr_signature": "Void set_SpreadMethod(VGCore.cdrFountainFillSpreadMethod)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.spreadmethod?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve; post-apply setter used only when spread is requested",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrFountainFillSpreadMethod",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_StartColor",
+      "clr_signature": "Void set_StartColor(VGCore.Color)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startcolor?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "ppVal",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_StartX",
+      "clr_signature": "Void set_StartX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startx?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_StartY",
+      "clr_signature": "Void set_StartY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.starty?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_Steps",
+      "clr_signature": "Void set_Steps(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.steps?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.AbsentFountainOptionsRoundTripApiTypicalDefaults",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_Type",
+      "clr_signature": "Void set_Type(VGCore.cdrFountainFillType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.type?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrFountainFillType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "SetAngle",
+      "clr_signature": "Void SetAngle(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.setangle?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "SetEdgePad",
+      "clr_signature": "Void SetEdgePad(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.setedgepad?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.SquareFountainFillEdgePadAndAngleBehaviorIsProbedLive",
+      "parameters": [
+        {
+          "name": "EdgePad",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "SetTransformations",
+      "clr_signature": "Void SetTransformations(Double, Double, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.settransformations?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "parameters": [
+        {
+          "name": "d11",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d12",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d21",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d22",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "ClearEffect",
+      "clr_signature": "Void ClearEffect(VGCore.cdrEffectType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.cleareffect?lang=cs",
+      "live_status": "verified_live_native_fills_20261117; LiveNativeFillsTests.DropShadowNoneRemovesTheEffectAndRestoresTheOriginalTarget; typed removal path: deletes the cdrDropShadow effect and the sibling shadow group, target StaticID/type/geometry restored",
+      "parameters": [
+        {
+          "name": "Type",
+          "type": "VGCore.cdrEffectType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "CreateDropShadow",
+      "clr_signature": "VGCore.Effect CreateDropShadow(VGCore.cdrDropShadowType, Int32, Int32, Double, Double, VGCore.Color, VGCore.cdrFeatherType, VGCore.cdrEdgeType, Double, Double, Int32, VGCore.cdrMergeMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.createdropshadow?lang=cs",
+      "live_status": "verified_live_native_fills_20261117; LiveNativeFillsTests.DropShadowAppliesToRectTextAndGroupMemberAndReportsIdMappings; observed: target is NOT wrapped (StaticID/type/geometry stable), effect attaches to the target, sibling cdrDropShadowGroupShape with one shadow child created; id_mappings result_static_ids=[target, group, child]",
+      "parameters": [
+        {
+          "name": "Type",
+          "type": "VGCore.cdrDropShadowType",
+          "optional": true,
+          "default": "cdrDropShadowFlat"
+        },
+        {
+          "name": "Opacity",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 50
+        },
+        {
+          "name": "Feather",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 15
+        },
+        {
+          "name": "OffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "OffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "Color",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "FeatherType",
+          "type": "VGCore.cdrFeatherType",
+          "optional": true,
+          "default": "cdrFeatherGaussianBlur"
+        },
+        {
+          "name": "FeatherEdge",
+          "type": "VGCore.cdrEdgeType",
+          "optional": true,
+          "default": "cdrEdgeLinear"
+        },
+        {
+          "name": "PerspectiveAngle",
+          "type": "System.Double",
+          "optional": true,
+          "default": -45
+        },
+        {
+          "name": "PerspectiveStretch",
+          "type": "System.Double",
+          "optional": true,
+          "default": 1
+        },
+        {
+          "name": "Fade",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 1
+        },
+        {
+          "name": "MergeMode",
+          "type": "VGCore.cdrMergeMode",
+          "optional": true,
+          "default": "cdrMergeNormal"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "ApplyFountainTransparency",
+      "clr_signature": "VGCore.FountainFill ApplyFountainTransparency(Int32, Int32, VGCore.cdrFountainFillType, Double, Int32, Int32, Int32, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applyfountaintransparency?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.FountainTransparencyAcceptsRadialCenterPercentsAndSquareAngle and LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion; optional Steps/EdgePad/MidPoint left to COM defaults; center percents passed as-is",
+      "parameters": [
+        {
+          "name": "Start",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "End",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 100
+        },
+        {
+          "name": "Type",
+          "type": "VGCore.cdrFountainFillType",
+          "optional": true,
+          "default": "cdrLinearFountainFill"
+        },
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "Steps",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "EdgePad",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "MidPoint",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 50
+        },
+        {
+          "name": "CenterOffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "CenterOffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "ApplyNoTransparency",
+      "clr_signature": "Void ApplyNoTransparency()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applynotransparency?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion; kind none removal",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "ApplyUniformTransparency",
+      "clr_signature": "Void ApplyUniformTransparency(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applyuniformtransparency?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "Freeze",
+      "clr_signature": "Void Freeze()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.freeze?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.TransparencyRefusalsProtectFrozenLockedLensAndBarrierTargetsBeforeMutation; freeze=true, frozen read back true, repeat application refused before mutation",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "get_AppliedTo",
+      "clr_signature": "VGCore.cdrTransparencyAppliedTo get_AppliedTo()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.appliedto?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion; observed: property exists only after Apply* (COM error before); property order Apply -> AppliedTo/MergeMode -> Freeze",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "get_Frozen",
+      "clr_signature": "Boolean get_Frozen()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.frozen?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.TransparencyRefusalsProtectFrozenLockedLensAndBarrierTargetsBeforeMutation; frozen read back true after freeze",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "get_MergeMode",
+      "clr_signature": "VGCore.cdrMergeMode get_MergeMode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.mergemode?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion; multiply read back as 9",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "set_AppliedTo",
+      "clr_signature": "Void set_AppliedTo(VGCore.cdrTransparencyAppliedTo)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.appliedto?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion; applied_to outline read back as 1",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrTransparencyAppliedTo",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "set_MergeMode",
+      "clr_signature": "Void set_MergeMode(VGCore.cdrMergeMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.mergemode?lang=cs",
+      "live_status": "verified_live_native_fills_20261116; LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrMergeMode",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "Unfreeze",
+      "clr_signature": "Void Unfreeze()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.unfreeze?lang=cs",
+      "live_status": "verified_static_reflection_20261117; not individually exercised live; covered by LiveNativeFillsTests.UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion",
+      "parameters": []
     }
   ],
   "live_evidence": "artifacts/worker-smoke/a0abfaf0d8c848f28bbc88e552d67e67/smoke.json",
@@ -3092,6 +4041,58 @@
     "evidence": "artifacts/worker-drawing/<fixture>/results.jsonl and PNG previews; fixtures owned by tests",
     "limitations": "not arbitrary live-effect support or full visual-equivalence proof; scale/flip/align/shelf/update_batch stay denied for transparency",
     "unsafe_fixture": "Synthetic UseViewPoint=true crashed CorelDRAW27.2 during owned-document Close; removed from live suite, predicate checked without COM. User CDR reopened from disk with explicit approval; no overwrite."
+  },
+  "native_fills": {
+    "verified_at": "2026-11-17",
+    "coreldraw": "27.2.0.135",
+    "scope": ["corel_style_shapes fill kind fountain", "corel_set_transparency kind none|uniform|fountain", "corel_apply_drop_shadow kind shadow|none"],
+    "engine": "csharp; fountain/transparency/shadow stay on the C# path in hybrid mode (VBA row codec barrier)",
+    "live_test": "CorelMcp.Worker.Tests.LiveNativeFillsTests",
+    "live_tests_passed": 12,
+    "covering_live_tests": [
+      "MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve",
+      "RadialFountainCenterOffsetsArePassedAsPercentInMmAndInchDocuments",
+      "AbsentFountainOptionsRoundTripApiTypicalDefaults",
+      "FountainStyleStaysOnCSharpAboveTheNativeThresholdInHybridMode",
+      "UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion",
+      "FountainTransparencyAcceptsRadialCenterPercentsAndSquareAngle",
+      "GroupTransparencyAppliesToEverySupportedLeafAndRefusesMixedGroupsBeforeMutation",
+      "TransparencyRefusalsProtectFrozenLockedLensAndBarrierTargetsBeforeMutation",
+      "SquareFountainFillEdgePadAndAngleBehaviorIsProbedLive",
+      "DropShadowAppliesToRectTextAndGroupMemberAndReportsIdMappings",
+      "DropShadowRefusalsProtectRepeatedGroupLockedBitmapAndExistingEffects",
+      "DropShadowNoneRemovesTheEffectAndRestoresTheOriginalTarget"
+    ],
+    "observed_defaults": {
+      "steps": 256,
+      "edge_pad": 0,
+      "mid_point": 50,
+      "blend_type": "direct",
+      "spread": "pad",
+      "smooth_blend": false
+    },
+    "observed_behavior": [
+      "IVGFountainColors.Item is 0-based (valid indices 0..Count-1), unlike the 1-based IVGShapes collection; Add(Color, Position) stop positions round-trip exactly",
+      "multi-stop fountains read back blend_type=custom regardless of the requested blend; 2-stop fountains keep the requested blend (direct)",
+      "Corel renormalizes EdgePad for linear and square fountains with nonzero angle from the rotated gradient axis: linear 0->15 and 20->29 at 45deg, 7->19 at 30deg on a 40x20mm rectangle; square 20->29 at 45deg; angle 0 round-trips exactly (20->20); conical is unaffected",
+      "IVGTransparency.AppliedTo/MergeMode exist only after Apply* (COM error when set before apply); property order Apply -> AppliedTo/MergeMode -> Freeze",
+      "drop shadow does not wrap the target: the target keeps StaticID/type/geometry, the cdrDropShadow effect attaches to the target, and a sibling cdrDropShadowGroupShape (shadow group with exactly one shadow child) is created; id_mappings = {source_static_id, result_static_ids:[target, group, child]}; removal returns [target]",
+      "typed shadow removal is IVGShape.ClearEffect(cdrDropShadow); IVGEffect.Clear() was probed live as an equivalent alternative and is not used by the worker",
+      "perspective 0/0 round-trips exactly (v1 does not expose perspective fields); fade round-trips even on flat although the schema forbids fade+flat",
+      "center_offset_x/center_offset_y are object-size percents passed through without unit conversion; verified by read-back of 20/-30 in mm and inch documents",
+      "fountain/transparency/shadow stay on the C# path in hybrid mode above and below the VBA batch threshold; the VBA row codec never sees fountain fills"
+    ],
+    "api_validation": "SDK27 Context7 /websites/community_coreldraw_sdk_api_draw, installed type library 27.2, static reflection of generated VGCore.Interop.dll (test/fixtures/native-fills-describe-api.json), live gates T4-T6",
+    "sdk_urls": [
+      "https://community.coreldraw.com/sdk/api/draw/27/m/fill.applyfountainfill",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/fountainfill",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/fountaincolors",
+      "https://community.coreldraw.com/sdk/api/draw/27/c/transparency",
+      "https://community.coreldraw.com/sdk/api/draw/27/m/shape.createdropshadow",
+      "https://community.coreldraw.com/sdk/api/draw/27/m/shape.cleareffect"
+    ],
+    "evidence": ".superpowers/sdd/2026-11-16-corel-native-fills/task-4-report.md, task-5-report.md, task-6-report.md; artifacts/worker-drawing/<uuid>/results.jsonl",
+    "limitations": "no mesh/pattern/texture fills; cdrMergeMode recorded as the schema whitelist (full enum exists in the typelib); fade forbidden for flat by schema; shadow child unreachable by page walk (SHAPE_NOT_FOUND); shadow group (type 16) refused as target; shadowed/transparent targets keep the existing effects gates"
   },
   "hybrid_runtime": {
     "catalog_tools": 41,

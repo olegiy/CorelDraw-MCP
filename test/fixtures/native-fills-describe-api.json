@@ -1,0 +1,907 @@
+{
+  "provenance": {
+    "generator": "scripts/dump-native-fills-fixture.ps1",
+    "method": "static .NET reflection over the build-time generated interop assembly worker/generated/VGCore.Interop.dll; no COM calls and no CorelDRAW instance",
+    "typelib": {
+      "guid": "95e23c91-bc5a-49f3-8cd1-1fc515597048",
+      "major": 27,
+      "minor": 2,
+      "syskind": "SYS_WIN64",
+      "source_sha256": "7044b6074dfa445f39f6238062ae40e96e01c7764dc28d215872abacce3bdd7c"
+    },
+    "assembly_sha256": "fabc162b73550baed2b1e878e30f135965671e69e6bfbe5c3d93c3ee6cd44bcb",
+    "parameter_metadata": "optional flags and default values come from the COM parameter metadata preserved by the TypeLibConverter-generated assembly; object-typed parameters without a COM default serialize as null",
+    "sdk_urls": "built with the ledger convention https://community.coreldraw.com/sdk/api/draw/27/{m|p}/<interface-sans-IVG>.<member>?lang=cs (Context7 /websites/community_coreldraw_sdk_api_draw mirror)",
+    "scope": "members used or contractually relevant for corel_style_shapes fountain fills, corel_set_transparency and corel_apply_drop_shadow; cdrMergeMode is recorded as the schema whitelist, the full enum exists in the type library",
+    "observed_behavior_note": "live-observed defaults and normalizations (steps=256, EdgePad renormalization, drop-shadow semantics) are not reflection data; they are recorded in worker/api-contract.json native_fills from live gates T4-T6"
+  },
+  "signatures": [
+    {
+      "interface": "IVGEffect",
+      "member": "Clear",
+      "clr_signature": "Void Clear()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/effect.clear?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFill",
+      "member": "ApplyFountainFill",
+      "clr_signature": "VGCore.FountainFill ApplyFountainFill(VGCore.Color, VGCore.Color, VGCore.cdrFountainFillType, Double, Int32, Int32, Int32, VGCore.cdrFountainFillBlendType, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fill.applyfountainfill?lang=cs",
+      "parameters": [
+        {
+          "name": "StartColor",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "EndColor",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "Type",
+          "type": "VGCore.cdrFountainFillType",
+          "optional": true,
+          "default": "cdrLinearFountainFill"
+        },
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        },
+        {
+          "name": "Steps",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "EdgePad",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "MidPoint",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 50
+        },
+        {
+          "name": "BlendType",
+          "type": "VGCore.cdrFountainFillBlendType",
+          "optional": true,
+          "default": "cdrDirectFountainFillBlend"
+        },
+        {
+          "name": "CenterOffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        },
+        {
+          "name": "CenterOffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainColor",
+      "member": "get_Color",
+      "clr_signature": "VGCore.Color get_Color()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolor.color?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColor",
+      "member": "get_Position",
+      "clr_signature": "Int32 get_Position()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolor.position?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "Add",
+      "clr_signature": "Void Add(VGCore.Color, Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountaincolors.add?lang=cs",
+      "parameters": [
+        {
+          "name": "Color",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "Position",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_Count",
+      "clr_signature": "Int32 get_Count()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.count?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_First",
+      "clr_signature": "VGCore.FountainColor get_First()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.first?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_Item",
+      "clr_signature": "VGCore.FountainColor get_Item(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.item?lang=cs",
+      "parameters": [
+        {
+          "name": "Index",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainColors",
+      "member": "get_Last",
+      "clr_signature": "VGCore.FountainColor get_Last()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountaincolors.last?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Angle",
+      "clr_signature": "Double get_Angle()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.angle?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_BlendType",
+      "clr_signature": "VGCore.cdrFountainFillBlendType get_BlendType()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.blendtype?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_CenterOffsetX",
+      "clr_signature": "Double get_CenterOffsetX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsetx?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_CenterOffsetY",
+      "clr_signature": "Double get_CenterOffsetY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsety?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Colors",
+      "clr_signature": "VGCore.FountainColors get_Colors()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.colors?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EdgePad",
+      "clr_signature": "Int32 get_EdgePad()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.edgepad?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EndColor",
+      "clr_signature": "VGCore.Color get_EndColor()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endcolor?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EndX",
+      "clr_signature": "Double get_EndX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endx?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_EndY",
+      "clr_signature": "Double get_EndY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endy?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_MergeMode",
+      "clr_signature": "VGCore.cdrMergeMode get_MergeMode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.mergemode?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_MidPoint",
+      "clr_signature": "Int32 get_MidPoint()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.midpoint?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_ScaleX",
+      "clr_signature": "Double get_ScaleX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scalex?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_ScaleY",
+      "clr_signature": "Double get_ScaleY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scaley?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Skew",
+      "clr_signature": "Double get_Skew()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.skew?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_SmoothBlend",
+      "clr_signature": "Boolean get_SmoothBlend()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.smoothblend?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_SpreadMethod",
+      "clr_signature": "VGCore.cdrFountainFillSpreadMethod get_SpreadMethod()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.spreadmethod?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_StartColor",
+      "clr_signature": "VGCore.Color get_StartColor()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startcolor?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_StartX",
+      "clr_signature": "Double get_StartX()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startx?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_StartY",
+      "clr_signature": "Double get_StartY()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.starty?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Steps",
+      "clr_signature": "Int32 get_Steps()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.steps?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "get_Type",
+      "clr_signature": "VGCore.cdrFountainFillType get_Type()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.type?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "MakeOpaque",
+      "clr_signature": "Void MakeOpaque()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.makeopaque?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_BlendType",
+      "clr_signature": "Void set_BlendType(VGCore.cdrFountainFillBlendType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.blendtype?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrFountainFillBlendType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_CenterOffsetX",
+      "clr_signature": "Void set_CenterOffsetX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsetx?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_CenterOffsetY",
+      "clr_signature": "Void set_CenterOffsetY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.centeroffsety?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_EndColor",
+      "clr_signature": "Void set_EndColor(VGCore.Color)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endcolor?lang=cs",
+      "parameters": [
+        {
+          "name": "ppVal",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_EndX",
+      "clr_signature": "Void set_EndX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endx?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_EndY",
+      "clr_signature": "Void set_EndY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.endy?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_MergeMode",
+      "clr_signature": "Void set_MergeMode(VGCore.cdrMergeMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.mergemode?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrMergeMode",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_MidPoint",
+      "clr_signature": "Void set_MidPoint(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.midpoint?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_ScaleX",
+      "clr_signature": "Void set_ScaleX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scalex?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_ScaleY",
+      "clr_signature": "Void set_ScaleY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.scaley?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_Skew",
+      "clr_signature": "Void set_Skew(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.skew?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_SmoothBlend",
+      "clr_signature": "Void set_SmoothBlend(Boolean)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.smoothblend?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Boolean",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_SpreadMethod",
+      "clr_signature": "Void set_SpreadMethod(VGCore.cdrFountainFillSpreadMethod)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.spreadmethod?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrFountainFillSpreadMethod",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_StartColor",
+      "clr_signature": "Void set_StartColor(VGCore.Color)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startcolor?lang=cs",
+      "parameters": [
+        {
+          "name": "ppVal",
+          "type": "VGCore.Color",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_StartX",
+      "clr_signature": "Void set_StartX(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.startx?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_StartY",
+      "clr_signature": "Void set_StartY(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.starty?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_Steps",
+      "clr_signature": "Void set_Steps(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.steps?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "set_Type",
+      "clr_signature": "Void set_Type(VGCore.cdrFountainFillType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/fountainfill.type?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrFountainFillType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "SetAngle",
+      "clr_signature": "Void SetAngle(Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.setangle?lang=cs",
+      "parameters": [
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "SetEdgePad",
+      "clr_signature": "Void SetEdgePad(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.setedgepad?lang=cs",
+      "parameters": [
+        {
+          "name": "EdgePad",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGFountainFill",
+      "member": "SetTransformations",
+      "clr_signature": "Void SetTransformations(Double, Double, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/fountainfill.settransformations?lang=cs",
+      "parameters": [
+        {
+          "name": "d11",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d12",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d21",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        },
+        {
+          "name": "d22",
+          "type": "System.Double",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "ClearEffect",
+      "clr_signature": "Void ClearEffect(VGCore.cdrEffectType)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.cleareffect?lang=cs",
+      "parameters": [
+        {
+          "name": "Type",
+          "type": "VGCore.cdrEffectType",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGShape",
+      "member": "CreateDropShadow",
+      "clr_signature": "VGCore.Effect CreateDropShadow(VGCore.cdrDropShadowType, Int32, Int32, Double, Double, VGCore.Color, VGCore.cdrFeatherType, VGCore.cdrEdgeType, Double, Double, Int32, VGCore.cdrMergeMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/shape.createdropshadow?lang=cs",
+      "parameters": [
+        {
+          "name": "Type",
+          "type": "VGCore.cdrDropShadowType",
+          "optional": true,
+          "default": "cdrDropShadowFlat"
+        },
+        {
+          "name": "Opacity",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 50
+        },
+        {
+          "name": "Feather",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 15
+        },
+        {
+          "name": "OffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        },
+        {
+          "name": "OffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        },
+        {
+          "name": "Color",
+          "type": "VGCore.Color",
+          "optional": true,
+          "default": null
+        },
+        {
+          "name": "FeatherType",
+          "type": "VGCore.cdrFeatherType",
+          "optional": true,
+          "default": "cdrFeatherGaussianBlur"
+        },
+        {
+          "name": "FeatherEdge",
+          "type": "VGCore.cdrEdgeType",
+          "optional": true,
+          "default": "cdrEdgeLinear"
+        },
+        {
+          "name": "PerspectiveAngle",
+          "type": "System.Double",
+          "optional": true,
+          "default": -45.0
+        },
+        {
+          "name": "PerspectiveStretch",
+          "type": "System.Double",
+          "optional": true,
+          "default": 1.0
+        },
+        {
+          "name": "Fade",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 1
+        },
+        {
+          "name": "MergeMode",
+          "type": "VGCore.cdrMergeMode",
+          "optional": true,
+          "default": "cdrMergeNormal"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "ApplyFountainTransparency",
+      "clr_signature": "VGCore.FountainFill ApplyFountainTransparency(Int32, Int32, VGCore.cdrFountainFillType, Double, Int32, Int32, Int32, Double, Double)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applyfountaintransparency?lang=cs",
+      "parameters": [
+        {
+          "name": "Start",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "End",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 100
+        },
+        {
+          "name": "Type",
+          "type": "VGCore.cdrFountainFillType",
+          "optional": true,
+          "default": "cdrLinearFountainFill"
+        },
+        {
+          "name": "Angle",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        },
+        {
+          "name": "Steps",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "EdgePad",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 0
+        },
+        {
+          "name": "MidPoint",
+          "type": "System.Int32",
+          "optional": true,
+          "default": 50
+        },
+        {
+          "name": "CenterOffsetX",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        },
+        {
+          "name": "CenterOffsetY",
+          "type": "System.Double",
+          "optional": true,
+          "default": 0.0
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "ApplyNoTransparency",
+      "clr_signature": "Void ApplyNoTransparency()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applynotransparency?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "ApplyUniformTransparency",
+      "clr_signature": "Void ApplyUniformTransparency(Int32)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applyuniformtransparency?lang=cs",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "System.Int32",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "Freeze",
+      "clr_signature": "Void Freeze()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.freeze?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "get_AppliedTo",
+      "clr_signature": "VGCore.cdrTransparencyAppliedTo get_AppliedTo()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.appliedto?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "get_Frozen",
+      "clr_signature": "Boolean get_Frozen()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.frozen?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "get_MergeMode",
+      "clr_signature": "VGCore.cdrMergeMode get_MergeMode()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.mergemode?lang=cs",
+      "parameters": []
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "set_AppliedTo",
+      "clr_signature": "Void set_AppliedTo(VGCore.cdrTransparencyAppliedTo)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.appliedto?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrTransparencyAppliedTo",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "set_MergeMode",
+      "clr_signature": "Void set_MergeMode(VGCore.cdrMergeMode)",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/p/transparency.mergemode?lang=cs",
+      "parameters": [
+        {
+          "name": "pVal",
+          "type": "VGCore.cdrMergeMode",
+          "optional": false,
+          "default": "missing"
+        }
+      ]
+    },
+    {
+      "interface": "IVGTransparency",
+      "member": "Unfreeze",
+      "clr_signature": "Void Unfreeze()",
+      "sdk_url": "https://community.coreldraw.com/sdk/api/draw/27/m/transparency.unfreeze?lang=cs",
+      "parameters": []
+    }
+  ],
+  "enum_values": {
+    "cdrFountainFillType.cdrLinearFountainFill": 1,
+    "cdrFountainFillType.cdrRadialFountainFill": 2,
+    "cdrFountainFillType.cdrConicalFountainFill": 3,
+    "cdrFountainFillType.cdrSquareFountainFill": 4,
+    "cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodPad": 0,
+    "cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodReflect": 1,
+    "cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodRepeat": 2,
+    "cdrFountainFillBlendType.cdrDirectFountainFillBlend": 0,
+    "cdrFountainFillBlendType.cdrRainbowCWFountainFillBlend": 1,
+    "cdrFountainFillBlendType.cdrRainbowCCWFountainFillBlend": 2,
+    "cdrFountainFillBlendType.cdrCustomFountainFillBlend": 3,
+    "cdrTransparencyAppliedTo.cdrApplyToFill": 0,
+    "cdrTransparencyAppliedTo.cdrApplyToOutline": 1,
+    "cdrTransparencyAppliedTo.cdrApplyToFillAndOutline": 2,
+    "cdrDropShadowType.cdrDropShadowFlat": 0,
+    "cdrDropShadowType.cdrDropShadowBottom": 1,
+    "cdrDropShadowType.cdrDropShadowTop": 2,
+    "cdrDropShadowType.cdrDropShadowLeft": 3,
+    "cdrDropShadowType.cdrDropShadowRight": 4,
+    "cdrFeatherType.cdrFeatherInside": 0,
+    "cdrFeatherType.cdrFeatherMiddle": 1,
+    "cdrFeatherType.cdrFeatherOutside": 2,
+    "cdrFeatherType.cdrFeatherAverage": 3,
+    "cdrFeatherType.cdrFeatherGaussianBlur": 4,
+    "cdrEdgeType.cdrEdgeLinear": 0,
+    "cdrEdgeType.cdrEdgeSquared": 1,
+    "cdrEdgeType.cdrEdgeFlat": 2,
+    "cdrEdgeType.cdrEdgeInverseSquared": 3,
+    "cdrEdgeType.cdrEdgeMesa": 4,
+    "cdrEdgeType.cdrEdgeGaussian": 5,
+    "cdrMergeMode.cdrMergeNormal": 0,
+    "cdrMergeMode.cdrMergeMultiply": 9,
+    "cdrMergeMode.cdrMergeBehind": 27,
+    "cdrMergeMode.cdrMergeScreen": 28,
+    "cdrMergeMode.cdrMergeOverlay": 29
+  }
+}
