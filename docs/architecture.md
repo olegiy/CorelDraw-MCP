@@ -64,10 +64,11 @@ Mesh-заливка — non-goal с доказательством: в dispatch 
 
 Read-back новых операций возвращает наблюдаемые значения: Corel нормализует EdgePad для linear/square с ненулевым
 углом (0→15/20→29 при 45°; угол 0 возвращается точно), многостоповые градиенты читаются как blend_type=custom,
-умолчания steps 256/edge 0/mid 50/direct/pad. Прозрачность применяется в порядке Apply → AppliedTo/MergeMode →
+умолчания steps 256/edge 0/mid 50/direct/pad/smooth_blend false. Прозрачность применяется в порядке Apply → AppliedTo/MergeMode →
 Freeze (свойства недоступны до Apply); группа допускается только при поддержке всех потомков. Тень не оборачивает
 цель: StaticID/тип/геометрия сохраняются, эффект attaches, sibling-группа тени даёт id_mappings
 {source_static_id, result_static_ids:[target, group, child]}; снятие — ClearEffect(cdrDropShadow) → [target].
+Группы под тенью — limitation v1 (отказ до мутации).
 Затенённые и прозрачные цели сохраняют существующие effects-барьеры: style/convert/boolean/scale/layout/
 update_batch и allowTransparency не расширяются.
 

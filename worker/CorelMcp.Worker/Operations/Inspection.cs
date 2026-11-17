@@ -122,7 +122,10 @@ internal static class Inspection
                     // Observed read-back for the drop shadow; offsets are document lengths and are converted to mm.
                     // Live-verified defaults when v1 does not expose them: perspective_angle=0, perspective_stretch=0.
                     var shadow = context.Track(effect.DropShadow);
-                    var factor = context.App.ConvertUnits(1, context.Target!.Document.Unit, VGCore.cdrUnit.cdrMillimeter);
+                    // The unit comes from the shape's own document (shape.TreeNode.Document), not context.Target:
+                    // EffectInfo must stay usable without a resolved target and a null Target! would throw an NRE
+                    // that the COMException-only catch below does not cover.
+                    var factor = context.App.ConvertUnits(1, context.Track(shape.TreeNode).Document.Unit, VGCore.cdrUnit.cdrMillimeter);
                     item["drop_shadow"] = Dto.Of(("type", (int)shadow.Type), ("opacity", shadow.Opacity), ("feather", shadow.Feather),
                         ("offset_x_mm", shadow.OffsetX * factor), ("offset_y_mm", shadow.OffsetY * factor),
                         ("feather_type", (int)shadow.FeatherType), ("feather_edge", (int)shadow.FeatherEdge),

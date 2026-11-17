@@ -4,6 +4,8 @@ namespace CorelMcp.Worker.Operations;
 // resolve + full target validation before the mutation closure; groups pass only when every descendant is supported,
 // then the transparency is applied to each leaf (never to the group node, so existing group/move/duplicate semantics
 // keep working). StaticID never changes; the report reuses Inspection.EffectInfo for the observed read-back.
+// Mutations are recorded per leaf inside the loop (the DropShadow per-target pattern): on a mid-loop COM failure the
+// partial report keeps affected_static_ids for every leaf already mutated instead of an empty list.
 internal static class Transparency
 {
     public static Action Prepare(DrawingTarget target, TransparencyCommand args)
@@ -18,7 +20,6 @@ internal static class Transparency
         var selected = args.StaticIds.ToHashSet();
         foreach (var root in shapes) CheckAncestors(c, root, selected);
         var leaves = Leaves(c, shapes);
-        var observed = leaves.Select(shape => shape.StaticID).ToArray();
         return () =>
         {
             c.Mutating();
@@ -44,10 +45,14 @@ internal static class Transparency
                 if (appliedTo is { } where) transparency.AppliedTo = where;
                 if (mergeMode is { } mode) transparency.MergeMode = mode;
                 if (args.Freeze is true) transparency.Freeze();
+                // Recorded per leaf, mirroring DropShadow's per-target loop: RecordMutation runs right after each
+                // leaf's mutation (before the read-back), and the report sets accumulate across calls, so a mid-loop
+                // COM failure at leaf k still yields partial:true with the observed ids of leaves 0..k-1 while items
+                // carry the same ids — never an empty affected list with a non-empty items array.
+                c.RecordMutation([shape.StaticID], [shape.StaticID]);
                 c.DrawingItems.Add(Dto.Of(("static_id", shape.StaticID), ("effects", Inspection.EffectInfo(c, shape))));
+                c.Stage("mutation_observed");
             }
-            c.RecordMutation(observed, observed);
-            c.Stage("mutation_observed");
         };
     }
 

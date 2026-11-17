@@ -230,7 +230,8 @@ public sealed class DrawingContractsTests
     }
     private static string Transparency(string body) => "{\"request_id\":\"once\",\"document_id\":\"exact\",\"page_index\":1," + body + "}";
     [Fact]
-    public void TransparencyCommandParsesWithEveryOptionalField()    {
+    public void TransparencyCommandParsesWithEveryOptionalField()
+    {
         var payload = "\"static_ids\":[1,2],\"kind\":\"fountain\",\"start\":25,\"end\":75,\"type\":\"square\",\"angle_deg\":-45.5," +
             "\"center_offset_x_percent\":-100,\"center_offset_y_percent\":100,\"applied_to\":\"fill_and_outline\",\"merge_mode\":\"behind\",\"freeze\":true";
         var parsed = Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_set_transparency",

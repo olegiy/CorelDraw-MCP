@@ -246,11 +246,17 @@ public sealed class LiveNativeFillsTests
         var made = await c.Draw(doc, "corel_create_shapes", new { layer_id = layer,
             items = new object[] { new { kind = "rectangle", x_mm = 10, y_mm = 10, width_mm = 40, height_mm = 20 } } });
         int id = made.GetProperty("items")[0].GetProperty("static_id").GetInt32();
-        var radial = await c.Draw(doc, "corel_set_transparency", new
+        // Pinned per review: fountain transparency executes on the C# engine (no VBA row codec involved).
+        var radialCall = await c.Call("corel_set_transparency", new
         {
+            request_id = Guid.NewGuid().ToString(), document_id = doc, page_index = 1,
             static_ids = new[] { id }, kind = "fountain", start = 0, end = 100, type = "radial",
             center_offset_x_percent = 20, center_offset_y_percent = -30, applied_to = "fill_and_outline", merge_mode = "screen"
         });
+        Assert.True(radialCall.Ok, JsonSerializer.Serialize(radialCall, Protocol.JsonOptions));
+        Assert.Equal(true, radialCall.Cleanup!["completed"]);
+        Assert.Equal("csharp", radialCall.Versions!["execution_engine"]);
+        var radial = JsonSerializer.SerializeToElement(radialCall.Result, Protocol.JsonOptions);
         var transparency = radial.GetProperty("items")[0].GetProperty("effects").GetProperty("items")[0].GetProperty("transparency");
         Assert.Equal((int)VGCore.cdrTransparencyType.cdrFountainTransparency, transparency.GetProperty("type").GetInt32());
         Assert.Equal((int)VGCore.cdrTransparencyAppliedTo.cdrApplyToFillAndOutline, transparency.GetProperty("applied_to").GetInt32());
@@ -264,6 +270,39 @@ public sealed class LiveNativeFillsTests
         Assert.Equal((int)VGCore.cdrTransparencyType.cdrFountainTransparency, transparency.GetProperty("type").GetInt32());
         Assert.Equal((int)VGCore.cdrTransparencyAppliedTo.cdrApplyToFill, transparency.GetProperty("applied_to").GetInt32());
         Assert.Equal((int)VGCore.cdrMergeMode.cdrMergeOverlay, transparency.GetProperty("merge_mode").GetInt32());
+    }
+
+    [LiveCorelFact]
+    public async Task TransparencyMidLoopFailureReportsAffectedIdsForAlreadyMutatedLeaves()
+    {
+        using var c = new LiveDrawingTests.DrawingClient();
+        var doc = await c.Create();
+        string layer = NormalLayer(await c.Inspect(doc));
+        var made = await c.Draw(doc, "corel_create_shapes", new { layer_id = layer, items = new object[] {
+            new { kind = "rectangle", x_mm = 10, y_mm = 10, width_mm = 20, height_mm = 10 },
+            new { kind = "rectangle", x_mm = 40, y_mm = 10, width_mm = 20, height_mm = 10 },
+            new { kind = "rectangle", x_mm = 70, y_mm = 10, width_mm = 20, height_mm = 10 } } });
+        int[] ids = made.GetProperty("created_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+        // Existing failure-injection seam (DrawingClient.FailAfterMutations throws inside the progress callback on
+        // the "mutation_observed" stage, which the per-leaf loop reaches after each leaf): the throw lands mid-loop
+        // after exactly one leaf is mutated and recorded, like a COM failure at leaf k.
+        c.FailAfterMutations = 1;
+        var partial = await c.DrawFailure(doc, "corel_set_transparency",
+            new { static_ids = ids, kind = "uniform", value = 30, applied_to = "fill", merge_mode = "normal" });
+        Assert.True(partial.Error!.Applied);
+        Assert.Equal(true, partial.Cleanup!["completed"]);
+        var result = JsonSerializer.SerializeToElement(partial.Result, Protocol.JsonOptions);
+        Assert.True(result.GetProperty("partial").GetBoolean());
+        // Partial-report honesty: affected_static_ids carries the leaves already mutated (mirroring DropShadow),
+        // never an empty list while items already show observed ids.
+        Assert.Equal(new[] { ids[0] }, result.GetProperty("affected_static_ids").EnumerateArray().Select(v => v.GetInt32()).ToArray());
+        Assert.Equal(new[] { ids[0] }, result.GetProperty("items").EnumerateArray().Select(v => v.GetProperty("static_id").GetInt32()).ToArray());
+        Assert.Empty(result.GetProperty("created_static_ids").EnumerateArray());
+        Assert.Empty(result.GetProperty("deleted_static_ids").EnumerateArray());
+        // The document reflects the partial application: exactly one leaf carries the transparency lens.
+        var state = await c.Inspect(doc);
+        Assert.Equal(1, state.GetProperty("shapes").EnumerateArray()
+            .Count(shape => shape.GetProperty("effects").GetProperty("count").GetInt32() == 1));
     }
 
     [LiveCorelFact]
@@ -438,6 +477,7 @@ public sealed class LiveNativeFillsTests
         });
         Assert.True(call.Ok, JsonSerializer.Serialize(call, Protocol.JsonOptions));
         Assert.Equal("csharp", call.Versions!["execution_engine"]);
+        Assert.Equal(true, call.Cleanup!["completed"]);
         var shadowed = JsonSerializer.SerializeToElement(call.Result, Protocol.JsonOptions);
 
         // Live-probed CorelDRAW 27 semantics (own temp docs, 2026-11-17): the target KEEPS its StaticID, type,
