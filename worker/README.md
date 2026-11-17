@@ -20,7 +20,12 @@ powershell -NoProfile -File scripts/build-worker.ps1 -DotnetPath $dotnetExecutab
 
 `worker/generated/fingerprint.json` содержит SHA-256 исходной type library,
 архитектуру и предупреждения импортёра. Сгенерированные DLL и результаты
-сборки исключены из Git. Право распространения interop **не подтверждено**;
+сборки исключены из Git, поэтому перед первой сборкой/тестом worker в чистом
+дереве запустите `powershell -NoProfile -File scripts/build-worker.ps1
+-GenerateInteropOnly` — он создаст interop-сборку и отпечаток без сборки
+проекта. Тесты ledger сверяют типовой отпечаток с этим файлом; без него
+используется идентичность typelib, зафиксированная в фикстуре рефлексии.
+Право распространения interop **не подтверждено**;
 поставка готового пакета остаётся заблокированной.
 
 Live smoke запускается отдельно и создаёт только два временных документа:
@@ -66,6 +71,19 @@ layer, отсутствующий шрифт или превышение лим�
 Частичный сбой возвращает наблюдаемые ID и `partial:true`; автоматического
 undo/replay нет. `is_special_layer` в инспекции отличает направляющие.
 
+Нативные заливки и эффекты — `corel_style_shapes` kind fountain (2–16 стопов,
+крайние 0/100, промежуточные 1–99 строго возрастают), `corel_set_transparency`
+(none/uniform/fountain) и `corel_apply_drop_shadow` (shadow/none). Тень не
+оборачивает цель: StaticID/тип/геометрия сохраняются, эффект attaches к цели,
+рядом создаётся sibling-группа тени; отчёт возвращает id_mappings
+{source_static_id, result_static_ids:[target, group, child]}, снятие kind none
+через ClearEffect(cdrDropShadow) возвращает [target]. Прозрачность применяется
+в COM-порядке Apply → AppliedTo/MergeMode → Freeze (свойства недоступны до
+Apply); группа допускается только при поддержке всех потомков; frozen, locked,
+special layer, bitmap, PowerClip и не-lens эффекты отклоняются до мутации.
+Read-back этих операций — наблюдаемые значения: EdgePad нормализуется для
+linear/square с ненулевым углом, multi-stop читается как blend_type=custom.
+
 `test/integration-drawing.mjs` проверяет новый каталог через настоящий MCP
 и worker при явных `CORELDRAW_WORKER_LIVE=1`, `CORELDRAW_MCP_BACKEND=csharp`
 и `CORELDRAW_MCP_CSHARP_WORKER`. Все документы создаются тестом и закрываются
@@ -95,6 +113,11 @@ PowerClip принимает bitmap и вложенные контейнеры; 
 
 Bitmap и смешанные группы поддерживаются обычными transform/duplicate/group/move-to-layer
 и align/grid/layout; boolean/convert/style сохраняют векторные ограничения.
+Fountain-заливка, прозрачность и тень остаются на C#-пути и в hybrid: пакетные
+fill-союзы uniform-only, fountain отклоняется до маршрутизации
+(BATCH_FILL_UNSUPPORTED). Mesh-заливки нет в dispatch API 27 typelib — non-goal.
+Затенённые и прозрачные цели сохраняют существующие effects-барьеры
+(style/convert/boolean/scale/layout/update_batch; allowTransparency не расширен).
 `import_diagnostics` показывает фактически наблюдаемые шрифты, их доступность в Windows
 и число native effects. Соответствие шрифтов/эффектов исходнику всегда `unknown`;
 фильтр мог их подменить, преобразовать или растрировать. Preview требует визуальной проверки.

@@ -15,5 +15,12 @@
 | `IVGShapeRange.Void AddToPowerClip(VGCore.Shape, VGCore.cdrTriState)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/shaperange.addtopowerclip?lang=cs) |
 | `IVGPowerClip.VGCore.ShapeRange ExtractShapes()` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/powerclip.extractshapes?lang=cs) |
 | `IVGLayer.VGCore.ImportFilter ImportEx(System.String, VGCore.cdrFilter, VGCore.StructImportOptions)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/layer.importex?lang=cs) |
+| `IVGFill.VGCore.FountainFill ApplyFountainFill(VGCore.Color, VGCore.Color, VGCore.cdrFountainFillType, Double, Int32, Int32, Int32, VGCore.cdrFountainFillBlendType, Double, Double)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/fill.applyfountainfill?lang=cs) |
+| `IVGFountainColors.Void Add(VGCore.Color, Int32)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/fountaincolors.add?lang=cs) |
+| `IVGTransparency.Void ApplyUniformTransparency(Int32)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applyuniformtransparency?lang=cs) |
+| `IVGTransparency.Void ApplyFountainTransparency(Int32, Int32, VGCore.cdrFountainFillType, Double, Int32, Int32, Int32, Double, Double)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applyfountaintransparency?lang=cs) |
+| `IVGTransparency.Void ApplyNoTransparency()` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/transparency.applynotransparency?lang=cs) |
+| `IVGShape.VGCore.Effect CreateDropShadow(VGCore.cdrDropShadowType, Int32, Int32, Double, Double, VGCore.Color, VGCore.cdrFeatherType, VGCore.cdrEdgeType, Double, Double, Int32, VGCore.cdrMergeMode)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/shape.createdropshadow?lang=cs) |
+| `IVGShape.Void ClearEffect(VGCore.cdrEffectType)` | [Источник](https://community.coreldraw.com/sdk/api/draw/27/m/shape.cleareffect?lang=cs) |
 
 Runtime использует типизированные C# вызовы и bounded DTO. Describe API возвращает только метаданные ITypeInfo; выражения, getter-цепочки и вызовы по имени не принимаются. PowerClip, фильтры и Unicode имеют отдельно проверенные ограничения из [operations.md](operations.md).

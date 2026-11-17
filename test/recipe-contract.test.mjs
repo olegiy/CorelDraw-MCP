@@ -18,3 +18,11 @@ for (const file of readdirSync(directory)) test(`typed recipe ${file} has strict
     assert(parsed.success, `${file}/${step.tool}: ${parsed.error?.message}`);
   }
 });
+test('recipe catalog documents every example and pins the native-fills recipes', () => {
+  const catalog = readFileSync(join(directory, '..', 'references', 'recipes.md'), 'utf8');
+  const files = readdirSync(directory).filter(name => name.endsWith('.json'));
+  const documented = [...catalog.matchAll(/\]\(\.\.\/examples\/([a-z0-9-]+\.json)\)/g)].map(match => match[1]);
+  assert.deepEqual([...files].sort(), [...documented].sort(), 'recipes.md и каталог examples/ должны перечислять одни и те же рецепты');
+  assert(files.includes('fountain-fill.json'), 'отсутствует рецепт fountain-fill.json');
+  assert(files.includes('transparency-shadow.json'), 'отсутствует рецепт transparency-shadow.json');
+});

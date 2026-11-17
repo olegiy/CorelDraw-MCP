@@ -56,6 +56,21 @@ Revision bitmap использует полный CropEnvelope и матрицу
 Boolean/convert/style не получают bitmap. Import diagnostics возвращает наблюдаемые шрифты/effects,
 но font/effect/source fidelity остаются unknown; доступность семейства в Windows не доказывает отсутствие подмены.
 
+Нативные заливки и эффекты остаются на C#-пути: fountain в corel_style_shapes (ApplyFountainFill первым/последним
+стопом и Colors.Add промежуточных), corel_set_transparency и corel_apply_drop_shadow. Batch-союзы заливок
+остаются uniform-only: fountain отклоняется до маршрутизации (BATCH_FILL_UNSUPPORTED), VBA row codec его не видит.
+Mesh-заливка — non-goal с доказательством: в dispatch API 27 typelib нет Mesh-интерфейсов и членов
+(только enum cdrMeshFillShape=20); аппроксимация — наслоенные fountain-прозрачности и мозаика uniform-фигур.
+
+Read-back новых операций возвращает наблюдаемые значения: Corel нормализует EdgePad для linear/square с ненулевым
+углом (0→15/20→29 при 45°; угол 0 возвращается точно), многостоповые градиенты читаются как blend_type=custom,
+умолчания steps 256/edge 0/mid 50/direct/pad. Прозрачность применяется в порядке Apply → AppliedTo/MergeMode →
+Freeze (свойства недоступны до Apply); группа допускается только при поддержке всех потомков. Тень не оборачивает
+цель: StaticID/тип/геометрия сохраняются, эффект attaches, sibling-группа тени даёт id_mappings
+{source_static_id, result_static_ids:[target, group, child]}; снятие — ClearEffect(cdrDropShadow) → [target].
+Затенённые и прозрачные цели сохраняют существующие effects-барьеры: style/convert/boolean/scale/layout/
+update_batch и allowTransparency не расширяются.
+
 Сборка наклеек дополнительно допускает единственный local cdrLens, представляющий обычную или градиентную
 прозрачность отдельного объекта: duplicate/grid, move/rotate, group/ungroup и move-to-layer. Frozen, отдельный
 viewpoint, эффекты самой группы и прочие эффекты остаются preflight-отказом. Scale/flip, align/shelf-layout,
@@ -84,7 +99,7 @@ Read-only pre-upgrade проверяет owner markers, native reports и host h
 
 ### Подготовка гибридного runtime
 
-План: `.kilo/plans/2026-11-13-corel-hybrid-runtime.md`. `HybridPolicy` выбирает маршрут до мутации по проверенным целям и порогу20. В явном `execution_mode=hybrid` готовый GMS выполняет create/update batch, крупные create/style/move/duplicate и текстовые пакеты. Неподдержанные структуры прежних инструментов получают C#-маршрут до первой мутации. Новые batch-команды требуют поддержанного native runtime; ошибки не переключают backend.
+План: `.kilo/plans/2026-11-13-corel-hybrid-runtime.md`. `HybridPolicy` выбирает маршрут до мутации по проверенным целям и порогу20. В явном `execution_mode=hybrid` готовый GMS выполняет create/update batch, крупные create/style/move/duplicate и текстовые пакеты. Неподдержанные структуры прежних инструментов получают C#-маршрут до первой мутации. Новые batch-команды требуют поддержанного native runtime; ошибки не переключают backend. Fountain-заливки, прозрачность и тень не маршрутизируются в GMS: пакетные fill-союзы uniform-only, fountain отклоняется до маршрутизации (BATCH_FILL_UNSUPPORTED), в hybrid эти операции остаются на C#-пути при любом объёме.
 
 `duplicate` и `grid_duplicate` используют тот же фиксированный clone runtime; GMS и wire DTO остаются root-only. Threshold20/лимит1000 считаются по новым roots и descendants, текстовый лимит100000 включает все текстовые leaves. Native scope: top-level roots с проверенными вложенными группами, примитивами и текстом; сложные заливки, bitmap и child-in-parent получают C#-маршрут до изменения. Все runtime/preflight проверки завершаются до перемещения оригиналов сетки. C# postcheck одним полным обходом сверяет новые ID с baseline страницы, parent topology/слои, geometry bounds/rotation и наблюдаемый текст/шрифт/оформление leaves; проверяет outline bounds сетки отдельно. Потомки регистрируются инкрементально, даже для partial root без item. Несогласованные claims ID, незаявленные новые объекты или неполный postcheck сохраняют доказанные ID и ставят `NATIVE_OUTCOME_UNKNOWN` barrier. Обход ограничен `baseline + planned new nodes` (не более51000). Это не доказательство equivalence всех rich-text runs, ICC и иных неснятых свойств Corel.
 

@@ -23,7 +23,7 @@
 - Стопы fountain: крайние 0/100 фиксированы, промежуточные 1..99 строго возрастают/уникальны; 2..16 стопов.
 - Цели тени v1: одиночные фигуры types 1/2/3/4 + текст 6; группы — отказ (limitation v1).
 - Счётчик инструментов синхронно в трёх местах при каждом добавлении: `skills/coreldraw-automation/references/tools.md:5`, `webhost/tests/test_transport_compatibility.py:12`, `worker/api-contract.json:3097` (39→40→41).
-- `scripts/check-contracts.mjs` сверяет dist-zod ↔ tools.md (строки таблицы, JSON-описания, jsonl-метаданные) и хардкод-список из 12 рецептов; валидация всех `examples/*.json` по каталогу живёт в `test/recipe-contract.test.mjs` → обе поверхности правятся В ТОМ ЖЕ задании, что и схема (новые examples добавляются и в хардкод-список check-contracts).
+- `scripts/check-contracts.mjs` сверяет dist-zod ↔ tools.md (строки таблицы, JSON-описания, jsonl-метаданные) и хардкод-список из 14 рецептов; валидация всех `examples/*.json` по каталогу живёт в `test/recipe-contract.test.mjs` → обе поверхности правятся В ТОМ ЖЕ задании, что и схема (новые examples добавляются и в хардкод-список check-contracts).
 - **Коммиты и установка в пользовательское окружение ЗАПРЕЩЕНЫ без отдельного разрешения пользователя.** Шаги «Commit» заменены на «Checkpoint»: зелёные тесты + отметка в плане; git-коммиты не делать. В конце execution спросить разрешение на коммит отдельным сообщением.
 - Live suites последовательно; `test/mutex.test.mjs` не параллелить с live COM.
 

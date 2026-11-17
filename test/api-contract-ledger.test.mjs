@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -10,9 +10,25 @@ const ledger = read('worker/api-contract.json');
 // describe_api-equivalent dump: static reflection over the generated interop assembly pinned by
 // worker/generated/fingerprint.json (see the fixture provenance block for how it was produced).
 const fixture = read('test/fixtures/native-fills-describe-api.json');
-const fingerprint = read('worker/generated/fingerprint.json');
 const byKey = new Map(ledger.signatures.map(entry => [`${entry.interface}.${entry.member}`, entry]));
 const key = entry => `${entry.interface}.${entry.member}`;
+
+// All 12 live tests of worker/CorelMcp.Worker.Tests/LiveNativeFillsTests.cs, pinned: a ledger citation
+// outside this list is a typo or an unreviewed change of the live suite.
+const pinnedLiveTests = [
+  'MultiStopFountainFillsApplyAndReadBackOnRectangleEllipseAndCurve',
+  'RadialFountainCenterOffsetsArePassedAsPercentInMmAndInchDocuments',
+  'AbsentFountainOptionsRoundTripApiTypicalDefaults',
+  'FountainStyleStaysOnCSharpAboveTheNativeThresholdInHybridMode',
+  'UniformAndFountainTransparencyApplyReadBackAndRemoveThroughTheKindUnion',
+  'FountainTransparencyAcceptsRadialCenterPercentsAndSquareAngle',
+  'GroupTransparencyAppliesToEverySupportedLeafAndRefusesMixedGroupsBeforeMutation',
+  'TransparencyRefusalsProtectFrozenLockedLensAndBarrierTargetsBeforeMutation',
+  'SquareFountainFillEdgePadAndAngleBehaviorIsProbedLive',
+  'DropShadowAppliesToRectTextAndGroupMemberAndReportsIdMappings',
+  'DropShadowRefusalsProtectRepeatedGroupLockedBitmapAndExistingEffects',
+  'DropShadowNoneRemovesTheEffectAndRestoresTheOriginalTarget',
+];
 
 // Live gates that cover the new surface: worker/CorelMcp.Worker.Tests/LiveNativeFillsTests.cs.
 const citations = {
@@ -39,8 +55,12 @@ test('native-fills ledger entries cite covering live tests or state how they wer
   for (const entry of fixture.signatures) {
     const live = byKey.get(key(entry))?.live_status;
     assert.ok(typeof live === 'string' && live.length > 0, `${key(entry)} needs a live_status`);
+    for (const match of live.matchAll(/Live([A-Za-z]+)Tests\.([A-Za-z]+)/g)) {
+      assert.equal(`Live${match[1]}Tests`, 'LiveNativeFillsTests', `${key(entry)} cites an unexpected suite Live${match[1]}Tests`);
+      assert.ok(pinnedLiveTests.includes(match[2]), `${key(entry)} cites unpinned LiveNativeFillsTests.${match[2]}`);
+    }
     if (live.includes('verified_live')) {
-      assert.match(live, /Live(NativeFills|Effects)Tests\.[A-Za-z]+/, `${key(entry)} claims live verification without citing a live test`);
+      assert.ok(live.includes('LiveNativeFillsTests.'), `${key(entry)} claims live verification without citing a live test`);
     } else {
       // Reflected contract members that were not individually exercised live must say so.
       assert.match(live, /static_reflection|probed_live/, `${key(entry)} must say how it was verified`);
@@ -48,6 +68,8 @@ test('native-fills ledger entries cite covering live tests or state how they wer
     const cited = citations[key(entry)];
     if (cited) assert.ok(live.includes(cited), `${key(entry)} must cite ${cited}`);
   }
+  assert.deepEqual([...ledger.native_fills.covering_live_tests].sort(), [...pinnedLiveTests].sort(),
+    'native_fills.covering_live_tests must list exactly the pinned live suite');
 });
 
 test('native-fills enum values match the pinned interop reflection', () => {
@@ -80,6 +102,17 @@ test('observed live behavior from gates T4-T6 is recorded in the ledger', () => 
 });
 
 test('typelib binding is unchanged and pinned to the generated interop fingerprint', () => {
+  // worker/generated/ is a build artifact (gitignored): a clean checkout without a worker build has no
+  // fingerprint.json, and a missing file must not fail this file on ENOENT. Following the synthesis
+  // precedent of test/worker-package.test.mjs:104-105, the pinned typelib identity is rebuilt from the
+  // committed fixture provenance when the generated artifact is absent.
+  const built = existsSync(join(root, 'worker/generated/fingerprint.json'));
+  const fingerprint = built ? read('worker/generated/fingerprint.json') : {
+    source_sha256: fixture.provenance.typelib.source_sha256,
+    typelib_guid: fixture.provenance.typelib.guid,
+    major: fixture.provenance.typelib.major,
+    minor: fixture.provenance.typelib.minor,
+  };
   assert.equal(ledger.typelib.source_sha256, fingerprint.source_sha256, 'typelib source_sha256 must stay bound to the generated interop');
   assert.equal(ledger.typelib.guid, fingerprint.typelib_guid);
   assert.equal(ledger.typelib.major, fingerprint.major);

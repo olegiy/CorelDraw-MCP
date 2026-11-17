@@ -10,6 +10,8 @@
 | [curve-nodes.json](../examples/curve-nodes.json) | Узлы и revision |
 | [duplicate-offset.json](../examples/duplicate-offset.json) | Копии со смещением |
 | [fill-outline.json](../examples/fill-outline.json) | Заливка и обводка |
+| [fountain-fill.json](../examples/fountain-fill.json) | Многостоповая fountain-заливка и радиальный градиент с центром в процентах |
+| [transparency-shadow.json](../examples/transparency-shadow.json) | Прозрачность uniform/fountain/снятие и тень с id_mappings |
 | [import-assembly.json](../examples/import-assembly.json) | Импорт, страницы и PowerClip |
 | [layer-group.json](../examples/layer-group.json) | Слой и группировка |
 | [layout.json](../examples/layout.json) | Сетка и раскладка |

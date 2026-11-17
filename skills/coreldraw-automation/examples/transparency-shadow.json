@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "title": "Прозрачность и тень",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Цели — векторные фигуры/текст без bitmap, PowerClip и живых эффектов; тень применяется только к одиночным фигурам/тексту, не к группам.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_set_transparency",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "kind": "uniform",
+        "value": 40,
+        "applied_to": "fill",
+        "merge_mode": "normal"
+      }
+    },
+    {
+      "tool": "corel_set_transparency",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1002
+        ],
+        "kind": "fountain",
+        "start": 0,
+        "end": 100,
+        "type": "square",
+        "angle_deg": 45,
+        "center_offset_x_percent": 15,
+        "center_offset_y_percent": -10,
+        "applied_to": "fill_and_outline",
+        "merge_mode": "multiply"
+      }
+    },
+    {
+      "tool": "corel_set_transparency",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1002
+        ],
+        "kind": "none"
+      }
+    },
+    {
+      "tool": "corel_apply_drop_shadow",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1002
+        ],
+        "kind": "shadow",
+        "type": "bottom",
+        "opacity": 70,
+        "feather": 15,
+        "offset_x_mm": 3,
+        "offset_y_mm": -2,
+        "color": {
+          "model": "cmyk",
+          "c": 0,
+          "m": 0,
+          "y": 0,
+          "k": 100
+        },
+        "feather_type": "gaussian",
+        "feather_edge": "linear",
+        "merge_mode": "normal"
+      }
+    },
+    {
+      "tool": "corel_apply_drop_shadow",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1002
+        ],
+        "kind": "none"
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Тень не оборачивает цель: StaticID, тип и геометрия сохраняются, эффект attaches к цели, рядом создаётся sibling-группа тени. Отчёт возвращает id_mappings {source_static_id, result_static_ids:[target, group, child]}; снятие kind none возвращает [target]. Используйте фактические ID из отчёта, а не предположения.",
+    "Тень применяется к одиночным векторным фигурам (типы 1/2/3/4) и тексту (6); группы — limitation v1. Повторная тень к уже затенённой цели, bitmap, locked, special layer, PowerClip и существующие эффекты отклоняются до мутации. Прозрачную цель сначала очистите kind none.",
+    "После тени цель отказывает другим мутациям через существующий effects-барьер (style/convert/boolean/scale/layout/update_batch; allowTransparency не расширен) — сначала снимите тень kind none. fade запрещён для flat; offset_x_mm/offset_y_mm — мм, center_offset_*_percent — проценты без конвертации.",
+    "Для kind uniform/fountain обязательны applied_to и merge_mode; для kind none они необязательны и игнорируются. COM-порядок свойств: Apply → AppliedTo/MergeMode → Freeze (AppliedTo/MergeMode недоступны до применения). Группа допускается для прозрачности только при поддержке всех потомков.",
+    "Проверять result, error.applied и cleanup.completed; после частичного/unknown/timed_out не повторять автоматически."
+  ]
+}

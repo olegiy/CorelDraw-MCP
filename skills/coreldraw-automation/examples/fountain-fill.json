@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "title": "Многостоповая fountain-заливка",
+  "preconditions": [
+    "Получить document_id, page_id/layer_id и StaticID через status/inspect; примеры ID 1001/1002 заменить фактическими.",
+    "Создание и изменение выполняются только по явной цели. Для каждой новой мутации использовать новый request_id; повтор ранее принятой операции читает прежний Job."
+  ],
+  "steps": [
+    {
+      "tool": "corel_create_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "layer_id": "<layer_id>",
+        "items": [
+          {
+            "kind": "rectangle",
+            "x_mm": 10,
+            "y_mm": 10,
+            "width_mm": 40,
+            "height_mm": 20
+          },
+          {
+            "kind": "ellipse",
+            "x_mm": 60,
+            "y_mm": 10,
+            "width_mm": 20,
+            "height_mm": 20
+          }
+        ]
+      }
+    },
+    {
+      "tool": "corel_style_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1001
+        ],
+        "fill": {
+          "kind": "fountain",
+          "type": "linear",
+          "stops": [
+            { "position": 0, "color": { "model": "rgb", "r": 255, "g": 122, "b": 0 } },
+            { "position": 35, "color": { "model": "rgb", "r": 230, "g": 45, "b": 40 } },
+            { "position": 70, "color": { "model": "rgb", "r": 120, "g": 20, "b": 130 } },
+            { "position": 100, "color": { "model": "cmyk", "c": 0, "m": 0, "y": 0, "k": 100 } }
+          ],
+          "angle_deg": 45,
+          "steps": 128,
+          "edge_pad": 20
+        }
+      }
+    },
+    {
+      "tool": "corel_style_shapes",
+      "arguments": {
+        "request_id": "<новый UUID>",
+        "document_id": "<document_id>",
+        "page_index": 1,
+        "static_ids": [
+          1002
+        ],
+        "fill": {
+          "kind": "fountain",
+          "type": "radial",
+          "stops": [
+            { "position": 0, "color": { "model": "rgb", "r": 255, "g": 235, "b": 130 } },
+            { "position": 60, "color": { "model": "rgb", "r": 240, "g": 130, "b": 40 } },
+            { "position": 100, "color": { "model": "rgb", "r": 140, "g": 30, "b": 20 } }
+          ],
+          "center_offset_x_percent": 20,
+          "center_offset_y_percent": -30
+        }
+      }
+    }
+  ],
+  "postchecks": [
+    "corel_inspect_document",
+    "corel_preview"
+  ],
+  "limitations": [
+    "Крайние стопы фиксированы позициями 0 и 100, промежуточные — 1–99 строго возрастают и уникальны; всего 2–16 стопов, промежуточные добавляются через Colors.Add в порядке позиций.",
+    "Read-back возвращает наблюдаемые значения, а не запрошенные: Corel нормализует edge_pad для linear и square с ненулевым углом (20→29 при 45°), многостоповые градиенты читаются как blend_type=custom; наблюдаемые умолчания — steps 256, edge_pad 0, mid_point 50, blend direct, spread pad, smooth_blend false.",
+    "center_offset_x_percent/center_offset_y_percent — проценты размеров объекта, передаются как есть без конвертации в мм; angle_deg применим только к linear/conical/square, center_offset — только к radial/square/conical.",
+    "Fountain в corel_create_batch/corel_update_batch отклоняется до мутации (BATCH_FILL_UNSUPPORTED); применяйте его через corel_style_shapes. Mesh-заливка не поддерживается — аппроксимируйте наслоением fountain-прозрачностей и мозаикой uniform-фигур.",
+    "Проверять result, error.applied и cleanup.completed; после частичного/unknown/timed_out не повторять автоматически."
+  ]
+}

@@ -4,7 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 const directory = new URL('../skills/coreldraw-automation/examples/', import.meta.url);
 
 test('all recipe assets are bounded data and contain no executable module source', async () => {
-  const files = await readdir(directory); assert.equal(files.length, 12);
+  const files = await readdir(directory); assert.equal(files.length, 14);
   for (const file of files) {
     assert(file.endsWith('.json'));
     const bytes = await readFile(new URL(file, directory)); assert(bytes.length <= 32768);

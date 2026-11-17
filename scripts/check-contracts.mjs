@@ -43,7 +43,7 @@ try {
     check(isDeepStrictEqual(contract.enums, enums), `enum values mismatch ${name}`);
   }
   check(skill.includes('references/tools.md') && skill.includes('corel_create_shapes'), 'skill does not link public tools');
-  for (const file of ['batch.json', 'create-geometry.json', 'text-unicode.json', 'fill-outline.json', 'duplicate-offset.json', 'layer-group.json', 'boolean-shapes.json', 'curve-nodes.json', 'transforms.json', 'production.json', 'layout.json', 'import-assembly.json']) {
+  for (const file of ['batch.json', 'create-geometry.json', 'text-unicode.json', 'fill-outline.json', 'fountain-fill.json', 'transparency-shadow.json', 'duplicate-offset.json', 'layer-group.json', 'boolean-shapes.json', 'curve-nodes.json', 'transforms.json', 'production.json', 'layout.json', 'import-assembly.json']) {
     check(existsSync(join(root, 'skills/coreldraw-automation/examples', file)), `missing recipe ${file}`);
     check(recipes.includes(file), `recipe ${file} is not documented`);
     if (existsSync(join(root, 'skills/coreldraw-automation/examples', file))) {
