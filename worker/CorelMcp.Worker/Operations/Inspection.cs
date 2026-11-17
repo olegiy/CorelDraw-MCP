@@ -91,7 +91,8 @@ internal static class Inspection
         }
         return result;
     }
-    private static object EffectInfo(OperationContext context, VGCore.Shape shape)
+    // Reused by Operations/Transparency for the corel_set_transparency report read-back (observed state, not the request).
+    internal static object EffectInfo(OperationContext context, VGCore.Shape shape)
     {
         int? count = null; List<object> items = [];
         try

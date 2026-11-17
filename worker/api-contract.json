@@ -3094,7 +3094,7 @@
     "unsafe_fixture": "Synthetic UseViewPoint=true crashed CorelDRAW27.2 during owned-document Close; removed from live suite, predicate checked without COM. User CDR reopened from disk with explicit approval; no overwrite."
   },
   "hybrid_runtime": {
-    "catalog_tools": 39,
+    "catalog_tools": 40,
     "interop_rights": "unconfirmed",
     "runtime_vbe_calls": 0,
     "default_execution_mode": "csharp",

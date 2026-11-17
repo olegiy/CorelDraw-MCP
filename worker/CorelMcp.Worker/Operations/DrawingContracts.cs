@@ -42,6 +42,9 @@ internal abstract record OutlineSpec;
 internal sealed record NoOutline : OutlineSpec;
 internal sealed record UniformOutline(ColorSpec Color, double WidthMm) : OutlineSpec;
 internal sealed record StyleCommand(int[] StaticIds, FillSpec? Fill = null, OutlineSpec? Outline = null) : IDrawingCommand;
+// Optional fields carry JSON defaults so absent snake_case keys deserialize to null; required binding follows C# positional rules.
+internal sealed record TransparencyCommand(int[] StaticIds, string Kind, string AppliedTo, string MergeMode, int? Value = null, int? Start = null, int? End = null,
+    string? Type = null, double? AngleDeg = null, double? CenterOffsetXPercent = null, double? CenterOffsetYPercent = null, bool? Freeze = null) : IDrawingCommand;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "action")]
 [JsonDerivedType(typeof(CreateLayerCommand), "create"), JsonDerivedType(typeof(RenameLayerCommand), "rename"), JsonDerivedType(typeof(LayerFlagsCommand), "set_flags"), JsonDerivedType(typeof(MoveToLayerCommand), "move_shapes")]
 internal abstract record LayerCommand : IDrawingCommand;
@@ -74,7 +77,8 @@ internal static class DrawingContracts
     };
     public static bool IsDrawingTool(string tool) => tool is "corel_create_shapes" or "corel_transform_shapes" or "corel_duplicate_shapes" or "corel_style_shapes"
         or "corel_manage_layers" or "corel_group_shapes" or "corel_boolean_shapes" or "corel_create_text" or "corel_convert_to_curves"
-        or "corel_align_shapes" or "corel_grid_duplicate" or "corel_layout_shapes" or "corel_import" or "corel_manage_pages" or "corel_powerclip";
+        or "corel_align_shapes" or "corel_grid_duplicate" or "corel_layout_shapes" or "corel_import" or "corel_manage_pages" or "corel_powerclip"
+        or "corel_set_transparency";
     public static DrawingArguments Parse(string tool, JsonElement args)
     {
         try
@@ -93,7 +97,8 @@ internal static class DrawingContracts
                 "corel_boolean_shapes" => Read<BooleanCommand>(payload), "corel_create_text" => Read<CreateTextCommand>(payload),
                 "corel_convert_to_curves" => Read<ConvertCommand>(payload), "corel_align_shapes" => Read<AlignCommand>(payload),
                 "corel_grid_duplicate" => Read<GridCommand>(payload), "corel_layout_shapes" => Read<LayoutCommand>(payload),
-                "corel_import" => Read<ImportCommand>(payload),"corel_manage_pages"=>Read<PageCommand>(payload),"corel_powerclip"=>Read<ClipCommand>(payload),_ => throw new JsonException()
+                "corel_import" => Read<ImportCommand>(payload),"corel_manage_pages"=>Read<PageCommand>(payload),"corel_powerclip"=>Read<ClipCommand>(payload),
+                "corel_set_transparency" => Read<TransparencyCommand>(payload),_ => throw new JsonException()
             };
             Validate(command);
             return new(binding.RequestId, binding.DocumentId, binding.PageIndex, command, binding.DeadlineSeconds);
@@ -169,6 +174,61 @@ internal static class DrawingContracts
         "repeat" => VGCore.cdrFountainFillSpreadMethod.cdrFountainFillSpreadMethodRepeat,
         _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый spread fountain-заливки.")
     };
+    // Per-kind presence matrix mirrored from the zod union refines; everything is rejected before any COM call.
+    internal static void ValidateTransparency(TransparencyCommand transparency)
+    {
+        Ids(transparency.StaticIds);
+        Check(transparency.Kind is "none" or "uniform" or "fountain");
+        Check(transparency.AppliedTo is "fill" or "outline" or "fill_and_outline");
+        Check(transparency.MergeMode is "normal" or "multiply" or "screen" or "overlay" or "behind");
+        switch (transparency.Kind)
+        {
+            case "none":
+                Check(transparency.Value is null && transparency.Start is null && transparency.End is null && transparency.Type is null
+                    && transparency.AngleDeg is null && transparency.CenterOffsetXPercent is null && transparency.CenterOffsetYPercent is null
+                    && transparency.Freeze is null);
+                break;
+            case "uniform":
+                Check(transparency.Value is not null);
+                Check(transparency.Start is null && transparency.End is null && transparency.Type is null && transparency.AngleDeg is null
+                    && transparency.CenterOffsetXPercent is null && transparency.CenterOffsetYPercent is null);
+                OperationContracts.Range(transparency.Value!.Value, 0, 100, "value");
+                break;
+            default:
+                Check(transparency.Start is not null && transparency.End is not null && transparency.Type is not null);
+                Check(transparency.Value is null);
+                OperationContracts.Range(transparency.Start!.Value, 0, 100, "start");
+                OperationContracts.Range(transparency.End!.Value, 0, 100, "end");
+                Check(transparency.Type is "linear" or "radial" or "conical" or "square");
+                if (transparency.AngleDeg is { } angle)
+                {
+                    Check(transparency.Type != "radial");
+                    Check(double.IsFinite(angle) && angle is >= -360 and <= 360);
+                }
+                if (transparency.CenterOffsetXPercent is not null || transparency.CenterOffsetYPercent is not null) Check(transparency.Type != "linear");
+                if (transparency.CenterOffsetXPercent is { } x) Check(double.IsFinite(x) && x is >= -100 and <= 100);
+                if (transparency.CenterOffsetYPercent is { } y) Check(double.IsFinite(y) && y is >= -100 and <= 100);
+                break;
+        }
+    }
+    // fill→cdrApplyToFill(0), outline→cdrApplyToOutline(1), fill_and_outline→cdrApplyToFillAndOutline(2); verified via installed typelib describe_api.
+    internal static VGCore.cdrTransparencyAppliedTo TransparencyAppliedTo(string appliedTo) => appliedTo switch
+    {
+        "fill" => VGCore.cdrTransparencyAppliedTo.cdrApplyToFill,
+        "outline" => VGCore.cdrTransparencyAppliedTo.cdrApplyToOutline,
+        "fill_and_outline" => VGCore.cdrTransparencyAppliedTo.cdrApplyToFillAndOutline,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый applied_to прозрачности.")
+    };
+    // Whitelisted cdrMergeMode names verified via installed typelib: normal=0, multiply=9, screen=28, overlay=29, behind=27.
+    internal static VGCore.cdrMergeMode MergeMode(string mergeMode) => mergeMode switch
+    {
+        "normal" => VGCore.cdrMergeMode.cdrMergeNormal,
+        "multiply" => VGCore.cdrMergeMode.cdrMergeMultiply,
+        "screen" => VGCore.cdrMergeMode.cdrMergeScreen,
+        "overlay" => VGCore.cdrMergeMode.cdrMergeOverlay,
+        "behind" => VGCore.cdrMergeMode.cdrMergeBehind,
+        _ => throw new OperationFailure("INVALID_INPUT", "Неподдерживаемый merge_mode прозрачности.")
+    };
     private static void Validate(IDrawingCommand value)
     {
         if(value is ImportCommand or PageCommand or ClipCommand){AssemblyContracts.Validate(value);return;}
@@ -211,6 +271,9 @@ internal static class DrawingContracts
                 if (style.Fill is UniformFill fill) Color(fill.Color);
                 if (style.Fill is FountainFill fountain) ValidateFountain(fountain);
                 if (style.Outline is UniformOutline outline) { Color(outline.Color); OperationContracts.Dimension(outline.WidthMm); }
+                break;
+            case TransparencyCommand transparency:
+                ValidateTransparency(transparency);
                 break;
             case CreateLayerCommand create: Id(create.PageId); Name(create.Name); break;
             case RenameLayerCommand rename: Id(rename.LayerId); Name(rename.Name); break;

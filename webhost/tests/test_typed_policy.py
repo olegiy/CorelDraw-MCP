@@ -32,7 +32,7 @@ def test_typed_catalog_excludes_code_and_strips_host_fields_from_every_union_bra
     tools = {tool.name: tool for tool in typed_policy.catalog(binding)}
     assert {'corel_create_batch', 'corel_update_batch', 'corel_create_shapes', 'corel_edit_curve', 'corel_find_text', 'corel_preflight',
             'corel_import', 'corel_manage_pages', 'corel_layout_shapes', 'corel_describe_api',
-            'corel_measure_shapes'} <= tools.keys()
+            'corel_measure_shapes', 'corel_set_transparency'} <= tools.keys()
     assert not {'corel_execute_vba', 'corel_build_vba', 'corel_prune_artifacts'} & tools.keys()
     for name, tool in tools.items():
         def check(schema):
@@ -44,6 +44,29 @@ def test_typed_catalog_excludes_code_and_strips_host_fields_from_every_union_bra
     schema = tools['corel_transform_shapes'].input_schema
     assert not list(Draft202012Validator(schema).iter_errors({
         'action': 'move', 'page_index': 2, 'static_ids': [1001], 'dx_mm': 5, 'dy_mm': 7}))
+    transparency = tools['corel_set_transparency'].input_schema
+    assert not list(Draft202012Validator(transparency).iter_errors({
+        'page_index': 1, 'static_ids': [1001], 'kind': 'uniform', 'value': 40,
+        'applied_to': 'fill', 'merge_mode': 'normal'}))
+    for invalid in [{'kind': 'gradient'}, {'kind': 'uniform', 'applied_to': 'both', 'merge_mode': 'normal'},
+                    {'kind': 'uniform', 'value': 101, 'applied_to': 'fill', 'merge_mode': 'normal'},
+                    {'kind': 'uniform', 'value': 40, 'applied_to': 'fill', 'merge_mode': 'xor'}]:
+        assert list(Draft202012Validator(transparency).iter_errors(
+            {**invalid, 'page_index': 1, 'static_ids': [1001]})), invalid
+
+
+async def test_transparency_is_a_mutation_with_postchecks_and_host_binding(typed_policy, binding):
+    args = {'page_index': 1, 'static_ids': [1001], 'kind': 'fountain', 'start': 0, 'end': 100, 'type': 'radial',
+            'center_offset_x_percent': 20, 'applied_to': 'outline', 'merge_mode': 'multiply', 'freeze': True}
+    operation = await typed_policy.prepare('corel_set_transparency', args, binding)
+    assert operation.arguments['document_id'] == binding.document_id and operation.corel_request_id
+    assert 'value' not in operation.arguments
+    assert operation.required_postchecks == ('corel_inspect_document', 'corel_preview')
+    assert (await typed_policy.classify(operation, binding)).decision == 'allow'
+    changed = binding.model_copy(update={'document_id': 'fixture-a'})
+    assert (await typed_policy.classify(operation, changed)).decision == 'deny'
+    assert args == {'page_index': 1, 'static_ids': [1001], 'kind': 'fountain', 'start': 0, 'end': 100, 'type': 'radial',
+                    'center_offset_x_percent': 20, 'applied_to': 'outline', 'merge_mode': 'multiply', 'freeze': True}
 
 
 async def test_union_schema_keeps_geometry_and_frozen_document_with_postchecks(typed_policy, typed_catalog, binding):

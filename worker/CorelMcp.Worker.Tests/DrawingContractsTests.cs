@@ -19,6 +19,9 @@ public sealed class DrawingContractsTests
         { "corel_duplicate_shapes", "\"static_ids\":[1],\"copies\":2,\"step_x_mm\":10,\"step_y_mm\":0" },
         { "corel_style_shapes", "\"static_ids\":[1],\"fill\":{\"kind\":\"uniform\",\"color\":{\"model\":\"rgb\",\"r\":255,\"g\":0,\"b\":0}}" },
         { "corel_style_shapes", "\"static_ids\":[1],\"fill\":{\"kind\":\"fountain\",\"type\":\"conical\",\"stops\":[{\"position\":0,\"color\":{\"model\":\"rgb\",\"r\":255,\"g\":0,\"b\":0}},{\"position\":50,\"color\":{\"model\":\"cmyk\",\"c\":0,\"m\":0,\"y\":0,\"k\":100}},{\"position\":100,\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":255}}],\"angle_deg\":45,\"center_offset_x_percent\":10,\"center_offset_y_percent\":-10,\"spread\":\"reflect\",\"steps\":256,\"edge_pad\":5,\"mid_point\":50,\"smooth_blend\":true,\"blend_type\":\"rainbow_cw\"}" },
+        { "corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"" },
+        { "corel_set_transparency", "\"static_ids\":[1,2],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"linear\",\"angle_deg\":45,\"applied_to\":\"outline\",\"merge_mode\":\"multiply\",\"freeze\":true" },
+        { "corel_set_transparency", "\"static_ids\":[1],\"kind\":\"none\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"" },
         { "corel_manage_layers", "\"action\":\"create\",\"page_id\":\"page\",\"name\":\"Резка\"" },
         { "corel_group_shapes", "\"action\":\"group\",\"static_ids\":[1,2]" },
         { "corel_boolean_shapes", "\"action\":\"trim\",\"left_id\":1,\"right_id\":2,\"keep_left\":true,\"keep_right\":false" },
@@ -55,6 +58,36 @@ public sealed class DrawingContractsTests
     [InlineData("corel_duplicate_shapes", "\"static_ids\":[1,1],\"copies\":1,\"step_x_mm\":0,\"step_y_mm\":0")]
     [InlineData("corel_style_shapes", "\"static_ids\":[1],\"fill\":{\"kind\":\"none\",\"color\":{\"model\":\"rgb\",\"r\":0,\"g\":0,\"b\":0}}")]
     [InlineData("corel_style_shapes", "\"static_ids\":[1],\"fill\":null")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":101,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":-1,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40.5,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"start\":0,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"angle_deg\":45,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"none\",\"freeze\":true,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"none\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"none\",\"start\":0,\"end\":100,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"value\":40,\"start\":0,\"end\":100,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"end\":100,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":101,\"end\":100,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":-1,\"type\":\"linear\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"circular\",\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"radial\",\"angle_deg\":45,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"linear\",\"center_offset_x_percent\":10,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"linear\",\"center_offset_y_percent\":-10,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"conical\",\"angle_deg\":360.5,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"radial\",\"center_offset_x_percent\":-100.5,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"fountain\",\"start\":0,\"end\":100,\"type\":\"square\",\"center_offset_y_percent\":100.5,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"both\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"xor\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"uniform\",\"value\":40,\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1],\"kind\":\"gradient\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
+    [InlineData("corel_set_transparency", "\"static_ids\":[1,1],\"kind\":\"uniform\",\"value\":40,\"applied_to\":\"fill\",\"merge_mode\":\"normal\"")]
     [InlineData("corel_manage_layers", "\"action\":\"set_flags\",\"layer_id\":\"layer\"")]
     [InlineData("corel_group_shapes", "\"action\":\"ungroup\",\"static_ids\":[1,2]")]
     [InlineData("corel_boolean_shapes", "\"action\":\"trim\",\"left_id\":1,\"right_id\":1,\"keep_left\":true,\"keep_right\":false")]
@@ -153,6 +186,46 @@ public sealed class DrawingContractsTests
         Assert.Equal(1, (int)DrawingContracts.FountainSpread("reflect"));
         Assert.Equal(2, (int)DrawingContracts.FountainSpread("repeat"));
         Assert.Throws<OperationFailure>(() => DrawingContracts.FountainBlendType("rainbow"));
+    }
+    private static string Transparency(string body) => "{\"request_id\":\"once\",\"document_id\":\"exact\",\"page_index\":1," + body + "}";
+    [Fact]
+    public void TransparencyCommandParsesWithEveryOptionalField()
+    {
+        var payload = "\"static_ids\":[1,2],\"kind\":\"fountain\",\"start\":25,\"end\":75,\"type\":\"square\",\"angle_deg\":-45.5," +
+            "\"center_offset_x_percent\":-100,\"center_offset_y_percent\":100,\"applied_to\":\"fill_and_outline\",\"merge_mode\":\"behind\",\"freeze\":true";
+        var parsed = Assert.IsType<DrawingArguments>(OperationContracts.Parse("corel_set_transparency",
+            JsonSerializer.Deserialize<JsonElement>(Transparency(payload))));
+        var command = Assert.IsType<TransparencyCommand>(parsed.Command);
+        Assert.Equal([1, 2], command.StaticIds);
+        Assert.Equal("fountain", command.Kind);
+        Assert.Null(command.Value);
+        Assert.Equal(25, command.Start); Assert.Equal(75, command.End);
+        Assert.Equal("square", command.Type);
+        Assert.Equal(-45.5, command.AngleDeg); Assert.Equal(-100, command.CenterOffsetXPercent); Assert.Equal(100, command.CenterOffsetYPercent);
+        Assert.Equal("fill_and_outline", command.AppliedTo); Assert.Equal("behind", command.MergeMode);
+        Assert.True(command.Freeze);
+    }
+    [Fact]
+    public void TransparencyEnumsMapWhitelistedNamesToTypelibValues()
+    {
+        Assert.Equal(VGCore.cdrTransparencyAppliedTo.cdrApplyToFill, DrawingContracts.TransparencyAppliedTo("fill"));
+        Assert.Equal(VGCore.cdrTransparencyAppliedTo.cdrApplyToOutline, DrawingContracts.TransparencyAppliedTo("outline"));
+        Assert.Equal(VGCore.cdrTransparencyAppliedTo.cdrApplyToFillAndOutline, DrawingContracts.TransparencyAppliedTo("fill_and_outline"));
+        Assert.Equal(0, (int)DrawingContracts.TransparencyAppliedTo("fill"));
+        Assert.Equal(1, (int)DrawingContracts.TransparencyAppliedTo("outline"));
+        Assert.Equal(2, (int)DrawingContracts.TransparencyAppliedTo("fill_and_outline"));
+        Assert.Equal(VGCore.cdrMergeMode.cdrMergeNormal, DrawingContracts.MergeMode("normal"));
+        Assert.Equal(VGCore.cdrMergeMode.cdrMergeMultiply, DrawingContracts.MergeMode("multiply"));
+        Assert.Equal(VGCore.cdrMergeMode.cdrMergeScreen, DrawingContracts.MergeMode("screen"));
+        Assert.Equal(VGCore.cdrMergeMode.cdrMergeOverlay, DrawingContracts.MergeMode("overlay"));
+        Assert.Equal(VGCore.cdrMergeMode.cdrMergeBehind, DrawingContracts.MergeMode("behind"));
+        Assert.Equal(0, (int)DrawingContracts.MergeMode("normal"));
+        Assert.Equal(9, (int)DrawingContracts.MergeMode("multiply"));
+        Assert.Equal(28, (int)DrawingContracts.MergeMode("screen"));
+        Assert.Equal(29, (int)DrawingContracts.MergeMode("overlay"));
+        Assert.Equal(27, (int)DrawingContracts.MergeMode("behind"));
+        Assert.Throws<OperationFailure>(() => DrawingContracts.TransparencyAppliedTo("both"));
+        Assert.Throws<OperationFailure>(() => DrawingContracts.MergeMode("xor"));
     }
     private static string Envelope(string payload) => "{\"request_id\":\"once\",\"document_id\":\"exact\",\"page_index\":1," + payload + "}";
     private static object Parse(string tool, string payload) => OperationContracts.Parse(tool, JsonSerializer.Deserialize<JsonElement>(Envelope(payload)));

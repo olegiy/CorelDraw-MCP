@@ -43,8 +43,9 @@ internal static class Styles
     private static void ApplyFountain(OperationContext c, VGCore.Fill fill, PreparedFountain fountain)
     {
         var applied = c.Track(fill.ApplyFountainFill(fountain.First, fountain.Last, fountain.Type, fountain.Angle,
-            fountain.Steps, fountain.EdgePad, fountain.MidPoint, fountain.Blend, fountain.CenterX, fountain.CenterY));
-        // CenterOffsetX/Y are percentages of the object in API 27: passed as-is, never converted with target.U().
+            fountain.Steps, fountain.EdgePad, fountain.MidPoint, fountain.Blend,
+            // CenterOffsetX/Y are percentages of the object width/height in API 27 — passed as-is, never converted with target.U().
+            fountain.CenterXPercent, fountain.CenterYPercent));
         if (fountain.Middle.Length > 0)
         {
             var colors = c.Track(applied.Colors);
@@ -70,8 +71,10 @@ internal static class Styles
     {
         var colors = c.Track(fountain.Colors);
         // Live-verified: IVGFountainColors.Item is 0-based (unlike IVGShapes), valid indices 0..Count-1.
-        var stops = new List<object>(colors.Count);
-        for (int index = 0; index < colors.Count; index++)
+        // Count is cached once so the loop condition does not re-read the COM property on every iteration.
+        var count = colors.Count;
+        var stops = new List<object>(count);
+        for (int index = 0; index < count; index++)
         {
             var stop = c.Track(colors[index]);
             stops.Add(Dto.Of(("position", stop.Position), ("color", ColorInfo(c, c.Track(stop.Color)))));
@@ -109,6 +112,8 @@ internal static class Styles
 }
 
 // Resolved COM inputs for one fountain fill request: colors are created once in preflight and reused for every target.
+// CenterXPercent/CenterYPercent are object-relative percent offsets (API 27 semantics): they go to COM verbatim,
+// without any target.U() unit conversion.
 internal sealed record PreparedFountain(VGCore.cdrFountainFillType Type, double Angle, int Steps, int EdgePad, int MidPoint,
-    VGCore.cdrFountainFillBlendType Blend, double CenterX, double CenterY, VGCore.cdrFountainFillSpreadMethod? Spread, bool? SmoothBlend,
+    VGCore.cdrFountainFillBlendType Blend, double CenterXPercent, double CenterYPercent, VGCore.cdrFountainFillSpreadMethod? Spread, bool? SmoothBlend,
     VGCore.Color First, VGCore.Color Last, (VGCore.Color Color, int Position)[] Middle);

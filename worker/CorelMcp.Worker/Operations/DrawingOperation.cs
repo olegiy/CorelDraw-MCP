@@ -27,6 +27,7 @@ internal static class DrawingOperation
             ImportCommand import => Import.Prepare(target, import),
             PageCommand pages => Pages.Prepare(target, pages),
             ClipCommand clip => PowerClip.Prepare(target, clip),
+            TransparencyCommand transparency => Transparency.Prepare(target, transparency),
             _ => throw new OperationFailure("UNKNOWN_TOOL", "Неподдерживаемая команда рисования.")
         });
         if (args.Command is LayoutCommand { DryRun: true }) { execute(); return context.DrawingResult(false); }

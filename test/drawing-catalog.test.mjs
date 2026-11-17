@@ -19,11 +19,13 @@ for (const backend of [undefined, 'csharp']) {
     await server.connect(serverTransport); await client.connect(clientTransport);
     t.after(async () => { await client.close(); await server.close(); });
     const list = (await client.listTools()).tools;
+    assert.equal(list.length, 40);
     assert.equal(list.some(tool => tool.name === 'corel_execute_vba'), false);
     assert.equal(list.some(tool => tool.name === 'corel_build_vba'), false);
     assert.equal(list.some(tool => tool.name === 'corel_create_shapes'), true);
     assert.equal(list.some(tool => tool.name === 'corel_create_batch'), true);
     assert.equal(list.some(tool => tool.name === 'corel_update_batch'), true);
+    assert.equal(list.some(tool => tool.name === 'corel_set_transparency'), true);
     if (true) {
       const transform = list.find(tool => tool.name === 'corel_transform_shapes');
       assert.equal(transform.inputSchema.type, 'object');

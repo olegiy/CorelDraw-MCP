@@ -9,9 +9,9 @@ async def test_node_v2_catalog_and_structured_content(transport_factory):
     try:
         catalog = await transport.session.list_tools()
         names = {tool.name for tool in catalog.tools}
-        assert len(names) == 39
+        assert len(names) == 40
         assert {'corel_get_job', 'corel_import', 'corel_layout_shapes', 'corel_edit_text',
-                'corel_create_batch', 'corel_update_batch'} <= names
+                'corel_create_batch', 'corel_update_batch', 'corel_set_transparency'} <= names
         assert not {'corel_execute_vba', 'corel_build_vba'} & names
         result = await transport.session.call_tool("corel_status", {})
         report = result.structuredContent

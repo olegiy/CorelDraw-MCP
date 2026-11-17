@@ -140,6 +140,31 @@ const powerclip=z.discriminatedUnion('action',[
     .refine(value=>!value.static_ids.includes(value.container_id),'Контейнер нельзя поместить в самого себя.'),
   z.strictObject({...common,action:z.literal('extract'),container_id:singleId}),
 ]).meta({type:'object'});
+// Merge whitelist from the installed VGCore 27 typelib (cdrMergeMode): normal=0, multiply=9, screen=28, overlay=29, behind=27.
+const transparency=z.strictObject({
+  ...common, static_ids: ids,
+  kind: z.enum(['none', 'uniform', 'fountain']),
+  value: z.number().int().min(0).max(100).optional(),
+  start: z.number().int().min(0).max(100).optional(),
+  end: z.number().int().min(0).max(100).optional(),
+  type: z.enum(['linear', 'radial', 'conical', 'square']).optional(),
+  angle_deg: z.number().min(-360).max(360).optional(),
+  center_offset_x_percent: z.number().min(-100).max(100).optional(),
+  center_offset_y_percent: z.number().min(-100).max(100).optional(),
+  applied_to: z.enum(['fill', 'outline', 'fill_and_outline']),
+  merge_mode: z.enum(['normal', 'multiply', 'screen', 'overlay', 'behind']),
+  freeze: z.boolean().optional(),
+})
+  .refine(value => value.kind !== 'none' || ['value', 'start', 'end', 'type', 'angle_deg', 'center_offset_x_percent', 'center_offset_y_percent', 'freeze']
+    .every(field => value[field as keyof typeof value] === undefined), 'Параметры прозрачности и freeze не задаются вместе с kind none.')
+  .refine(value => value.kind !== 'uniform' || value.value !== undefined, 'Для kind uniform обязателен value.')
+  .refine(value => value.kind !== 'uniform' || ['start', 'end', 'type', 'angle_deg', 'center_offset_x_percent', 'center_offset_y_percent']
+    .every(field => value[field as keyof typeof value] === undefined), 'Поля start/end/type/angle_deg/center_offset_* применимы только к fountain-прозрачности.')
+  .refine(value => value.kind !== 'fountain' || value.value === undefined, 'value задаётся только для uniform-прозрачности.')
+  .refine(value => value.kind !== 'fountain' || value.start !== undefined && value.end !== undefined && value.type !== undefined, 'Для kind fountain обязательны start, end и type.')
+  .refine(value => value.kind !== 'fountain' || value.type !== 'radial' || value.angle_deg === undefined, 'angle_deg применим только к fountain-прозрачности linear/conical/square.')
+  .refine(value => value.kind !== 'fountain' || value.type !== 'linear' || value.center_offset_x_percent === undefined && value.center_offset_y_percent === undefined, 'center_offset_*_percent применимы только к fountain-прозрачности radial/square/conical.')
+  .meta({ type: 'object' });
 export const drawingToolDefinitions: Record<string, Definition> = {
   corel_import:tool(importSchema,'Импортировать один локальный SVG/PDF/PNG/JPEG до 256 МиБ по SHA-256 и размеру, на точный слой. PDF требует одну явную страницу; fit сохраняет пропорции. Без clipboard и диалогового fallback. Возвращает job_id.'),
   corel_manage_pages:tool(pages,'Добавить до 100 страниц заданного размера либо изменить размер точной page_id. Удаление и перестановка не поддерживаются. Возвращает job_id.'),
@@ -162,6 +187,7 @@ export const drawingToolDefinitions: Record<string, Definition> = {
     .refine(value => value.static_ids.length * value.copies <= 1000, 'Допустимо до 1000 новых фигур, включая содержимое групп.'), 'Дублировать точные StaticID с заданным шагом в мм, сохраняя исходники. До 1000 новых фигур с учётом групп. Возвращает job_id.'),
   corel_style_shapes: tool(z.strictObject({ ...common, static_ids: ids, fill: fill.optional(), outline: outline.optional() })
     .refine(value => value.fill !== undefined || value.outline !== undefined, 'Укажите fill или outline.'), 'Задать явную заливку (none, uniform или fountain 2–16 стопов: linear/radial/conical/square) и/или обводку точных StaticID. Цвет RGB/CMYK, ширина в мм; отсутствующие свойства сохраняются. Возвращает job_id.'),
+  corel_set_transparency: tool(transparency, 'Задать прозрачность точных StaticID: uniform 0–100, fountain start/end с типом linear/radial/conical/square или снять через kind none. applied_to заливка/обводка/оба, merge_mode normal/multiply/screen/overlay/behind, freeze после применения; StaticID не меняются. Возвращает job_id.'),
   corel_manage_layers: tool(layers, 'Создать, переименовать слой, изменить его флаги или перенести точные фигуры. Существующий слой задаётся opaque layer_id. Возвращает job_id.'),
   corel_group_shapes: tool(z.discriminatedUnion('action', [
     z.strictObject({ ...common, action: z.literal('group'), static_ids: ids.min(2) }),
