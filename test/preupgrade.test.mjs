@@ -64,3 +64,25 @@ for (const name of ['mcp-owner.json', 'history.sqlite3']) test(`a dangling ${nam
   symlinkSync(join(host, 'missing'), join(host, name), process.platform === 'win32' ? 'junction' : 'dir');
   assert.equal(checkUpgrade({ ...f.options, reportRoots: [], hostRoots: [host] }).ok, false);
 });
+test('legacy cleanup completed:true without errors key is proven clean and preserved', () => {
+  const f = fixture('succeeded', { cleanup: { completed: true } });
+  const before = readFileSync(f.path);
+  assert.equal(checkUpgrade(f.options).ok, true);
+  assert.deepEqual(readFileSync(f.path), before);
+});
+test('legacy cleanup completed:false without errors key still refuses', () => {
+  const f = fixture('succeeded', { cleanup: { completed: false } });
+  assert.equal(checkUpgrade(f.options).ok, false);
+});
+test('cleanup errors present but malformed or non-empty still refuses', () => {
+  for (const errors of [null, 'x', {}, [{ step: 's', code: 'CLEANUP_ERROR' }]]) {
+    const f = fixture('succeeded', { cleanup: { completed: true, errors } });
+    assert.equal(checkUpgrade(f.options).ok, false, JSON.stringify(errors));
+  }
+});
+test('legacy rule does not bypass retained GMS or unknown mutation', () => {
+  const retained = fixture('succeeded', { cleanup: { completed: true, project_retained: true } });
+  assert.equal(checkUpgrade(retained.options).ok, false);
+  const failed = fixture('failed', { cleanup: { completed: true } });
+  assert.equal(checkUpgrade(failed.options).ok, false);
+});
