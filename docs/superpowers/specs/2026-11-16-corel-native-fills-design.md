@@ -18,8 +18,10 @@ CorelDRAW и оставалась редактируемой в UI, без SVG-�
   (fill/outline/fill+outline), merge mode; снятие через kind `none` (`ApplyNoTransparency`).
 - Новый `corel_apply_drop_shadow`: flat/bottom/top/left/right, opacity, feather, offsets, color, feather type,
   feather edge, merge mode; снятие тени отдельным kind `none` (семантика удаления эффекта — см. ниже).
-- Возврат фактических StaticID и `id_mappings` там, где ID меняется (drop shadow оборачивает фигуру в
-  `cdrDropShadowGroupShape`), по образцу `corel_convert_to_curves`.
+- Возврат фактических StaticID и `id_mappings` по образцу `corel_convert_to_curves`. Наблюдение live (T6):
+  CorelDRAW 27 НЕ оборачивает цель — цель сохраняет StaticID/тип/геометрию, эффект attaches к ней, и рядом
+  появляется sibling shadow-группа (group + 1 shadow child, 2 новых ID); `id_mappings` =
+  `{source_static_id, result_static_ids:[target, group, child]}`, снятие → `[target]`.
 - Полная валидация целей/значений до первой мутации, включая BeginCommandGroup; отчёты job с
   affected/created/deleted, cleanup, warnings — как у существующих операций.
 - Синхронность: MCP-схемы, worker DTO, api-contract.json, скилл, references/tools.md + operations.md + recipes.md + api-v27.md,
@@ -114,10 +116,12 @@ ID не меняются; отчёт содержит фактический tra
 Параметры: request_id, document_id, page_index, static_ids (1..100), kind shadow|none;
 type, opacity 0..100, feather 0..100, offset_x/y_mm (-1000..1000), color, feather_type, feather_edge,
 merge_mode whitelist, fade 0..100 (только perspective-типы? flat игнорирует — схема запрещает fade для flat).
-Применение создаёт effect-группу: **StaticID цели меняется** → отчёт обязан вернуть `id_mappings`
-(old→new) и created/deleted ids, по образцу convert. kind `none`: удаление тени — проверить live доступный
-dispatch-путь (`IVGEffect.Delete`/разгруппировка с сохранением фигуры); если надёжного typed-пути снятия нет —
-kind `none` отклоняется схемой на этапе реализации и документируется как limitation (не fallback).
+Применение (наблюдение live T6, authority над премиссой черновика): цель СОХРАНЯЕТ StaticID/тип/геометрию,
+эффект attaches к цели, рядом создаётся sibling shadow-группа (group + 1 shadow child). Отчёт обязан вернуть
+`id_mappings` = {source_static_id, result_static_ids:[target, group, child]} и фактические created/deleted,
+по образцу convert. kind `none`: typed-путь снятия НАЙДЕН и проверен live — `Shape.ClearEffect(cdrDropShadow)`
+(альтернатива `Effect.Clear()`); возвращает result_static_ids=[target]. Повторная тень к уже затенённой цели —
+отказ до мутации (effects gate цели).
 Цели (решение пользователя после builder-check): **одиночные векторные фигуры (types 1/2/3/4) и текст (6)**;
 группы — documented limitation v1 (без id_mappings по поддереву). Без существующих effects/PowerClip/bitmap;
 повторное применение тени к уже затенённой цели — отказ до мутации (без двойного эффекта).
@@ -234,9 +238,9 @@ kind `none` отклоняется схемой на этапе реализац
   до маршрутизации (схема batchFill + отказ в NativeBatchContracts.Style).
 - **Whitelists blend_type/feather_edge/merge_mode** (моё решение): перечисляются из установленной typelib
   на этапе реализации и фиксируются в api-contract.json; схема принимает только whitelisted-имена.
-- **fade/perspective и снятие тени** (делегировано билдеру): дефолты perspective-полей и наличие typed-пути
-  снятия тени определяются live-проверкой; при отсутствии надёжного пути kind `none` для тени отклоняется
-  схемой и документируется как limitation, без fallback.
+- **fade/perspective и снятие тени** (live-проверка T6 выполнена): perspective 0/0 round-trips (в v1-схеме не
+  экспонируются); fade round-trips даже на flat, но схема по-прежнему запрещает fade+flat; снятие —
+  `Shape.ClearEffect(cdrDropShadow)` (typed, live-verified), kind none реализован.
 
 ## Оставлено билдеру
 
