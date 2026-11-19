@@ -4,6 +4,8 @@ artifacts/
 *.log
 .env
 .venv/
+.conda/
+b5bf2e54cb654f7b/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
