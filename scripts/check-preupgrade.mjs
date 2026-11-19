@@ -91,7 +91,10 @@ export function checkUpgrade({ reportRoots, hostRoots, processExists: alive = pr
         if (report.job_id !== name || typeof report.tool !== 'string' || resolve(report.run_directory ?? '') !== resolve(path)) fail('REPORT_UNCONFIRMED');
         if (!['succeeded', 'failed'].includes(report.status) || typeof report.finished_at !== 'string' || !report.finished_at) fail('JOB_UNRESOLVED');
         if (report.status === 'failed' && (report.error?.applied !== false || report.error?.partial === true || report.result?.partial === true)) fail('MUTATION_OUTCOME_UNRESOLVED');
-        if (report.cleanup?.completed !== true || !Array.isArray(report.cleanup.errors) || report.cleanup.errors.length) fail('CLEANUP_NOT_PROVEN');
+        const cleanup = report.cleanup;
+        const legacyClean = cleanup?.completed === true && !Object.hasOwn(cleanup, 'errors');
+        const currentClean = cleanup?.completed === true && Array.isArray(cleanup.errors) && cleanup.errors.length === 0;
+        if (!legacyClean && !currentClean) fail('CLEANUP_NOT_PROVEN');
         if (report.cleanup.project_retained === true && !resolved.some(value => canonical(binding(value)) === canonical(binding(report)))) fail('RETAINED_PROJECT_UNRESOLVED');
         if (!owners.has(report.owner_pid)) stopped(report.owner_pid);
       }
