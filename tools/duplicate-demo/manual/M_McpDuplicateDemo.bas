@@ -9,10 +9,7 @@ Public Sub DuplicateSelectedObject()
     Dim result As String
 
     countText = InputBox("Number of additional copies (1-1000):", "MCP duplicate test", "3")
-    If Len(countText) = 0 Then
-        WriteDemoLog "CANCELLED|No count entered"
-        Exit Sub
-    End If
+    If Len(countText) = 0 Then Exit Sub
 
     result = DuplicateWithCount(countText)
     If Left$(result, 3) = "OK|" Then
@@ -22,7 +19,7 @@ Public Sub DuplicateSelectedObject()
     End If
 End Sub
 
-Public Function DuplicateWithCount(ByVal countText As String) As String
+Private Function DuplicateWithCount(ByVal countText As String) As String
     Dim doc As Document
     Dim selected As ShapeRange
     Dim original As Shape
@@ -31,7 +28,9 @@ Public Function DuplicateWithCount(ByVal countText As String) As String
     Dim created As Long
     Dim stepX As Double
     Dim boundsX As Double, boundsY As Double, boundsWidth As Double, boundsHeight As Double
-    Dim groupOpen As Boolean
+    Dim mutationStarted As Boolean
+    Dim closePending As Boolean
+    Dim closeUnconfirmed As Boolean
     Dim errorNumber As Long
     Dim errorMessage As String
 
@@ -39,81 +38,67 @@ Public Function DuplicateWithCount(ByVal countText As String) As String
     countText = Trim$(countText)
     If Len(countText) = 0 Or Len(countText) > 4 Or countText Like "*[!0-9]*" Then
         DuplicateWithCount = "REJECTED|Enter a whole number from 1 to 1000."
-        GoTo Finished
+        Exit Function
     End If
     count = CLng(countText)
     If count < 1 Or count > MAX_COPIES Then
         DuplicateWithCount = "REJECTED|Enter a whole number from 1 to 1000."
-        GoTo Finished
+        Exit Function
     End If
     If Documents.Count = 0 Then
         DuplicateWithCount = "REJECTED|Open a document and select one object."
-        GoTo Finished
+        Exit Function
     End If
     Set doc = ActiveDocument
     Set selected = doc.SelectionRange
     If selected.Count <> 1 Then
         DuplicateWithCount = "REJECTED|Select exactly one object or group."
-        GoTo Finished
+        Exit Function
     End If
 
     Set original = selected(1)
+    If original.Page.Index <> doc.ActivePage.Index Then
+        DuplicateWithCount = "REJECTED|Select an object on the active page."
+        Exit Function
+    End If
+    If original.Locked Or Not original.Layer.Editable Or original.Layer.IsSpecialLayer Then
+        DuplicateWithCount = "REJECTED|Select an unlocked object on an editable drawing layer."
+        Exit Function
+    End If
     selected.GetBoundingBox boundsX, boundsY, boundsWidth, boundsHeight, True
     stepX = boundsWidth + Application.ConvertUnits(GAP_MM, cdrMillimeter, doc.Unit)
-    WriteDemoLog "START|requested=" & count
+    mutationStarted = True
     doc.BeginCommandGroup "MCP duplicate test"
-    groupOpen = True
+    closePending = True
     Do While created < count
         Set duplicateShape = original.Duplicate(stepX * (created + 1), 0)
         created = created + 1
     Loop
+    ' Do not issue a second close if the first one errors after taking effect.
+    closePending = False
+    closeUnconfirmed = True
     doc.EndCommandGroup
-    groupOpen = False
+    closeUnconfirmed = False
     DuplicateWithCount = "OK|" & created
-    GoTo Finished
+    Exit Function
 
 Failed:
     errorNumber = Err.Number
     errorMessage = Err.Description
-    DuplicateWithCount = "ERROR|" & errorNumber & "|" & errorMessage & "|created=" & created
-    If groupOpen Then
+    DuplicateWithCount = "Error " & errorNumber & ": " & errorMessage
+    If mutationStarted Then
+        DuplicateWithCount = DuplicateWithCount & vbCrLf & "Confirmed copies: " & created & ". The drawing may have changed. Check it before running the macro again."
+    End If
+    If closeUnconfirmed Then
+        DuplicateWithCount = DuplicateWithCount & vbCrLf & "Could not confirm closing the Undo group."
+    End If
+    If closePending Then
         On Error Resume Next
         Err.Clear
         doc.EndCommandGroup
         If Err.Number <> 0 Then
-            DuplicateWithCount = DuplicateWithCount & "|EndCommandGroup failed: " & Err.Description
-        ElseIf created > 0 Then
-            doc.Undo 1
-            If Err.Number = 0 Then
-                DuplicateWithCount = DuplicateWithCount & "|rolled back"
-            Else
-                DuplicateWithCount = DuplicateWithCount & "|rollback failed: " & Err.Description
-            End If
+            DuplicateWithCount = DuplicateWithCount & vbCrLf & "Could not confirm closing the Undo group: " & Err.Description
         End If
         On Error GoTo 0
     End If
-
-Finished:
-    WriteDemoLog DuplicateWithCount
 End Function
-
-Private Sub WriteDemoLog(ByVal message As String)
-    Dim logPath As String
-    Dim logFile As Integer
-    Dim line As String
-
-    line = Format$(Now, "yyyy-mm-dd hh:nn:ss") & " | " & message
-    Debug.Print line
-    On Error GoTo LogFailed
-    logPath = Environ$("TEMP") & "\BarCode5-McpDuplicate.log"
-    logFile = FreeFile
-    Open logPath For Append As #logFile
-    Print #logFile, line
-    Close #logFile
-    Exit Sub
-
-LogFailed:
-    Debug.Print "Log write failed: " & Err.Description
-    On Error Resume Next
-    If logFile <> 0 Then Close #logFile
-End Sub
