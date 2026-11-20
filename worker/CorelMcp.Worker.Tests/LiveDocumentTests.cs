@@ -48,9 +48,13 @@ public sealed class LiveDocumentTests
             Assert.Equal(firstId, opened.GetProperty("document_id").GetString());
             await worker.Ok("corel_close_document", new { request_id = "close-one", document_id = firstId });
             owned.Remove(firstId);
+            Assert.Equal(new[] { "closing_document", "syncing_document_registry_after_close" }, worker.Progress.Where(IsCloseStage));
             var stale = await worker.Call("corel_inspect_document", new { document_id = firstId });
             Assert.Equal("STALE_DOCUMENT", stale.GetProperty("error").GetProperty("code").GetString());
             Assert.False(stale.GetProperty("error").GetProperty("applied").GetBoolean());
+            await worker.Ok("corel_close_document", new { request_id = "close-two", document_id = secondId, discard_changes = true });
+            owned.Remove(secondId);
+            Assert.Equal(new[] { "clearing_document_dirty_for_close", "closing_document", "syncing_document_registry_after_close" }, worker.Progress.Where(IsCloseStage));
         }
         finally
         {
@@ -59,12 +63,15 @@ public sealed class LiveDocumentTests
         }
     }
 
+    private static bool IsCloseStage(string stage) => stage is "clearing_document_dirty_for_close" or "closing_document" or "syncing_document_registry_after_close";
+
     private sealed class WorkerClient : IDisposable
     {
         private readonly Process process;
         private readonly Task<string> stderr;
         private bool ready;
         public string Directory { get; }
+        public List<string> Progress { get; } = [];
         public WorkerClient()
         {
             var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
@@ -86,6 +93,7 @@ public sealed class LiveDocumentTests
         }
         public async Task<JsonElement> Call(string tool, object args)
         {
+            Progress.Clear();
             if (!ready) { using var handshake = await Read(); Assert.Equal("ready", handshake.RootElement.GetProperty("type").GetString()); ready = true; }
             var id = Guid.NewGuid().ToString();
             var request = JsonSerializer.Serialize(new { job_id = id, tool, args, run_directory = Directory });
@@ -97,6 +105,7 @@ public sealed class LiveDocumentTests
                 using var record = await Read();
                 Assert.Equal(id, record.RootElement.GetProperty("job_id").GetString());
                 if (record.RootElement.GetProperty("type").GetString() == "result") return record.RootElement.GetProperty("data").Clone();
+                if (record.RootElement.GetProperty("type").GetString() == "progress") Progress.Add(record.RootElement.GetProperty("stage").GetString()!);
             }
         }
         private async Task<JsonDocument> Read()

@@ -8,10 +8,11 @@ import {rgb} from '../scripts/bench-hybrid.mjs';
 import {decodePng} from '../scripts/benchmark-artifacts.mjs';
 import {near,verifyTranslation,verifyCreatedBatch} from './hybrid-checks.mjs';
 if(process.env.CORELDRAW_WORKER_LIVE!=='1')throw new Error('Нужен CORELDRAW_WORKER_LIVE=1.');
+const manualClose=process.argv.includes('--manual-close');
 const directory=fileURLToPath(new URL(`../artifacts/integration-hybrid/${randomUUID()}/`,import.meta.url));mkdirSync(directory,{recursive:true});
 const session=await connect({executionMode:'hybrid',runs:join(directory,'runs')}),owned=new Set(),evidence=[],cleanup=[];
 const scenarios=[];
-let primary,currentScenario='setup',baseline;
+let primary,currentScenario='setup',baseline,manualHandoff;
 async function scenario(name,action) {
   currentScenario=name;
   const start=evidence.length;
@@ -44,6 +45,7 @@ function bounds(item,left,bottom,width,height) {
 function fingerprint(path) {const bytes=readFileSync(path);return {path,size_bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}
 try {
   baseline=(await ok('corel_status')).result;
+  if(manualClose)assert.equal(baseline.documents.length,0,'Ручная диагностика требует пустого CorelDRAW.');
   const doc=await create(),initial=await inspect(doc),layer_id=normalLayer(initial);
   const atlas=await create(),atlasInitial=await inspect(atlas),atlasLayer=normalLayer(atlasInitial);
   const control=await create(),controlBefore=await inspect(control);
@@ -233,20 +235,27 @@ try {
   assert.equal(after.active_document_id,control);
   assert.deepEqual(after.application_state,baseline.application_state);
   for(const source of baseline.documents)assert.deepEqual(after.documents.find(d=>d.document_id===source.document_id),source);
+  if(manualClose){
+    const target=after.documents.find(d=>d.document_id===control);
+    assert.equal([...owned].at(-1),control);
+    assert(target?.dirty && !target.path,'Контрольный документ должен быть несохранённым.');
+    manualHandoff={target,documents:after.documents,prepared_at:new Date().toISOString()};
+  }
 } catch(error){primary=error;}
 finally {
   currentScenario='cleanup';
-  for(const document_id of [...owned].reverse())try {
+  for(const document_id of manualClose?[]:[...owned].reverse())try {
     assert.equal(session.pending.size,0,'Cleanup запрещён при pending/unknown native job');
     await ok('corel_close_document',{request_id:randomUUID(),document_id,discard_changes:true});cleanup.push({document_id,closed:true});
   }
   catch(error){cleanup.push({document_id,closed:false,error:String(error)});primary??=error;}
-  if(baseline&&session.pending.size===0)try {
+  if(!manualClose&&baseline&&session.pending.size===0)try {
     const final=(await ok('corel_status')).result;
     assert.deepEqual(final.documents,baseline.documents);assert.deepEqual(final.application_state,baseline.application_state);
   }catch(error){primary??=error;}
   try {await session.close();}catch(error){primary??=error;}
-  writeFileSync(join(directory,'verification.json'),JSON.stringify({passed:!primary,error:primary&&String(primary),repeated_move_checks:scenarios.filter(s=>['batch-move','batch-return'].includes(s.name)&&s.passed).length,scenarios,tools_checked:[...new Set(evidence.map(e=>e.tool))],native_operations:evidence.filter(e=>e.versions?.execution_engine==='vba'&&e.status==='succeeded').length,cleanup,evidence},null,2));
+  writeFileSync(join(directory,'verification.json'),JSON.stringify({passed:!primary&&!manualClose,manual_handoff:manualHandoff,error:primary&&String(primary),repeated_move_checks:scenarios.filter(s=>['batch-move','batch-return'].includes(s.name)&&s.passed).length,scenarios,tools_checked:[...new Set(evidence.map(e=>e.tool))],native_operations:evidence.filter(e=>e.versions?.execution_engine==='vba'&&e.status==='succeeded').length,cleanup,evidence},null,2));
 }
 if(primary)throw primary;
-console.log(`Гибрид: ${scenarios.length} сценариев, ${new Set(evidence.map(e=>e.tool)).size} функций, две проверки перемещения: ${directory}`);
+if(manualHandoff)console.log(`Ручное закрытие: ${manualHandoff.target.name}; отчёт: ${directory}`);
+else console.log(`Гибрид: ${scenarios.length} сценариев, ${new Set(evidence.map(e=>e.tool)).size} функций, две проверки перемещения: ${directory}`);

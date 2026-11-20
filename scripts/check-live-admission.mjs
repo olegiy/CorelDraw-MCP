@@ -102,7 +102,10 @@ export function captureLiveAdmission({ reportRoots, hostRoots, processExists = o
       || resolve(report.run_directory) !== directory) throw new Error('REPORT_UNCONFIRMED');
     if (!['succeeded', 'failed'].includes(report.status) || typeof report.finished_at !== 'string' || !report.finished_at)
       throw new Error('JOB_UNRESOLVED');
-    if (report.cleanup?.completed !== true || !Array.isArray(report.cleanup.errors) || report.cleanup.errors.length)
+    const cleanup = report.cleanup;
+    const legacyClean = cleanup?.completed === true && !Object.hasOwn(report, 'versions') && !Object.hasOwn(cleanup, 'errors');
+    const currentClean = cleanup?.completed === true && Array.isArray(cleanup.errors) && cleanup.errors.length === 0;
+    if (!legacyClean && !currentClean)
       throw new Error('CLEANUP_NOT_PROVEN');
     if (!owners.has(report.owner_pid)) stopped(report.owner_pid);
     if ((report.status === 'failed' && (report.error?.applied !== false || report.error?.partial === true

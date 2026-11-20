@@ -73,9 +73,15 @@ internal static class Documents
     {
         var doc = context.Target!.Document;
         if (doc.Dirty && !args.DiscardChanges) throw new OperationFailure("UNSAVED_CHANGES", "Сохраните документ или явно передайте discard_changes=true.");
+        if (args.DiscardChanges)
+        {
+            context.Stage("clearing_document_dirty_for_close"); context.Mutating();
+            doc.Dirty = false;
+        }
         context.Stage("closing_document"); context.Mutating();
-        if (args.DiscardChanges) doc.Dirty = false;
-        doc.Close(); context.Registry.Sync(context.App, context.Scope);
+        doc.Close();
+        context.Stage("syncing_document_registry_after_close");
+        context.Registry.Sync(context.App, context.Scope);
         return Dto.Of(("closed", true), ("document_id", args.DocumentId));
     }
     public static string OutputPath(string requested, string format)

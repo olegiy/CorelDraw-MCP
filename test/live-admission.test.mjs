@@ -33,6 +33,29 @@ test('explicit live acceptance preserves historical uncertainty and never admits
   assert.equal(JSON.parse(before).error.applied, undefined);
 });
 
+test('legacy completed cleanup without errors is recognized without resolving the mutation', () => {
+  const f = fixture();
+  delete f.report.cleanup.errors;
+  writeFileSync(f.path, JSON.stringify(f.report));
+  const before = readFileSync(f.path);
+  const receipt = captureLiveAdmission(f.options);
+  assert.equal(receipt.historical_exceptions.length, 2);
+  assert.equal(verifyLiveAdmission(receipt, f.options).ok, true);
+  assert.equal(checkUpgrade(f.options).ok, false);
+  assert.deepEqual(readFileSync(f.path), before);
+});
+
+test('missing current cleanup errors and explicit malformed or nonempty errors remain blocked', () => {
+  for (const extra of [{ versions: {} }, { errors: null }, { errors: ['failure'] }]) {
+    const f = fixture();
+    delete f.report.cleanup.errors;
+    if (Object.hasOwn(extra, 'versions')) Object.assign(f.report, extra);
+    else Object.assign(f.report.cleanup, extra);
+    writeFileSync(f.path, JSON.stringify(f.report));
+    assert.throws(() => captureLiveAdmission(f.options), /CLEANUP_NOT_PROVEN/);
+  }
+});
+
 test('changed report or new job cannot inherit historical live acceptance', () => {
   for (const change of ['bytes', 'directory']) {
     const f = fixture(), receipt = captureLiveAdmission(f.options);
