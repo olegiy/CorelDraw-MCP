@@ -16,7 +16,12 @@ internal sealed class OperationDispatcher : IOperationDispatcher
     public WorkerResult Execute(WorkerRequest request, Action<string> progress)
     {
         object arguments;
-        try { arguments = OperationContracts.Parse(request.Tool, request.Args); WorkerArtifacts.EnsureDirectory(request.RunDirectory); }
+        try
+        {
+            arguments = OperationContracts.Parse(request.Tool, request.Args);
+            if (arguments is RunMacroArguments) _ = DuplicateDemo.Configuration();
+            WorkerArtifacts.EnsureDirectory(request.RunDirectory);
+        }
         catch (OperationFailure error) { return new(false, Error: new WorkerError(error.Code, error.Message, "preflight", false), Cleanup: Dto.Of(("completed", true), ("errors", Array.Empty<object>()))); }
         var cleanup = new CleanupRecorder();
         ComOperationMutex? lease = null;
@@ -53,6 +58,7 @@ internal sealed class OperationDispatcher : IOperationDispatcher
                 ExportArguments export => Export.Execute(context, export),
                 MeasureArguments measure => GeometrySnapshot.Execute(context, measure),
                 DrawingArguments drawing => DrawingOperation.Execute(context, drawing),
+                RunMacroArguments macro => DuplicateDemo.Execute(context, macro),
                 InspectCurveArguments curve => Curves.Inspect(context, curve),
                 FindTextArguments find => Text.Find(context, find),
                 PreflightArguments preflight => Preflight.Execute(context, preflight),
@@ -87,7 +93,7 @@ internal sealed class OperationDispatcher : IOperationDispatcher
             string code = failure switch { OperationFailure operation => operation.Code, CorelConnectionException connection => connection.Code, ComMutexException mutex => mutex.Code, _ => failure.Data["code"] as string ?? "COM_ERROR" };
             bool? applied = context?.MutationConfirmed == true ? true : context?.MutationStarted == true || !cleanup.Completed ? null : false;
             if(code=="NATIVE_OUTCOME_UNKNOWN")applied=null;
-            if (arguments is DrawingArguments && context?.MutationStarted == true)
+            if (arguments is DrawingArguments or RunMacroArguments && context?.MutationStarted == true)
             {
                 result = context.DrawingResult(true);
                 try { result = WorkerArtifacts.PrepareResult(request.RunDirectory, result, context.Artifacts); }

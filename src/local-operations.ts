@@ -9,6 +9,15 @@ export class LocalOperations {
   constructor(private jobs: JobManager) {
     this.artifacts = new ArtifactStore(jobs.root, (id) => jobs.get(id));
   }
+  listMacros(): object {
+    const gms = process.env.CORELDRAW_MCP_DUPLICATE_DEMO_GMS ?? '';
+    return { macros: [{
+      macro_id: 'duplicate_demo',
+      configured: /^[A-Za-z]:[\\/].+\.gms$/i.test(gms)
+        && /^[a-fA-F0-9]{64}$/.test(process.env.CORELDRAW_MCP_DUPLICATE_DEMO_SHA256 ?? ''),
+      parameter: { name: 'count', type: 'integer', minimum: 1, maximum: 1000 },
+    }] };
+  }
   run(tool: string, args: Arguments, job: Job): { result: unknown; error?: Job['error'] } {
     if (tool === 'corel_add_note') {
       if (typeof args.job_id === 'string') this.jobs.get(args.job_id);

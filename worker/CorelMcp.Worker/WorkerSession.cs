@@ -95,12 +95,18 @@ internal sealed class CleanupRecorder
 {
     private readonly List<object> errors = [];
     public List<int> MissingSelectionIds { get; } = [];
+    public bool ProjectRetained { get; set; }
     public bool Completed => errors.Count == 0;
     public void Try(string step, Action action)
     {
         try { action(); } catch (Exception error) { errors.Add(Dto.Of(("step", step), ("code", "CLEANUP_ERROR"), ("message", error.Message))); }
     }
     public void Add(string step, Exception error) => errors.Add(Dto.Of(("step", step), ("code", "CLEANUP_ERROR"), ("message", error.Message)));
-    public Dictionary<string, object?> Snapshot() => Dto.Of(("completed", Completed), ("errors", errors.ToArray()),
-        ("selection_missing_static_ids", MissingSelectionIds.ToArray()), ("selection_restored_completely", MissingSelectionIds.Count == 0));
+    public Dictionary<string, object?> Snapshot()
+    {
+        var result = Dto.Of(("completed", Completed), ("errors", errors.ToArray()),
+            ("selection_missing_static_ids", MissingSelectionIds.ToArray()), ("selection_restored_completely", MissingSelectionIds.Count == 0));
+        if (ProjectRetained) result["project_retained"] = true;
+        return result;
+    }
 }

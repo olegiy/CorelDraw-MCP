@@ -82,6 +82,7 @@ export function createServer(jobs: JobManager): McpServer {
       async (args: Arguments) => {
         try {
           const parsed = definition.schema.parse(args);
+          if (name === 'corel_list_macros') return response(local.listMacros());
           const job = definition.local
             ? jobs.submitLocal(name, parsed, (accepted) => local.run(name, parsed, accepted))
             : jobs.submit(name, parsed);

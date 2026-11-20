@@ -8,17 +8,19 @@ internal static class Program
 {
     [STAThread] private static int Main(string[] args)
     {
-        if (args.Length != 2 || args[0] is not ("--developer-prepare" or "--developer-seal" or "--developer-discard-prepared" or "--developer-unload-test-runtime" or "--developer-unload-local-runtime" or "--developer-inspect-state")) return 2;
-        string root = Path.GetFullPath(args[1]), source = Path.Combine(root, "worker", "vba");
-        string output = Path.Combine(root, "worker", "native");
+        if (args.Length != 2 || args[0] is not ("--developer-prepare" or "--developer-prepare-duplicate-demo" or "--developer-seal" or "--developer-discard-prepared" or "--developer-unload-test-runtime" or "--developer-unload-local-runtime" or "--developer-inspect-state")) return 2;
+        bool demo = args[0] == "--developer-prepare-duplicate-demo";
+        string root = Path.GetFullPath(args[1]);
+        string source = demo ? Path.Combine(root, "tools", "duplicate-demo") : Path.Combine(root, "worker", "vba");
+        string output = demo ? Path.Combine(root, "artifacts", "duplicate-demo") : Path.Combine(root, "worker", "native");
         Directory.CreateDirectory(output);
-        string path = Path.Combine(output, "CorelMcp.Runtime.gms");
-        if (args[0] == "--developer-prepare" && File.Exists(path)) throw new IOException("Существующий GMS автоматически не перезаписывается.");
-        var files = Directory.GetFiles(source, "*.bas").Order(StringComparer.Ordinal).ToArray();
+        string path = Path.Combine(output, demo ? "CorelMcp.DuplicateDemo.gms" : "CorelMcp.Runtime.gms");
+        if ((demo || args[0] == "--developer-prepare") && File.Exists(path)) throw new IOException("Существующий GMS автоматически не перезаписывается.");
+        var files = demo ? new[] { Path.Combine(source, "M_DuplicateDemo.bas") } : Directory.GetFiles(source, "*.bas").Order(StringComparer.Ordinal).ToArray();
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (string file in files) { digest.AppendData(Encoding.UTF8.GetBytes(Path.GetFileName(file) + "\n")); digest.AppendData(File.ReadAllBytes(file)); }
         string hash = Convert.ToHexStringLower(digest.GetHashAndReset());
-        string name = "CorelMcp_Runtime_v1_" + hash[..12];
+        string name = demo ? "CorelMcp_DuplicateDemo" : "CorelMcp_Runtime_v1_" + hash[..12];
         using var mutex = new Mutex(false, @"Local\CorelDrawMcp_v27");
         if (!mutex.WaitOne(0)) throw new InvalidOperationException("COM занят.");
         try
@@ -120,7 +122,7 @@ internal static class Program
                 int count = (int)code.CountOfLines; if (count > 0) code.DeleteLines(1, count);
                 code.AddFromString(text); component.Activate();
             }
-            Add("M_BuildInfo", "Option Explicit\r\nPublic Const SourceHash As String = \"" + hash + "\"\r\n");
+            if (!demo) Add("M_BuildInfo", "Option Explicit\r\nPublic Const SourceHash As String = \"" + hash + "\"\r\n");
             foreach (string file in files) Add(Path.GetFileNameWithoutExtension(file), File.ReadAllText(file, Encoding.UTF8));
             editor.ActiveVBProject = selected;
             File.WriteAllText(Path.Combine(output, "build-provenance.json"), JsonSerializer.Serialize(new {

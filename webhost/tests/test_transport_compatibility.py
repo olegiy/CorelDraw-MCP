@@ -9,7 +9,7 @@ async def test_node_v2_catalog_and_structured_content(transport_factory):
     try:
         catalog = await transport.session.list_tools()
         names = {tool.name for tool in catalog.tools}
-        assert len(names) == 41
+        assert len(names) == 43
         assert {'corel_get_job', 'corel_import', 'corel_layout_shapes', 'corel_edit_text',
                 'corel_create_batch', 'corel_update_batch', 'corel_set_transparency',
                 'corel_apply_drop_shadow'} <= names

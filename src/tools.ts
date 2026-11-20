@@ -53,6 +53,22 @@ export interface Definition {
 export const toolDefinitions: Record<string, Definition> = {
   ...drawingToolDefinitions,
   ...batchToolDefinitions,
+  corel_list_macros: {
+    schema: z.strictObject({}),
+    readOnly: true,
+    description: 'Показать доступность зарегистрированного тестового VBA-макроса.',
+  },
+  corel_run_macro: {
+    schema: z.strictObject({
+      ...request, ...document, page_index: pageIndex,
+      macro_id: z.literal('duplicate_demo'),
+      static_ids: z.array(z.number().int().positive().max(2147483647)).length(1),
+      parameters: z.strictObject({ count: z.number().int().min(1).max(1000) }),
+      ...deadline,
+    }),
+    readOnly: false,
+    description: 'Запустить проверенный VBA-макрос duplicate_demo для одной фигуры. Возвращает job_id.',
+  },
   corel_status: {
     schema: z.strictObject({ ...deadline }),
     readOnly: true,

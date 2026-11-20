@@ -42,11 +42,12 @@ powershell -NoProfile -File scripts/Install-CorelMcp.ps1
 установка панели не запускает CorelDRAW и не регистрирует Codex автоматически.
 [Запуск](docs/launch-and-use.md), [краткая памятка](docs/quick-start.md).
 
-## 39 инструментов
+## 43 инструмента
 
 | Группа | Возможности |
 | --- | --- |
 | Документы | status, inspect, create/open/save/close точного документа |
+| Тестовые VBA-макросы | list_macros, run_macro для одного проверенного GMS. [Подготовка и проверка](docs/duplicate-demo.md) |
 | Рисование | create_shapes, transform, duplicate, style, layers, group, boolean, create_text, convert_to_curves |
 | Производство | inspect/create/edit curve, find/edit text, preflight |
 | Раскладка | align_shapes, grid_duplicate, layout_shapes dry_run/apply |

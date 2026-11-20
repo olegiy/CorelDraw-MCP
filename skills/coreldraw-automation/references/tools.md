@@ -2,7 +2,7 @@
 
 Сервер возвращает `job_id` сразу после принятия вызова. Для результата вызывайте `corel_get_job(job_id, wait_seconds=20)`. Опрос читает сохранённый отчёт и не обращается к CorelDRAW. `include_preview=true` прикрепляет готовый PNG только для задания `corel_preview`. Для preview допустимы `target=page|selection` (псевдоним `range` сохраняется для совместимости); в режиме selection выделение должно быть непустым.
 
-Сервер публикует 41 инструмент. Единственный backend — C# STA; произвольный код не исполняется, runtime fallback отсутствует.
+Сервер публикует 43 инструмента. Единственный backend — C# STA; запуск VBA поддерживается для фиксированного тестового GMS.
 Инструменты доступны без разрешительного config и подтверждений.
 Старый `%LOCALAPPDATA%\CorelDrawMcp\config.json` не читается, не изменяется и
 не удаляется; прежний `tool_policy` остаётся только историческими данными.
@@ -42,6 +42,8 @@
 | `corel_transform_shapes` | Переместить, масштабировать, повернуть или отразить точные StaticID. Явный anchor в мм; scale только положительный. Возвращает job_id. |
 | `corel_create_shapes` | Создать до 100 прямоугольников, эллипсов или линий на точном слое. Координаты в мм от нижнего левого угла страницы. Возвращает job_id. |
 | `corel_status` | Состояние CorelDRAW 27, VBA, executor и точные `document_id`; `vba.temporary_projects` содержит `complete`, `idle`, `gms` (имя/путь временных проектов) и `vbe_names` для отдельного подтверждения выгрузки retained GMS в панели. Ничего не выгружает; `deadline_seconds` по умолчанию 600. |
+| `corel_list_macros` | Локальный каталог фиксированных макросов. `configured` означает, что указан тестовый артефакт. Его целостность проверяется при запуске. |
+| `corel_run_macro` | `duplicate_demo` создаёт от 1 до 1000 копий одной фигуры верхнего уровня. Требуется проверенный тестовый GMS. Отчёт возвращает ID копий по фактическому состоянию страницы. |
 | `corel_inspect_document` | `document_id`; страница, `offset`/`limit` до 500, `recursive`, `max_depth` 1–32, `max_visited`, фильтры имени/типа/`static_ids`, `include_text`, `text_limit`. Возвращает DFS-объекты с `parent_static_id`, bounds в мм, rotation, appearance, reference point, выделение и причины усечения. |
 | `corel_create_document` | `request_id`, размеры `width_mm`/`height_mm` (по умолчанию 210×297), новый `document_id`. |
 | `corel_open_document` | `request_id`, абсолютный путь к `.cdr`; уже открытый файл возвращает его текущий ID. |
@@ -157,6 +159,8 @@ placements/unplaced/layout_revision, сохраняя исходник. Apply т
   "corel_create_text": "Создать artistic или paragraph текст с явным установленным шрифтом. BMP Unicode; неподдерживаемые символы отклоняются до мутации. Возвращает job_id.",
   "corel_convert_to_curves": "Преобразовать точные поддержанные фигуры или текст в кривые после проверки всех целей. Bitmap и эффекты не поддерживаются. Возвращает job_id.",
   "corel_status": "Подключиться к CorelDRAW 27: версия, состояние приложения и точные ID документов. Возвращает job_id.",
+  "corel_list_macros": "Показать доступность зарегистрированного тестового VBA-макроса.",
+  "corel_run_macro": "Запустить проверенный VBA-макрос duplicate_demo для одной фигуры. Возвращает job_id.",
   "corel_inspect_document": "Ограниченная инспекция страницы и групп: StaticID, родитель, габариты, оформление, выделение. Текст только include_text=true. Возвращает job_id.",
   "corel_create_document": "Создать несохранённый документ в миллиметрах и вернуть document_id через задание.",
   "corel_open_document": "Открыть CDR и получить document_id. Возвращает job_id.",
@@ -208,6 +212,8 @@ legacy range, затем page; отдельного schema-default для target
 {"tool":"corel_create_text","required":[],"defaults":{},"enums":{}}
 {"tool":"corel_convert_to_curves","required":["request_id","document_id","page_index","static_ids"],"defaults":{"deadline_seconds":600},"enums":{}}
 {"tool":"corel_status","required":[],"defaults":{"deadline_seconds":600},"enums":{}}
+{"tool":"corel_list_macros","required":[],"defaults":{},"enums":{}}
+{"tool":"corel_run_macro","required":["request_id","document_id","page_index","macro_id","static_ids","parameters"],"defaults":{"deadline_seconds":600},"enums":{}}
 {"tool":"corel_inspect_document","required":["document_id"],"defaults":{"offset":0,"limit":100,"recursive":false,"max_depth":8,"max_visited":10000,"include_text":false,"text_limit":1000,"deadline_seconds":600},"enums":{}}
 {"tool":"corel_create_document","required":["request_id"],"defaults":{"width_mm":210,"height_mm":297,"deadline_seconds":600},"enums":{}}
 {"tool":"corel_open_document","required":["request_id","path"],"defaults":{"deadline_seconds":600},"enums":{}}

@@ -13,6 +13,9 @@ internal interface IDeadlineArguments { int DeadlineSeconds { get; } }
 internal interface IDocumentArguments { string DocumentId { get; } }
 internal interface IRequestArguments { string RequestId { get; } }
 internal sealed record StatusArguments(int DeadlineSeconds = 600) : IDeadlineArguments;
+internal sealed record MacroParameters(int Count);
+internal sealed record RunMacroArguments(string RequestId, string DocumentId, int PageIndex, string MacroId,
+    int[] StaticIds, MacroParameters Parameters, int DeadlineSeconds = 600) : IRequestArguments, IDocumentArguments, IDeadlineArguments;
 internal sealed record CreateDocumentArguments(string RequestId, double WidthMm = 210, double HeightMm = 297, int DeadlineSeconds = 600) : IRequestArguments, IDeadlineArguments;
 internal sealed record OpenDocumentArguments(string RequestId, string Path, int DeadlineSeconds = 600) : IRequestArguments, IDeadlineArguments;
 internal sealed record SaveDocumentArguments(string RequestId, string DocumentId, string? Path = null, int DeadlineSeconds = 600) : IRequestArguments, IDocumentArguments, IDeadlineArguments;
@@ -54,6 +57,7 @@ internal static class OperationContracts
             value = tool switch
             {
                 "corel_status" => Read<StatusArguments>(args),
+                "corel_run_macro" => Read<RunMacroArguments>(args),
                 "corel_create_document" => Read<CreateDocumentArguments>(args),
                 "corel_open_document" => Read<OpenDocumentArguments>(args),
                 "corel_save_document" => Read<SaveDocumentArguments>(args),
@@ -72,6 +76,12 @@ internal static class OperationContracts
         if (value is IDocumentArguments doc) Require(doc.DocumentId, 100, "document_id");
         switch (value)
         {
+            case RunMacroArguments macro:
+                Page(macro.PageIndex);
+                StaticIds(macro.StaticIds);
+                if (macro.MacroId != "duplicate_demo" || macro.StaticIds.Length != 1) Invalid("macro_id/static_ids");
+                Range(macro.Parameters.Count, 1, 1000, "parameters.count");
+                break;
             case CreateDocumentArguments create:
                 Dimension(create.WidthMm); Dimension(create.HeightMm); break;
             case OpenDocumentArguments open: AbsolutePath(open.Path); break;
